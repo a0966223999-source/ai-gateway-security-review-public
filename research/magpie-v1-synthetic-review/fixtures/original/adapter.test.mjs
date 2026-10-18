@@ -1,0 +1,20 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {executeMock,validateRequest} from "./adapter.mjs";
+const request={model:"mock-model",protocol:"chat",requestId:"r1",tenantRef:"t1"};
+const grant={verified:true,tenantRef:"t1",scope:"model:invoke"};
+const ok=()=>({requestId:"r1",status:200,usageVerified:true,usage:{tokens:2}});
+test("valid request",()=>assert.equal(validateRequest(request).ok,true));
+test("unknown protocol",()=>assert.equal(validateRequest({...request,protocol:"other"}).ok,false));
+test("extra fields denied",()=>assert.equal(validateRequest({...request,apiKey:"secret"}).ok,false));
+test("missing grant denied",()=>assert.equal(executeMock({request,transport:ok}).status,"DENIED"));
+test("tenant mismatch denied",()=>assert.equal(executeMock({request,grant:{...grant,tenantRef:"t2"},transport:ok}).status,"DENIED"));
+test("scope denied",()=>assert.equal(executeMock({request,grant:{...grant,scope:"read"},transport:ok}).status,"DENIED"));
+test("mock accepted",()=>assert.equal(executeMock({request,grant,transport:ok}).status,"MOCK_ACCEPTED"));
+test("usage missing unknown",()=>assert.equal(executeMock({request,grant,transport:()=>({...ok(),usageVerified:false})}).status,"UNKNOWN"));
+test("partial stream unknown",()=>assert.equal(executeMock({request,grant,transport:()=>({...ok(),partial:true})}).status,"UNKNOWN"));
+test("receipt mismatch unknown",()=>assert.equal(executeMock({request,grant,transport:()=>({...ok(),requestId:"r2"})}).status,"UNKNOWN"));
+test("upstream 429 denied without retry",()=>{let n=0;const out=executeMock({request,grant,transport:()=>{n++;return {...ok(),status:429}}});assert.equal(out.status,"DENIED");assert.equal(n,1)});
+test("upstream 500 denied without retry",()=>{let n=0;const out=executeMock({request,grant,transport:()=>{n++;return {...ok(),status:500}}});assert.equal(out.status,"DENIED");assert.equal(n,1)});
+test("transport failure unknown",()=>assert.equal(executeMock({request,grant,transport:()=>{throw Error("secret")}}).code,"TRANSPORT_UNKNOWN"));
+
