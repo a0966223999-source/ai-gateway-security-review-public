@@ -1,0 +1,4 @@
+MAGPIE_SYNTHETIC_GIT_WRITE_PROBE_V1
+2026-10-19
+Synthetic marker only. No private source, token, credential, model, or deployment.
+Target: existing review branch; production and main must remain untouched.
