@@ -141,7 +141,7 @@ server.on('clientError', (error, socket) => {
 server.requestTimeout = 10_000;
 server.headersTimeout = 5_000;
 server.timeout = 10_000;
-server.maxHeadersCount = 20;
+server.maxHeadersCount = 32;
 server.maxConnections = 8;
 server.listen(port, '0.0.0.0');
 process.on('SIGTERM', () => server.close(() => process.exit(0)));
