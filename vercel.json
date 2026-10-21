@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": "synthetic-tests/vercel-field",
+  "routes": [
+    { "src": "^/$", "methods": ["GET", "HEAD"], "dest": "/index.html" },
+    { "src": "^/index\\.html$", "methods": ["GET", "HEAD"], "dest": "/index.html" },
+    { "src": "/.*", "status": 404 }
+  ]
+}
