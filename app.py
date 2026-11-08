@@ -60,7 +60,7 @@ return {'found',redis.call('HGET',KEYS[1],'payload'),redis.call('TTL',KEYS[1])}
 '''
 
 def call(script, key, *args):
-    url = os.getenv("XJ_PREVIEW_REDIS_URL", "")
+    url = os.getenv("XJ_PREVIEW_REDIS_URL") or os.getenv("REDIS_URL", "")
     try:
         endpoint = urlsplit(url)
         if endpoint.scheme != "rediss" or not endpoint.hostname or endpoint.query or endpoint.fragment:
