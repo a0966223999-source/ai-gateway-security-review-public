@@ -19,7 +19,25 @@ if action=='send' or action=='subscribe' then
  for id,d in pairs(doc.deliveries) do if d.expires_at<=now then doc.deliveries[id]=nil end end
  for id,s in pairs(doc.subscriptions) do if not active(s) then doc.subscriptions[id]=nil end end
 end
-if action=='send' then
+if action=='subscription_status' then
+ if req.event_name~='gateway.continuation.ready' then return error('formal_event_required') end
+ local items={}
+ for sid,s in pairs(doc.subscriptions) do
+  if event_name(s)=='gateway.continuation.ready' then
+   if type(sid)~='string' or #sid~=68 or not string.match(sid,'^sub_[0-9a-f]+$')
+      or type(s.expires_at)~='number' or type(s.access_until)~='number' then
+    return error('subscription_metadata_invalid')
+   end
+   table.insert(items,{id=sid,event_name='gateway.continuation.ready',
+    expires_at=s.expires_at,access_until=s.access_until,active=active(s) and true or false})
+  end
+ end
+ table.sort(items,function(a,b) return a.id<b.id end)
+ return result({items=items,count=#items,record_present=raw~=false and raw~=nil,
+  observed_at=now,record_ttl_seconds=redis.call('TTL',KEYS[1]),
+  coverage='retained_records_only',historical_completeness=false,
+  original_create_outcome='UNKNOWN'})
+elseif action=='send' then
  local name=req.event_name or 'inbox.message.created'
  if name~='inbox.message.created' and name~='gateway.continuation.ready' then return error('unknown_event') end
  local m=nil

@@ -70,4 +70,12 @@ def install_formal_transport(mcp, mailbox, verifier, principal, oauth_meta):
     async def gateway_inbox_delivery_status(mailbox_id: str,delivery_id: str = '') -> dict:
         """Read formal callback delivery receipts. Does not expose secrets; 2xx is delivery, not native Work completion."""
         return await asyncio.to_thread(box(mailbox_id).delivery_status,delivery_id)
+    @mcp.tool(meta=oauth_meta, annotations=annotation(read=True,idempotent=True))
+    async def gateway_inbox_subscription_status() -> dict:
+        """Read retained subscription metadata for the fixed original owner/mailbox. Includes retained expired entries, not deleted history; absence does not resolve an unknown create. No callbacks or credentials are returned."""
+        inbox = box(MAILBOX)
+        if transport_authority('subscription_status', inbox, None) is not True:
+            raise InboxError('formal_authority_required')
+        return await asyncio.to_thread(inbox.subscription_status)
+
     return formal

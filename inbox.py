@@ -73,6 +73,14 @@ class Inbox:
             raise InboxError(value['error'])
         return value
 
+    def subscription_status(self):
+        """Read retained formal subscription metadata without extending document TTL."""
+        if self.event_name != 'gateway.continuation.ready':
+            raise InboxError('formal_event_required')
+        result = self.run('subscription_status')
+        result['items'] = result['items'] or []
+        return result
+
     def send(self, operation_key, message, *, event_name='inbox.message.created'):
         if event_name not in ('inbox.message.created', 'gateway.continuation.ready'):
             raise InboxError('unknown_event')
