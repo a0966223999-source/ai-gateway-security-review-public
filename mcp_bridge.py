@@ -14,6 +14,9 @@ from mcp_events import Events
 from events_transport import install_events_transport
 from event_catalog import EventCatalog
 from formal_transport import install_formal_transport
+from mcp_installer import install_rpc_tools
+from rpc_diagnostics import install_rpc_diagnostic
+from rpc_host_config import host_rpc_config
 
 
 def install(api_app, write_event, read_event, event_model):
@@ -124,5 +127,8 @@ def install(api_app, write_event, read_event, event_model):
                 yield
     api_app.router.lifespan_context = lifespan
     formal = install_formal_transport(mcp, mailbox, verifier, principal, oauth_meta)
+    rpc_config = host_rpc_config()
+    install_rpc_tools(mcp, mailbox, formal, principal, oauth_meta, host_config=rpc_config)
+    install_rpc_diagnostic(mcp, principal, oauth_meta, host_config=rpc_config)
     api_app.mount('/', install_events_transport(mcp, EventCatalog(events, formal)))
     return mcp
