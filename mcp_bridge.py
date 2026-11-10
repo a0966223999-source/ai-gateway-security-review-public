@@ -17,6 +17,9 @@ from formal_transport import install_formal_transport
 from mcp_installer import install_rpc_tools
 from rpc_diagnostics import install_rpc_diagnostic
 from rpc_host_config import host_rpc_config
+from service_extension import install_generation_tools
+from generation_host_config import host_generation_config
+from cycle_envelope import CycleAwareEventCatalog
 
 
 def install(api_app, write_event, read_event, event_model):
@@ -130,5 +133,10 @@ def install(api_app, write_event, read_event, event_model):
     rpc_config = host_rpc_config()
     install_rpc_tools(mcp, mailbox, formal, principal, oauth_meta, host_config=rpc_config)
     install_rpc_diagnostic(mcp, principal, oauth_meta, host_config=rpc_config)
-    api_app.mount('/', install_events_transport(mcp, EventCatalog(events, formal)))
+    generation = install_generation_tools(mcp, mailbox, formal, principal, oauth_meta,
+        generation_config=host_generation_config())
+    catalog = EventCatalog(events, formal)
+    if generation['enabled']:
+        catalog = CycleAwareEventCatalog(catalog)
+    api_app.mount('/', install_events_transport(mcp, catalog))
     return mcp
