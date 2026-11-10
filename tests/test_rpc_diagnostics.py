@@ -51,12 +51,24 @@ class Tests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result['configured'])
         self.assertFalse(config['budgets_verified'])
 
-    async def test_above_sixty_and_invalid_host_limits(self):
-        config=dict(self.config,diagnostic_max_wait_seconds=60)
-        with self.assertRaises(ValueError):await measure_await(61,principal=lambda:'owner',host_config=config)
-        for limit in (0,-1,61,True,float('inf')):
+    async def test_above_one_eighty_and_invalid_host_limits(self):
+        config=dict(self.config,diagnostic_max_wait_seconds=180)
+        with self.assertRaises(ValueError):await measure_await(181,principal=lambda:'owner',host_config=config)
+        for limit in (0,-1,181,True,float('inf')):
             config=dict(self.config,diagnostic_max_wait_seconds=limit)
             with self.assertRaises(ValueError):await measure_await(.001,principal=lambda:'owner',host_config=config)
+
+    async def test_host_configured_120_second_probe_mock_only(self):
+        config=dict(self.config,diagnostic_max_wait_seconds=180,budgets_verified=False)
+        with patch('rpc_diagnostics.asyncio.sleep',new_callable=AsyncMock) as sleep, \
+                patch('rpc_diagnostics.time.monotonic',side_effect=[100,220.02]):
+            result=await measure_await(120,principal=lambda:'owner',host_config=config)
+            sleep.assert_awaited_once_with(120)
+        self.assertEqual(result['observed_minimum_supported_seconds'],120)
+        self.assertFalse(result['maximum_timeout_verified'])
+        self.assertFalse(result['configured'])
+        for field in ('source_accessed','event_sent','state_written','host_reply_verified','end_to_end_performance_verified'):
+            self.assertFalse(result[field])
 
     async def test_missing_owner_denied(self):
         for owner in ('',None):

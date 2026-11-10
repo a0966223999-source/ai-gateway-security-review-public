@@ -28,7 +28,7 @@ async def measure_await(seconds, *, principal, host_config):
     if not isinstance(host_config,dict) or host_config.get('diagnostic_enabled') is not True:
         raise ValueError('DIAGNOSTIC_DISABLED')
     limit=host_config.get('diagnostic_max_wait_seconds',5)
-    if type(limit) not in (int,float) or not math.isfinite(limit) or not 0<limit<=60:
+    if type(limit) not in (int,float) or not math.isfinite(limit) or not 0<limit<=180:
         raise ValueError('DIAGNOSTIC_HOST_LIMIT_INVALID')
     if type(seconds) not in (int,float) or not math.isfinite(seconds) or not 0<seconds<=limit:
         raise ValueError('DIAGNOSTIC_WAIT_OUTSIDE_HOST_BOUND')
@@ -54,11 +54,11 @@ def install_rpc_diagnostic(mcp, principal, oauth_meta, *, host_config):
     if not isinstance(host_config,dict) or host_config.get('diagnostic_enabled') is not True:
         return {'installed':False,'reason':'DIAGNOSTIC_DISABLED'}
     limit=host_config.get('diagnostic_max_wait_seconds',5)
-    if type(limit) not in (int,float) or not math.isfinite(limit) or not 0<limit<=60:
+    if type(limit) not in (int,float) or not math.isfinite(limit) or not 0<limit<=180:
         return {'installed':False,'reason':'DIAGNOSTIC_HOST_LIMIT_INVALID'}
     @mcp.tool(meta=oauth_meta,annotations=ToolAnnotations(readOnlyHint=True,
         destructiveHint=False,idempotentHint=True,openWorldHint=False))
     async def gateway_source_rpc_diagnostic(wait_seconds:float=5)->dict:
-        """Read-only single await measurement (host-enabled bound, at most 60 seconds), public-key fingerprint and configuration flag. No Source/event/write or host reply test; not a timeout or full-path performance guarantee."""
+        """Read-only single await measurement (host-enabled bound, at most 180 seconds), public-key fingerprint and configuration flag. No Source/event/write or host reply test; not a timeout or full-path performance guarantee."""
         return await measure_await(wait_seconds,principal=principal,host_config=host_config)
     return {'tool':'gateway_source_rpc_diagnostic','max_wait_seconds':limit,'installed':True}

@@ -34,7 +34,7 @@ Host configuration defaults to disabled:
 - function_budget_seconds: verified deployed function bound; no default.
 - connector_budget_seconds: conservative observed/verified client bound; no default.
 - diagnostic_enabled: false.
-- diagnostic_max_wait_seconds: 5 by default, at most 60.
+- diagnostic_max_wait_seconds: 5 by default, at most 180.
 
 XJ_SOURCE_RPC_HOST_PUBLIC_KEY must contain the fixed host public Ed25519 key as
 64 lowercase hex characters. Do not publish or configure a private key here.
@@ -50,7 +50,7 @@ install_rpc_diagnostic(mcp, principal, oauth_meta, host_config=host_rpc_config)
 Requires explicit diagnostic_enabled. It performs only a bounded async await,
 returns elapsed time/public-key fingerprint/configured status, and does not
 access Source/Redis, send events or write state. A later 45-second diagnostic
-can support an observed minimum client lifetime when enabled up to 60 seconds.
+can support an observed minimum client lifetime when enabled up to 180 seconds.
 It cannot establish maximum timeout, host responsiveness, or future reliability,
 and never changes budgets_verified. No such long live probe was run here.
 
@@ -82,3 +82,5 @@ ordinary Work access. Verify deployed function/client budgets before activation.
 Original Receiver's completed/idle Work gate remains unchanged: synchronous MCP
 completion while Work is active does not itself provide a later completion wake.
 Do not label an enqueue receipt as successful automatic continuation.
+
+Host integration timing note: a measured real functions V8 registration child took 26.9 seconds before discovery and semantic review. A 30-second full first-registration budget is not established. Longer read-only diagnostic measurements must pass before configuring a larger RPC budget. The default RPC wait stays 30 and Source RPC remains disabled until host verification.

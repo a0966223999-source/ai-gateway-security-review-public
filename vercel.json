@@ -1,1 +1,8 @@
-{"framework":"fastapi","functions":{"app.py":{"maxDuration":60}}}
+{
+  "framework": "fastapi",
+  "functions": {
+    "app.py": {
+      "maxDuration": 180
+    }
+  }
+}
