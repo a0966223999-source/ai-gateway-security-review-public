@@ -94,3 +94,12 @@ def read_event(event_id: str, principal: str = Depends(authorize)):
     if value[0] == 'missing':
         raise HTTPException(404, 'Event not found')
     return {**json.loads(value[1]),'ttl_seconds':value[2],'duplicate':False,'synthetic':True}
+
+
+# XJ_INTERNAL_MAILBOX_FIRST_BINDING_V1: explicit approved original-service scope.
+from vercel_host import build_original_service as _xj_service
+from routes import install_internal_route as _xj_install
+_xj_install(app, service=_xj_service(approved_bootstrap=True))
+
+from mcp_bridge import install
+_mcp = install(app, write_event, read_event, SyntheticEvent)
