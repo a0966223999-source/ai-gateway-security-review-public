@@ -126,6 +126,18 @@ def signed_headers(sid, event_id, body, keys):
             'X-MCP-Subscription-Id': sid}
 
 
+def subscription_record(reply):
+    """Fail closed on an invalid lookup; never infer absence from malformed data."""
+    if type(reply) is not dict:
+        raise InboxError('subscription_lookup_invalid_container')
+    if 'subscription' not in reply:
+        raise InboxError('subscription_lookup_missing_field')
+    record = reply['subscription']
+    if record is not None and type(record) is not dict:
+        raise InboxError('subscription_lookup_invalid_record')
+    return record
+
+
 class Events:
     def __init__(self, inbox_factory, verifier, sender=post_webhook, box=None, *,
                  event_name=EVENT_NAME, authorize_event=None):
@@ -204,7 +216,9 @@ class Events:
         if expires <= now:
             raise InboxError('access_expired')
         emit('lookup_started')
-        old = (await asyncio.to_thread(inbox.run, 'subscription_get', id=sid))['subscription']
+        lookup = await asyncio.to_thread(inbox.run, 'subscription_get', id=sid)
+        emit('lookup_returned')
+        old = subscription_record(lookup)
         emit('lookup_complete')
         challenge = secrets.token_urlsafe(32)
         body = canonical({'type': 'verification', 'challenge': challenge}).encode()
@@ -270,7 +284,8 @@ class Events:
                         state = 'terminal'
                         break
                     # Unsubscribe and access-expiration checks precede each attempt.
-                    current = (await asyncio.to_thread(inbox.run, 'subscription_get', id=subscription['id']))['subscription']
+                    current = subscription_record(await asyncio.to_thread(
+                        inbox.run, 'subscription_get', id=subscription['id']))
                     if not current or current['expires_at'] <= time.time() or current['access_until'] <= time.time():
                         state = 'terminal'
                         break
