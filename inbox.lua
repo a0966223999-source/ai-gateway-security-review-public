@@ -96,7 +96,8 @@ elseif action=='claim' or action=='ack' or action=='release' then
  return save({event_id=m.event_id,state=m.state})
 elseif action=='subscription_get' then
  local s=doc.subscriptions[req.id]
- return result({subscription=active(s) and s or cjson.null})
+ if active(s) then return result({found=true,subscription=s}) end
+ return result({found=false})
 elseif action=='subscribe' then
  local old=doc.subscriptions[req.subscription.id]
  if not old and count(doc.subscriptions)>=10 then return error('subscription_limit') end

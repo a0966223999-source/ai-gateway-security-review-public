@@ -127,13 +127,19 @@ def signed_headers(sid, event_id, body, keys):
 
 
 def subscription_record(reply):
-    """Fail closed on an invalid lookup; never infer absence from malformed data."""
+    """Use explicit presence; malformed/legacy empty containers fail closed."""
     if type(reply) is not dict:
         raise InboxError('subscription_lookup_invalid_container')
-    if 'subscription' not in reply:
+    if 'found' not in reply:
         raise InboxError('subscription_lookup_missing_field')
-    record = reply['subscription']
-    if record is not None and type(record) is not dict:
+    if type(reply['found']) is not bool:
+        raise InboxError('subscription_lookup_invalid_presence')
+    if not reply['found']:
+        if set(reply) != {'found'}:
+            raise InboxError('subscription_lookup_ambiguous_absence')
+        return None
+    record = reply.get('subscription')
+    if type(record) is not dict or not record:
         raise InboxError('subscription_lookup_invalid_record')
     return record
 
