@@ -19,6 +19,7 @@ import httpcore
 from httpcore._backends.anyio import AnyIOBackend
 
 from inbox import InboxError, canonical, identifier
+from subscription_diagnostics import emit, trace_rpc
 
 EVENT_NAME = 'inbox.message.created'
 EVENT = {
@@ -146,6 +147,10 @@ class Events:
         return self._box
 
     async def rpc(self, method, params, token):
+        return await trace_rpc(method, self.event_name, lambda: self._rpc(method, params, token))
+
+    async def _rpc(self, method, params, token):
+        emit('validation')
         if not isinstance(params, dict):
             raise InboxError('invalid_params')
         if method == 'events/list':
@@ -167,6 +172,7 @@ class Events:
         inbox = self.inbox_factory(mailbox).for_event(self.event_name)
         if self.event_name != EVENT_NAME and self.authorize_event(method, inbox, None) is not True:
             raise InboxError('formal_authority_required')
+        emit('authority_passed')
         delivery = params.get('delivery', {})
         if not isinstance(delivery, dict) or delivery.get('mode') != 'webhook':
             raise InboxError('unsupported_delivery')
@@ -174,8 +180,11 @@ class Events:
         validate_url(url)
         sid = 'sub_' + hashlib.sha256(canonical(
             [inbox.owner, url, self.event_name, arguments]).encode()).hexdigest()
+        emit('identity_bound', identity=sid)
         if method == 'events/unsubscribe':
+            emit('cleanup_started')
             await asyncio.to_thread(inbox.run, 'unsubscribe', id=sid)
+            emit('cleanup_confirmed')
             return {}
         if method != 'events/subscribe':
             raise InboxError('unknown_method')
@@ -183,7 +192,9 @@ class Events:
             raise InboxError('replay_unsupported')
         key = delivery.get('secret')
         secret_bytes(key)
+        emit('encryption_started')
         box = self.box
+        emit('encryption_ready')
         now = int(time.time())
         requested = params.get('ttlMs', 86400000)
         if requested is not None and (type(requested) is not int or requested < 1000):
@@ -192,17 +203,22 @@ class Events:
         expires = min(now + ttl, token.expires_at or now)
         if expires <= now:
             raise InboxError('access_expired')
+        emit('lookup_started')
         old = (await asyncio.to_thread(inbox.run, 'subscription_get', id=sid))['subscription']
+        emit('lookup_complete')
         challenge = secrets.token_urlsafe(32)
         body = canonical({'type': 'verification', 'challenge': challenge}).encode()
         verification_id = 'verify_' + secrets.token_hex(16)
+        emit('callback_started')
         try:
             status, response = await self.sender(url, signed_headers(sid, verification_id, body, [key]), body, 3)
+            emit('callback_response', http_status=status)
             echoed = json.loads(response).get('challenge', '')
-            if not 200 <= status < 300 or not isinstance(echoed, str) or not hmac.compare_digest(challenge, echoed):
+            if not 200 <= status < 300 or not isinstance(echoed, str) or not echoed.isascii() or not hmac.compare_digest(challenge, echoed):
                 raise InboxError('callback_challenge_failed')
         except (OSError, TimeoutError, httpcore.NetworkError, httpcore.TimeoutException, ValueError, AttributeError):
             raise InboxError('callback_verification_failed') from None
+        emit('callback_verified')
         protected = {'secret': key, 'access_token': token.token}
         if old:
             previous = box.open(old['protected'], sid)
@@ -214,8 +230,10 @@ class Events:
         subscription = {'event_name': self.event_name, 'id': sid, 'url': url, 'expires_at': expires,
                         'access_until': token.expires_at, 'revision': secrets.token_hex(16),
                         'protected': box.seal(protected, sid)}
+        emit('save_started')
         await asyncio.to_thread(inbox.run, 'subscribe', subscription=subscription,
                                 expected_revision=old['revision'] if old else '')
+        emit('save_confirmed')
         return {'id': sid, 'refreshBefore': iso(expires), 'cursor': None, 'truncated': False}
 
     async def deliver(self, inbox, delivery_id, deadline=None):

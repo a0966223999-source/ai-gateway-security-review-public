@@ -9,6 +9,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from inbox import InboxError
+from subscription_diagnostics import trace_rpc
 
 
 class EventsEndpoint:
@@ -41,7 +42,10 @@ class EventsEndpoint:
                 response['error'] = {'code': -32600, 'message': 'Invalid Events request'}
             else:
                 try:
-                    response['result'] = await self.events.rpc(payload['method'], payload.get('params', {}), get_access_token())
+                    params = payload.get('params', {})
+                    event = params.get('name') if isinstance(params, dict) else None
+                    response['result'] = await trace_rpc(payload['method'], event,
+                        lambda: self.events.rpc(payload['method'], params, get_access_token()))
                 except InboxError as error:
                     code = -32015 if str(error).startswith('callback_') or str(error) == 'non_public_callback' else -32602
                     response['error'] = {'code': code, 'message': 'Events request failed', 'data': {'reason': str(error)}}
