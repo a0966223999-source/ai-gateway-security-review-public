@@ -105,3 +105,11 @@ const outcome = await host.submit(prepared);
 `functions_device_host_bundle.mjs` 是同一組已測試程式的單檔版，供原 functions
 宿主載入；移除底部兩個 `export ` 前綴即可取得 `createOfficialDeviceHost`。
 載入或安裝本身沒有外部效果。不要在不同 functions cell 假裝保有同一物件。
+
+### functions 執行環境相容性
+
+單檔內含私有 UTF-8 相容層，供沒有 Web `TextEncoder` 的 functions V8 使用。
+它只補原 producer 的字串位元組長度檢查依賴，不修改全域或原 v2 程式。
+初版僅驗載入，未在真 functions 呼叫準備階段，漏掉此依賴；修正版已在無
+TextEncoder 的 V8 測試及真 functions 完成兩個入口的合成準備檢查。
+這些檢查沒有呼叫外部工具，不是實際 Work 身分或自喚醒驗收。

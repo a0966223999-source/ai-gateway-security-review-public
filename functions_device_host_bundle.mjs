@@ -3,6 +3,26 @@
  * Construct with the real tools and current protected deniedThreadIds.
  */
 const producer = (() => {
+// functions.exec uses a V8 isolate without the Web TextEncoder global.
+// Keep the published v2 source unchanged and supply this dependency only in
+// this private closure. No global patch, tool call, package or network access.
+const TextEncoder = typeof globalThis.TextEncoder === 'function'
+  ? globalThis.TextEncoder : class TextEncoder {
+    encode(input = '') {
+      const bytes = [];
+      for (const character of String(input)) {
+        let cp = character.codePointAt(0);
+        if (cp >= 0xd800 && cp <= 0xdfff) cp = 0xfffd;
+        if (cp <= 0x7f) bytes.push(cp);
+        else if (cp <= 0x7ff) bytes.push(0xc0 | (cp >> 6), 0x80 | (cp & 0x3f));
+        else if (cp <= 0xffff) bytes.push(0xe0 | (cp >> 12),
+          0x80 | ((cp >> 6) & 0x3f), 0x80 | (cp & 0x3f));
+        else bytes.push(0xf0 | (cp >> 18), 0x80 | ((cp >> 12) & 0x3f),
+          0x80 | ((cp >> 6) & 0x3f), 0x80 | (cp & 0x3f));
+      }
+      return Uint8Array.from(bytes);
+    }
+  };
 /** Official same-mailbox MCP producer. Does not discover or invent target IDs. */
 const REQUEST_TOOL = 'mcp__codex_apps__x_redis_test_gateway_source_rpc_request';
 const MAILBOX_ID = 'gateway_internal_v1';
