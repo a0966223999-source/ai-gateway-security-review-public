@@ -4,6 +4,7 @@ import json
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 import fakeredis.aioredis
 from request_store import RequestStore, SCRIPT
 from transport import canonical, UnknownOutcome
@@ -107,13 +108,16 @@ class Tests(unittest.IsolatedAsyncioTestCase):
                     ('unsubscribe',dict(id=sid)),
                     ('subscription_get',dict(id=sid))]
         results=[]
-        for action,req in operations:
-            req=dict(req,epoch='fixture-epoch')
-            with self.subTest(action=action):
-                a=json.loads(await self.redis.eval(SCRIPT,1,self.key,action,canonical(req)))
-                b=json.loads(await other.eval(ORIGINAL,1,self.key,action,canonical(req)))
-                self.assertEqual(a,b);results.append(a)
-                self.assertEqual(await self.redis.get(self.key),await other.get(self.key))
+        # Compare both fake Redis implementations at the same observed instant.
+        # Sequential TIME calls can otherwise cross a real wall-clock second.
+        with patch('time.time', return_value=time.time()):
+            for action,req in operations:
+                req=dict(req,epoch='fixture-epoch')
+                with self.subTest(action=action):
+                    a=json.loads(await self.redis.eval(SCRIPT,1,self.key,action,canonical(req)))
+                    b=json.loads(await other.eval(ORIGINAL,1,self.key,action,canonical(req)))
+                    self.assertEqual(a,b);results.append(a)
+                    self.assertEqual(await self.redis.get(self.key),await other.get(self.key))
         self.assertEqual(results[0],{'found':False})
         self.assertEqual(results[3],{'found':True,'subscription':subscription})
         self.assertEqual(results[4]['count'],1)

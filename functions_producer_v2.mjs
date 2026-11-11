@@ -44,6 +44,153 @@ export function canonicalTargetLocator(locator) {
   return JSON.stringify(Object.fromEntries(Object.keys(locator).sort().map(k=>[k,locator[k]])));
 }
 
+/** Validate only the existing targeted host's exact, ASCII register request. */
+function validateRegistrationRequest(requestJson) {
+  if (typeof requestJson !== 'string' || !requestJson) fail('REQUEST_JSON_REQUIRED');
+  if (new TextEncoder().encode(requestJson).length > 65536) fail('REQUEST_JSON_SIZE');
+  let request;
+  try {
+    request = JSON.parse(requestJson);
+  } catch {
+    fail('REQUEST_JSON_REQUIRED');
+  }
+  if (!request || typeof request !== 'object' || Array.isArray(request) ||
+      Object.keys(request).sort().join(',') !== 'id,method,params,source,v' ||
+      request.v !== 1 || request.method !== 'register' ||
+      typeof request.id !== 'string' || !/^[0-9a-f]{64}$/u.test(request.id) ||
+      typeof request.source !== 'string' || !/^[0-9a-f]{64}$/u.test(request.source) ||
+      !request.params || typeof request.params !== 'object' ||
+      Array.isArray(request.params) || Object.keys(request.params).length !== 0) {
+    fail('EXACT_REGISTER_REQUEST_REQUIRED');
+  }
+  // The targeted register schema contains only fixed ASCII keys/values and
+  // lowercase hex strings. This is the original canonical representation,
+  // including duplicate-key rejection, without reserializing submitted bytes.
+  const canonical = JSON.stringify({id: request.id, method: 'register', params: {},
+    source: request.source, v: 1});
+  if (requestJson !== canonical) fail('EXACT_CANONICAL_JSON_REQUIRED');
+}
+
+/** Collect explicit Work observations. No route, official reference, or grant. */
+export function prepareWorkSelfReport(options = {}) {
+  const issues = [];
+  const validOptions = options !== null && typeof options === 'object' && !Array.isArray(options);
+  if (!validOptions) issues.push({input: 'options', code: 'OPTIONS_OBJECT_REQUIRED'});
+  const {runtimeIdentifiers, requestJson} = validOptions ? options : {};
+  const observations = {};
+  if (!runtimeIdentifiers || typeof runtimeIdentifiers !== 'object' ||
+      Array.isArray(runtimeIdentifiers)) {
+    issues.push({input: 'runtimeIdentifiers', code: 'RUNTIME_THREAD_HINT_REQUIRED'});
+  } else {
+    for (const [key, error] of [['CODEX_THREAD_ID', 'RUNTIME_THREAD_HINT_REQUIRED'],
+      ['CODEX_ENVIRONMENT_ID', 'RUNTIME_ENVIRONMENT_HINT_INVALID']]) {
+      if (key === 'CODEX_ENVIRONMENT_ID' && runtimeIdentifiers[key] === undefined) continue;
+      try {
+        validateIdentifier(runtimeIdentifiers[key], error);
+        observations[key] = runtimeIdentifiers[key];
+      } catch (error_) {
+        issues.push({input: key, code: error_.message});
+      }
+    }
+  }
+  try {
+    validateRegistrationRequest(requestJson);
+  } catch (error) {
+    issues.push({input: 'requestJson', code: error.message});
+  }
+  const report = Object.freeze({v: 1, kind: 'work-runtime-hints',
+    observations: Object.freeze(observations)});
+  return Object.freeze({
+    status: issues.length ? 'SELF_REPORT_INPUTS_MISSING' : 'SELF_REPORT_PREPARED_UNVERIFIED',
+    issues: Object.freeze(issues.map(issue => Object.freeze(issue))),
+    // Never expose a partially valid report as the next preparation step's input.
+    selfReport: issues.length ? null : report,
+    requestJson: issues.length ? null : requestJson,
+    route: 'UNRESOLVED',
+    identity: 'NOT_VERIFIED',
+    authorization: 'NOT_VERIFIED',
+    registration: 'NOT_RUN',
+  });
+}
+
+/**
+ * Pure input preparation. Makes zero tool calls and creates no authority.
+ *
+ * referenceKind must come from the reference's known official origin, never
+ * from a missing environment, a runtime ID, a role label, or a failed read.
+ * This helper cannot authenticate that origin; the caller must supply it.
+ * Inspect status before explicitly invoking the original submit function.
+ */
+export function prepareTargetedRegistration(options = {}) {
+  const issues = [];
+  const validOptions = options !== null && typeof options === 'object' && !Array.isArray(options);
+  if (!validOptions) issues.push({input: 'options', code: 'OPTIONS_OBJECT_REQUIRED'});
+  const {tools, requestJson, referenceKind, officialReference, selfReport} = validOptions ? options : {};
+  let targetLocator;
+  if (!officialReference || typeof officialReference !== 'object' ||
+      Array.isArray(officialReference)) {
+    issues.push({input: 'officialReference', code: 'LOCATOR_REQUIRED'});
+  } else if (!['cloud-task', 'native-chat'].includes(referenceKind)) {
+    issues.push({input: 'referenceKind', code: 'OFFICIAL_REFERENCE_KIND_REQUIRED'});
+  } else {
+    try {
+      targetLocator = referenceKind === 'cloud-task'
+        ? targetLocatorFromCloudTaskReference(officialReference)
+        : targetLocatorFromNativeChatReference(officialReference);
+      canonicalTargetLocator(targetLocator);
+    } catch (error) {
+      // Report the existing constructor's input error without disclosing data.
+      issues.push({input: 'officialReference', code: error.message});
+    }
+  }
+  if (selfReport !== undefined) {
+    const observations = selfReport?.observations;
+    if (!selfReport || typeof selfReport !== 'object' || Array.isArray(selfReport) ||
+        Object.keys(selfReport).sort().join(',') !== 'kind,observations,v' ||
+        selfReport.v !== 1 || selfReport.kind !== 'work-runtime-hints' ||
+        !observations || typeof observations !== 'object' || Array.isArray(observations) ||
+        Object.keys(observations).some(key => !['CODEX_THREAD_ID', 'CODEX_ENVIRONMENT_ID'].includes(key))) {
+      issues.push({input: 'selfReport', code: 'SELF_REPORT_SCHEMA'});
+    } else {
+      try {
+        validateIdentifier(observations.CODEX_THREAD_ID, 'RUNTIME_THREAD_HINT_REQUIRED');
+        if (Object.hasOwn(observations, 'CODEX_ENVIRONMENT_ID')) {
+          validateIdentifier(observations.CODEX_ENVIRONMENT_ID, 'RUNTIME_ENVIRONMENT_HINT_INVALID');
+        }
+        if (targetLocator && observations.CODEX_THREAD_ID !== targetLocator.threadId) {
+          fail('SELF_REPORT_OFFICIAL_TARGET_MISMATCH');
+        }
+        // Runtime environment is never copied into the official locator, nor
+        // used to infer cloud/native routing. A runtime hint alone does not
+        // establish its mapping to an official, authorized computer reference.
+      } catch (error) {
+        issues.push({input: 'selfReport', code: error.message});
+      }
+    }
+  }
+  try {
+    validateRegistrationRequest(requestJson);
+  } catch (error) {
+    issues.push({input: 'requestJson', code: error.message});
+  }
+  if (!tools || typeof tools[REQUEST_TOOL] !== 'function') {
+    issues.push({input: 'tools', code: 'OFFICIAL_REQUEST_TOOL_REQUIRED'});
+  }
+  const producerArguments = issues.length === 0
+    ? Object.freeze({requestJson, targetLocator: Object.freeze(targetLocator)})
+    : null;
+  return Object.freeze({
+    status: producerArguments ? 'INPUTS_PREPARED_NOT_AUTHORIZED' : 'PREPARATION_BLOCKED',
+    issues: Object.freeze(issues.map(issue => Object.freeze(issue))),
+    producerArguments,
+    // Callable presence does not verify the currently exposed tool schema.
+    officialReferenceProvenance: 'NOT_VERIFIED',
+    toolSchema: 'NOT_VERIFIED',
+    hostVerification: 'NOT_RUN',
+    registration: 'NOT_RUN',
+  });
+}
+
 /** Exactly one official invocation. UNKNOWN_QUERY_ONLY is returned unchanged, never retried. */
 export async function submitTargetedRegistration({tools, requestJson, targetLocator}) {
   const targetLocatorJson = canonicalTargetLocator(targetLocator);

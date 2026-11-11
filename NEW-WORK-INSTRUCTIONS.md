@@ -21,6 +21,58 @@ Cloud locators reject `environmentId`, including null or an empty string. Native
 
 ## Producer usage
 
+### Prepare the Work's self-report without submitting
+
+At Work admission, collect only `CODEX_THREAD_ID` and `CODEX_ENVIRONMENT_ID` with
+`collect_work_self_report.py` in that Work's own execution environment. Never dump
+the environment or copy secrets. These are runtime observations, not an official
+computer reference, a route, a turn admission receipt, or permission.
+
+The same producer module exports `prepareWorkSelfReport` and
+`prepareTargetedRegistration`. Preparation is local and makes zero tool calls.
+Keep the Work's original, never-submitted canonical registration request bytes.
+Do not substitute an empty request, invent an authorized Source, mint another
+nonce for an unknown request, or treat the report as a grant.
+
+```js
+const report = prepareWorkSelfReport({runtimeIdentifiers, requestJson});
+if (report.status !== 'SELF_REPORT_PREPARED_UNVERIFIED') {
+  // Return the structured issues to the caller. Do not continue or submit.
+  return report;
+}
+// route remains UNRESOLVED; identity and authorization remain NOT_VERIFIED.
+
+const preparation = prepareTargetedRegistration({
+  tools, requestJson: report.requestJson, selfReport: report.selfReport,
+  referenceKind, officialReference,
+});
+```
+
+The common entry must obtain `referenceKind` and `officialReference` from a
+supported platform context or an existing authoritative mapping for that exact
+Work. For tasks it actually creates, the creating host can retain its official
+`create_thread` result and pass that result automatically. This is not a way to
+reclassify or replace a user-created Work. There is no implemented generic
+current-Work resolver in this candidate. The runtime self-report cannot fill that
+gap by asserting its own route or computer mapping.
+
+Missing reference and request are reported together in `issues`. The sole
+successful preparation status is `INPUTS_PREPARED_NOT_AUTHORIZED`, never READY or
+PASS. It checks shapes and exact input bytes only. The real tool schema,
+reference provenance, target accessibility, original current USER consent,
+native plan/request declarations and Source fences are not established by it.
+The original host must verify these under its existing current authority before
+registering or saving a continuation checkpoint. If its official read was
+denied, self-report is not new access permission and cannot cause another-route
+retry. No preparation result is final live acceptance.
+
+Manual chat mention can be a supported one-off way to supply a reference, but is
+not the automated common-entry solution and is not required by this design.
+If automatic context is not provided for a Work, retain the report and exact
+missing capability as blocked; do not send a business event to discover a target.
+
+### Submit only after preparation and existing authorization conditions
+
 Use the existing `functions_producer_v2.mjs` compatibility module, which now exports explicit typed constructors. In a JavaScript module with the real official `tools` binding:
 
 ```js
