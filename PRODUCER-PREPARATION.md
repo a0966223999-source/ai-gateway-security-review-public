@@ -1,33 +1,74 @@
-# Work self-report and producer preparation update
+# Work self-report transport and preparation
 
-This additive client release follows explicit cloud/native routing v3. It does not change the original host identity/authorization checks, RPC schema, Source, credentials, or access permissions.
+This local candidate extends the original Source RPC tool with optional
+`self_report_json`. It does not create a service, resolver, route, host identity,
+grant, Source mapping, or new credentials. Publication and live acceptance are
+separate work; this candidate alone establishes neither.
 
-## Included
+## Public API
 
-- `collect_work_self_report.py` reads only `CODEX_THREAD_ID` and `CODEX_ENVIRONMENT_ID` in the reporting Work's execution environment.
-- `prepareWorkSelfReport` preserves allowlisted observations and the original canonical register request. A failed report cannot be forwarded as a valid partial report.
-- `prepareTargetedRegistration` reports all independent input errors before effects, validates exact canonical request bytes, and checks that the reported thread agrees with the separately supplied official target.
-- Both preparation functions handle null/non-object options with structured errors. They perform zero tool calls and return no authorization or readiness verdict.
-- The existing submission, typed locator constructors, and UNKNOWN query-only behavior remain unchanged.
+- `collect_work_self_report.py` reads only `CODEX_THREAD_ID` and `CODEX_ENVIRONMENT_ID` in the reporting Work's own environment.
+- `prepareWorkSelfReport({runtimeIdentifiers, requestJson})` prepares allowlisted observations and unchanged original canonical register request bytes without tool calls.
+- `canonicalWorkSelfReport(selfReport)` strictly validates the report object and serializes its canonical transport bytes.
+- `submitSelfReportedRegistration({tools, requestJson, selfReport})` explicitly makes at most one existing `gateway_source_rpc_request` call with `mailbox_id`, unchanged `request_json`, and `self_report_json`. It does not retry or convert UNKNOWN into success.
+- The existing `prepareTargetedRegistration` and `submitTargetedRegistration` path remains available when a separate verified official reference is already supplied.
+- Python `self_report.validate_self_report(value)` and `self_report.parse_self_report(raw, method='register')` implement the exact schema. `parse_registration_sidebands` enforces mutual exclusion.
 
-## Authority boundary and remaining gap
+## Exact sideband contract
 
-A Work reports hints; the original host verifies identity and current genuine USER authority; only then may continuation registration proceed. Runtime IDs do not grant authority or select a route. The successful preparation state is INPUTS_PREPARED_NOT_AUTHORIZED. Missing official reference, request, or tool stops before submission.
+The sole report shape is `{v:1,kind:"work-runtime-hints",observations:{CODEX_THREAD_ID,optional CODEX_ENVIRONMENT_ID}}`.
+No route, grant, identity, authority, or other keys are permitted. The report must
+be exact sorted compact UTF-8 JSON, at most 2048 bytes, without duplicate fields
+or nonfinite values. Identifiers are nonblank strings, at most 256 UTF-8 bytes,
+without control characters or invalid Unicode.
 
-For Work actually created by the common host, the host can retain the real create result and pass that official context automatically. For arbitrary existing Work, a supported original-host/platform route provider is still required. This release does not implement that generic resolver or self-report transport. An existing native read denial remains terminal unless materially new access evidence permits the exact denied operation. No alternate-route retry, account scan, replacement Work, or event is used to discover identity.
+`target_locator_json` and `self_report_json` are mutually exclusive and both are
+register-only. Empty optional strings preserve the old omitted-field behavior.
+Stored empty reports are invalid. Python and the original atomic mailbox Lua
+validate the new report before storage. No request bytes or request SHA256 are
+changed to include a sideband.
 
-The original host retains its complete native evidence review, exact task/registration/activation/self-wake authorization checks, Source CAS, immutable request/nonce/target binding, original deadlines, and once fences. A previous privileged-path success is not proof that arbitrary Work admission works.
+The existing event retains exact `rpc_self_report` bytes alongside its original
+request, nonce, deadline, and reserved query-only state. Any changed, removed,
+added, or replaced sideband on the same nonce conflicts. Duplicate requests do
+not extend the original deadline or redispatch. The old no-sideband and v2/v3
+targeted-locator representations remain unchanged.
 
-## Verification
+The original RPC read exposes `selfReport` beside `request`, `context`, and
+`authority: false`. Query is only retained signed-outcome lookup and never
+dispatches, resolves, extends, or grants anything. The existing bounded RPC maps
+uncertain post-submit outcomes to `UNKNOWN_QUERY_ONLY`; callers retain the
+original nonce for query and do not retry under a replacement nonce.
 
-Independent local review and rerun: Node syntax, 21 Node tests and 3 collector Python tests passed. Two review findings were corrected and independently rechecked. The new tests cover malformed composition, invalid options, canonical request bytes, mismatched targets, no effects, and compatibility.
+## Host boundary and remaining work
 
-Run from this repository:
+The protected original host must resolve these hints using supported official
+context, read the exact target through the authorized route, and enforce the
+existing complete native evidence review, genuine original USER consent,
+registration/activation/self-wake scope, Source CAS, and global-once fences.
+Reports cannot construct identity or substitute for that review. This public
+candidate contains no made-up generic resolver or configuration mutation.
+Denied access remains terminal without materially new relevant access evidence.
+No alternate route, replacement Work, account scan, or discovery event is added.
+
+Callable tool presence and offline schema generation do not prove the deployed
+schema is refreshed or the protected host can resolve a particular Work. The
+user personally performs the final live business trial after integration.
+
+## Offline verification
+
+Run from this directory with the project's existing test dependencies:
 
 ```sh
 node --check functions_producer_v2.mjs
-node --test tests/test_functions_producer_v2.mjs tests/test_producer_preparation.mjs
-PYTHONPATH=. python3 -B -m unittest discover -s tests -p 'test_work_self_report.py' -v
+node --test tests/*.mjs
+python3 -B -m unittest discover -s tests -v
 ```
 
-No final live business test was run for this update. Publication, a previous successful privileged test, offline tests, and an active subscription do not establish automatic arbitrary-Work continuation.
+Tests cover exact request/hash preservation, strict report keys, size, Unicode,
+duplicate/noncanonical JSON, injected authority/route, direct Lua validation,
+same-nonce conflicts, lost-reply replay, original-owner isolation, query-only
+behavior, old request/locator compatibility, and actual local FastMCP schema.
+They use synthetic fixtures, isolated fakeredis/Lua and temporary signing keys.
+No live RPC, business event, Source, subscription, target read, deployment, or
+final user trial is performed by these tests.

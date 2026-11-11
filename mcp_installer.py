@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 from mcp.types import ToolAnnotations
 from request_store import RequestStore, submit_and_wait
 from targeted_locator import parse_target_locator
+from self_report import parse_registration_sidebands, parse_self_report
 from transport import SameInboxRPC, ReplyVerifier, READ, canonical, UnknownOutcome
 
 MAILBOX='gateway_internal_v1'
@@ -103,11 +104,11 @@ def install_rpc_tools(mcp, mailbox, formal, principal, oauth_meta, *, host_confi
         return request,m,rpc.context(m['operation_key'],q['nonce'],sha,q['deadline'],event)
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True))
-    async def gateway_source_rpc_request(mailbox_id:str,request_json:str,target_locator_json:str='')->dict:
-        """Save exact canonical request in original mailbox and await signed host outcome. UNKNOWN is query-only; never repeat under a new nonce."""
+    async def gateway_source_rpc_request(mailbox_id:str,request_json:str,target_locator_json:str='',self_report_json:str='')->dict:
+        """Save exact request and optional registration sideband in original mailbox. Self-report is untrusted lookup hints, never route, identity or grant; it excludes target_locator_json. UNKNOWN is query-only; never repeat under a new nonce."""
         request=parse_exact(request_json)
         RequestStore.exact(request)
-        parse_target_locator(target_locator_json, request['method'])
+        parse_registration_sidebands(target_locator_json, self_report_json, request['method'])
         async with session(mailbox_id) as (rpc,inbox):
             async def dispatch(event):
                 # Original events code uses synchronous Inbox commands on its own
@@ -115,7 +116,8 @@ def install_rpc_tools(mcp, mailbox, formal, principal, oauth_meta, *, host_confi
                 if rpc.current() is not True:raise ValueError('AUTHORITY_REVOKED')
                 return await formal.dispatch(inbox,event)
             try:
-                result=await submit_and_wait(rpc,request,deadline=time.time()+wait,dispatch=dispatch,target_locator_json=target_locator_json)
+                result=await submit_and_wait(rpc,request,deadline=time.time()+wait,dispatch=dispatch,
+                                             target_locator_json=target_locator_json,self_report_json=self_report_json)
                 return {'status':'verified_host_response','result':result}
             except UnknownOutcome:
                 return {'status':'UNKNOWN_QUERY_ONLY','request_id':request['id'],
@@ -129,6 +131,8 @@ def install_rpc_tools(mcp, mailbox, formal, principal, oauth_meta, *, host_confi
             result={'request':request,'context':context,'authority':False}
             if 'rpc_target_locator' in message:
                 result['targetLocator']=parse_target_locator(message['rpc_target_locator'],request['method'])
+            if 'rpc_self_report' in message:
+                result['selfReport']=parse_self_report(message['rpc_self_report'],request['method'])
             return result
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=False))

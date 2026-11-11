@@ -5,7 +5,7 @@ import secrets
 import time
 from pathlib import Path
 from transport import canonical, READ, UnknownOutcome
-from targeted_locator import parse_target_locator
+from self_report import parse_registration_sidebands
 
 SCRIPT=Path(__file__).with_name('inbox_rpc.lua').read_text()
 
@@ -33,10 +33,10 @@ class RequestStore:
         if len(raw.encode())>65536:raise ValueError('REQUEST_SIZE')
         return raw,hashlib.sha256(raw.encode()).hexdigest()
 
-    async def submit(self, request, locator, *, dispatch, target_locator_json=''):
+    async def submit(self, request, locator, *, dispatch, target_locator_json='', self_report_json=''):
         self.check()
         raw,sha=self.exact(request)
-        parse_target_locator(target_locator_json, request['method'])
+        parse_registration_sidebands(target_locator_json, self_report_json, request['method'])
         if (locator != dict(kind='source-finalize-rpc-v1',nonce=request['id'],requestSHA256=sha,deadline=locator.get('deadline'))
                 or not 0<locator['deadline']-time.time()<=600 or not callable(dispatch)):
             raise ValueError('LOCATOR_SCOPE')
@@ -49,6 +49,8 @@ class RequestStore:
                   rpc_sha256=sha,rpc_deadline=locator['deadline'],rpc_deadline_string=str(locator['deadline']),rpc_nonce=request['id'])
         if target_locator_json:
             args['rpc_target_locator']=target_locator_json
+        if self_report_json:
+            args['rpc_self_report']=self_report_json
         try:
             response=json.loads(await self.redis.eval(SCRIPT,1,self.key,'rpc_submit',canonical(args)))
         except Exception as exc:
@@ -79,19 +81,22 @@ class RequestStore:
             raise ValueError('REQUEST_BYTES_OR_SCOPE_MISMATCH')
         if 'rpc_target_locator' in m:
             if not m['rpc_target_locator']:raise ValueError('TARGET_LOCATOR_EMPTY_STORED')
-            parse_target_locator(m['rpc_target_locator'], request['method'])
+        if 'rpc_self_report' in m:
+            if not m['rpc_self_report']:raise ValueError('SELF_REPORT_EMPTY_STORED')
+        parse_registration_sidebands(m.get('rpc_target_locator',''), m.get('rpc_self_report',''), request['method'])
         return request
 
 
-async def submit_and_wait(transport, request, *, deadline, dispatch, target_locator_json=''):
+async def submit_and_wait(transport, request, *, deadline, dispatch, target_locator_json='', self_report_json=''):
     """Complete same-event request storage + notification + bounded response wait.
     dispatch is the existing formal.dispatch callback, not a separate service.
     """
     store=RequestStore(transport.redis,transport.key,transport.current)
     _,sha=store.exact(request)
-    parse_target_locator(target_locator_json, request['method'])
+    parse_registration_sidebands(target_locator_json, self_report_json, request['method'])
     operation=hashlib.sha256((transport.key+'|rpc|'+request['id']).encode()).hexdigest()
     async def submit(locator):
-        return await store.submit(request,locator,dispatch=dispatch,target_locator_json=target_locator_json)
+        return await store.submit(request,locator,dispatch=dispatch,
+                                  target_locator_json=target_locator_json,self_report_json=self_report_json)
     return await transport.wait(operation=operation,nonce=request['id'],request_sha=sha,
                                 deadline=deadline,send_once=submit)

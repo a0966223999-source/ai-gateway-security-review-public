@@ -13,6 +13,55 @@ end
 local function event_name(v) return v.event_name or 'inbox.message.created' end
 local function active(s) return s and s.expires_at>now and s.access_until>now end
 local function count(t) local n=0 for _ in pairs(t) do n=n+1 end return n end
+-- The new sideband is exact canonical JSON, including at the atomic boundary.
+-- It is only an observation: never a target route, host identity or grant.
+local function hint_identifier(value)
+ if type(value)~='string' or #value==0 or #value>256 then return false end
+ local i,nonblank=1,false
+ while i<=#value do
+  local a=string.byte(value,i)
+  local point,width=a,1
+  if a<32 or a==127 then return false end
+  if a>=128 then
+   if a>=194 and a<=223 then width=2;point=a-192
+   elseif a>=224 and a<=239 then width=3;point=a-224
+   elseif a>=240 and a<=244 then width=4;point=a-240
+   else return false end
+   for j=1,width-1 do
+    local b=string.byte(value,i+j)
+    if not b or b<128 or b>191 then return false end
+    point=point*64+b-128
+   end
+   if (width==2 and point<128) or (width==3 and point<2048)
+    or (width==4 and point<65536) or point>1114111
+    or (point>=55296 and point<=57343) then return false end
+  end
+  local blank=point==32 or point==133 or point==160 or point==5760
+   or (point>=8192 and point<=8202) or point==8232 or point==8233
+   or point==8239 or point==8287 or point==12288 or point==65279
+  if not blank then nonblank=true end
+  i=i+width
+ end
+ return nonblank
+end
+local function hint_json_string(value)
+ return '"'..string.gsub(string.gsub(value,'\\','\\\\'),'"','\\"')..'"'
+end
+local function exact_self_report(raw)
+ if type(raw)~='string' or #raw==0 or #raw>2048 then return false end
+ local ok,r=pcall(cjson.decode,raw)
+ if not ok or type(r)~='table' or count(r)~=3 or r.v~=1
+  or r.kind~='work-runtime-hints' or type(r.observations)~='table' then return false end
+ local observations=r.observations
+ if not hint_identifier(observations.CODEX_THREAD_ID) then return false end
+ local entries=''
+ if observations.CODEX_ENVIRONMENT_ID~=nil then
+  if count(observations)~=2 or not hint_identifier(observations.CODEX_ENVIRONMENT_ID) then return false end
+  entries='"CODEX_ENVIRONMENT_ID":'..hint_json_string(observations.CODEX_ENVIRONMENT_ID)..','
+ elseif count(observations)~=1 then return false end
+ entries=entries..'"CODEX_THREAD_ID":'..hint_json_string(observations.CODEX_THREAD_ID)
+ return raw=='{"kind":"work-runtime-hints","observations":{'..entries..'},"v":1}'
+end
 -- Record deadlines are independent of the outer document's idle expiry.
 if action=='send' or action=='rpc_submit' or action=='subscribe' then
  for id,m in pairs(doc.messages) do if m.expires_at<=now then doc.messages[id]=nil end end
@@ -45,6 +94,7 @@ elseif action=='send' or action=='rpc_submit' then
    or #req.rpc_sha256~=64 or type(req.rpc_deadline)~='number' or req.rpc_deadline<=now
    or req.rpc_deadline>now+600 or type(req.rpc_deadline_string)~='string'
    or tonumber(req.rpc_deadline_string)~=req.rpc_deadline then return error('rpc_scope') end
+  if req.rpc_target_locator~=nil and req.rpc_self_report~=nil then return error('rpc_sidebands_exclusive') end
   if req.rpc_target_locator~=nil then
    if type(req.rpc_target_locator)~='string' or #req.rpc_target_locator==0
     or #req.rpc_target_locator>2048 then return error('rpc_target_locator') end
@@ -59,6 +109,11 @@ elseif action=='send' or action=='rpc_submit' then
    if native and (type(t.environmentId)~='string' or #t.environmentId==0 or #t.environmentId>256) then return error('rpc_target_locator') end
 
   end
+  if req.rpc_self_report~=nil then
+   local request_ok,body=pcall(cjson.decode,req.rpc_request)
+   if not exact_self_report(req.rpc_self_report) or not request_ok
+    or type(body)~='table' or body.method~='register' then return error('rpc_self_report') end
+  end
   local q=cjson.decode(req.message)
   if q.kind~='source-finalize-rpc-v1' or q.requestSHA256~=req.rpc_sha256
    or q.deadline~=req.rpc_deadline or q.nonce~=req.rpc_nonce then return error('rpc_locator') end
@@ -70,7 +125,8 @@ elseif action=='send' or action=='rpc_submit' then
   if existing.operation_key==req.operation_key and event_name(existing)==name then m=existing; break end
  end
  if m then
-  if rpc and (m.rpc_request~=req.rpc_request or m.rpc_request_sha256~=req.rpc_sha256 or m.rpc_target_locator~=req.rpc_target_locator) then return error('rpc_operation_conflict') end
+  if rpc and (m.rpc_request~=req.rpc_request or m.rpc_request_sha256~=req.rpc_sha256
+   or m.rpc_target_locator~=req.rpc_target_locator or m.rpc_self_report~=req.rpc_self_report) then return error('rpc_operation_conflict') end
   if not rpc and m.rpc_request then return error('rpc_operation_reserved') end
   if rpc then return result({event_id=m.event_id,duplicate=true,expires_at=m.expires_at}) end
   if m.digest~=req.digest then return error('operation_conflict') end
@@ -82,6 +138,7 @@ elseif action=='send' or action=='rpc_submit' then
     sequence=doc.seq,created_at=now,expires_at=now+86400,state='available',version=0}
  if rpc then
   if req.rpc_target_locator~=nil then m.rpc_target_locator=req.rpc_target_locator end
+  if req.rpc_self_report~=nil then m.rpc_self_report=req.rpc_self_report end
   m.rpc_request=req.rpc_request; m.rpc_request_sha256=req.rpc_sha256
   m.rpc_state='reserved_query_only'; m.rpc_nonce=req.rpc_nonce; m.rpc_deadline=req.rpc_deadline_string
  end

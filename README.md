@@ -11,7 +11,7 @@ then run from this directory:
 
 python -m unittest discover -s tests -v
 
-42 offline tests use FakeMCP and fakeredis/Lua. No external Redis or live native
+Offline tests use actual FastMCP schema generation, FakeMCP and fakeredis/Lua. No external Redis or live native
 host is required. Golden UTF-8 vectors and the hash-pinned public Lua baseline
 are bundled; no private source directory or host configuration is imported.
 
@@ -67,6 +67,17 @@ reserved fence atomically. Pub/Sub subscription is acknowledged before submit.
 Only a newly created event dispatches a notification. Duplicate/unknown requests
 never redispatch or authorize Source effects. The query tool can reconcile by
 original request ID if the original event ID was not returned.
+
+Registration optionally accepts `self_report_json` through the same existing
+request tool, mutually exclusive with `target_locator_json`. Its exact canonical
+shape is `{v:1,kind:"work-runtime-hints",observations:{CODEX_THREAD_ID,...}}`, with
+only optional `CODEX_ENVIRONMENT_ID`. `self_report.py` validates the complete
+2048-byte report and 256-byte identifiers. These observations are lookup hints,
+not a route, host identity, consent or grant. The event stores exact report bytes;
+same-nonce sideband changes conflict without dispatch. The existing read returns
+`selfReport` with `authority: false`, and query remains read-only. See
+NEW-WORK-INSTRUCTIONS.md for the explicit one-call producer helper and remaining
+protected host-resolution/verification requirements.
 
 The response is signed by a fixed host-only private key, with domain, owner,
 mailbox, operation, event, nonce, request SHA and expiry bound. OAuth owner alone

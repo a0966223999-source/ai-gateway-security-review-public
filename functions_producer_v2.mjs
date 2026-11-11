@@ -17,6 +17,15 @@ function validateIdentifier(value, error) {
   if (new TextEncoder().encode(value).length > 256) fail('TARGET_LOCATOR_IDENTIFIER');
 }
 
+function validateSelfReportIdentifier(value, error) {
+  validateIdentifier(value, error);
+  // One union shared by report preparation and serialization; includes the
+  // Unicode whitespace recognized by Python and the ECMAScript BOM whitespace.
+  if (/^[\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+$/u.test(value)) {
+    fail('SELF_REPORT_IDENTIFIER');
+  }
+}
+
 /** Use only a verified official chat reference already supplied by producer context. */
 export function targetLocatorFromOfficialReference(reference) {
   if (!reference || typeof reference !== 'object' || Array.isArray(reference)) fail('LOCATOR_REQUIRED');
@@ -86,7 +95,7 @@ export function prepareWorkSelfReport(options = {}) {
       ['CODEX_ENVIRONMENT_ID', 'RUNTIME_ENVIRONMENT_HINT_INVALID']]) {
       if (key === 'CODEX_ENVIRONMENT_ID' && runtimeIdentifiers[key] === undefined) continue;
       try {
-        validateIdentifier(runtimeIdentifiers[key], error);
+        validateSelfReportIdentifier(runtimeIdentifiers[key], error);
         observations[key] = runtimeIdentifiers[key];
       } catch (error_) {
         issues.push({input: key, code: error_.message});
@@ -111,6 +120,46 @@ export function prepareWorkSelfReport(options = {}) {
     authorization: 'NOT_VERIFIED',
     registration: 'NOT_RUN',
   });
+}
+
+/** Exact canonical transport shape. Observations remain untrusted lookup hints. */
+export function canonicalWorkSelfReport(selfReport) {
+  const observations = selfReport?.observations;
+  if (!selfReport || typeof selfReport !== 'object' || Array.isArray(selfReport) ||
+      Object.keys(selfReport).sort().join(',') !== 'kind,observations,v' ||
+      selfReport.v !== 1 || selfReport.kind !== 'work-runtime-hints' ||
+      !observations || typeof observations !== 'object' || Array.isArray(observations) ||
+      !Object.hasOwn(observations, 'CODEX_THREAD_ID') ||
+      Object.keys(observations).some(key => !['CODEX_THREAD_ID', 'CODEX_ENVIRONMENT_ID'].includes(key))) {
+    fail('SELF_REPORT_SCHEMA');
+  }
+  const snapshot = {};
+  for (const key of ['CODEX_ENVIRONMENT_ID', 'CODEX_THREAD_ID']) {
+    if (!Object.hasOwn(observations, key)) continue;
+    const value = observations[key];
+    validateSelfReportIdentifier(value, 'SELF_REPORT_IDENTIFIER');
+    snapshot[key] = value;
+  }
+  const raw = JSON.stringify({kind: 'work-runtime-hints', observations: snapshot, v: 1});
+  if (new TextEncoder().encode(raw).length > 2048) fail('SELF_REPORT_SIZE');
+  return raw;
+}
+
+/** Submit hints once through the original RPC. No discovery, route or grant. */
+export async function submitSelfReportedRegistration(options = {}) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) fail('OPTIONS_OBJECT_REQUIRED');
+  if (Object.hasOwn(options, 'targetLocator') || Object.hasOwn(options, 'target_locator_json')) {
+    fail('REGISTRATION_SIDEBANDS_MUTUALLY_EXCLUSIVE');
+  }
+  const {tools, requestJson, selfReport} = options;
+  const selfReportJson = canonicalWorkSelfReport(selfReport);
+  const preparation = prepareWorkSelfReport({runtimeIdentifiers: selfReport.observations, requestJson});
+  if (preparation.status !== 'SELF_REPORT_PREPARED_UNVERIFIED') fail(preparation.issues[0].code);
+  if (!tools || typeof tools[REQUEST_TOOL] !== 'function') fail('OFFICIAL_REQUEST_TOOL_REQUIRED');
+  // Do not rewrite, augment or hash a different request. Tool schema presence is
+  // not proof of deployed support. UNKNOWN and thrown outcomes are not retried.
+  return await tools[REQUEST_TOOL]({mailbox_id: MAILBOX_ID, request_json: requestJson,
+    self_report_json: selfReportJson});
 }
 
 /**
@@ -153,9 +202,9 @@ export function prepareTargetedRegistration(options = {}) {
       issues.push({input: 'selfReport', code: 'SELF_REPORT_SCHEMA'});
     } else {
       try {
-        validateIdentifier(observations.CODEX_THREAD_ID, 'RUNTIME_THREAD_HINT_REQUIRED');
+        validateSelfReportIdentifier(observations.CODEX_THREAD_ID, 'RUNTIME_THREAD_HINT_REQUIRED');
         if (Object.hasOwn(observations, 'CODEX_ENVIRONMENT_ID')) {
-          validateIdentifier(observations.CODEX_ENVIRONMENT_ID, 'RUNTIME_ENVIRONMENT_HINT_INVALID');
+          validateSelfReportIdentifier(observations.CODEX_ENVIRONMENT_ID, 'RUNTIME_ENVIRONMENT_HINT_INVALID');
         }
         if (targetLocator && observations.CODEX_THREAD_ID !== targetLocator.threadId) {
           fail('SELF_REPORT_OFFICIAL_TARGET_MISMATCH');

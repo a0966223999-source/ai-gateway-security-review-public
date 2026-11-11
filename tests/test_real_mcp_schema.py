@@ -12,8 +12,11 @@ class SchemaTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(installed['enabled'])
         listing=await mcp.list_tools();tool=next(x for x in listing if x.name=='gateway_source_rpc_request')
         schema=tool.inputSchema
-        self.assertEqual(set(schema['properties']),{'mailbox_id','request_json','target_locator_json'})
+        self.assertEqual(set(schema['properties']),{'mailbox_id','request_json','target_locator_json','self_report_json'})
         self.assertEqual(set(schema['required']),{'mailbox_id','request_json'})
         self.assertEqual(schema['properties']['target_locator_json']['type'],'string')
         self.assertEqual(schema['properties']['target_locator_json']['default'],'')
+        self.assertEqual(schema['properties']['self_report_json']['type'],'string')
+        self.assertEqual(schema['properties']['self_report_json']['default'],'')
+        self.assertEqual(len(listing),4)
         self.assertFalse(tool.annotations.readOnlyHint);self.assertFalse(tool.annotations.idempotentHint)
