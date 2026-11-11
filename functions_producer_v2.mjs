@@ -25,15 +25,23 @@ export function targetLocatorFromOfficialReference(reference) {
   return {v: 2, kind: 'ordinary-work', threadId: reference.threadId, environmentId: reference.environmentId};
 }
 
+export function targetLocatorFromCloudTaskReference(reference) {
+  if (!reference || typeof reference !== 'object' || Array.isArray(reference)) fail('LOCATOR_REQUIRED');
+  validateIdentifier(reference.threadId,'LOCATOR_REQUIRED');
+  // Use only an actual official create_thread result or explicit cloud task reference.
+  // A runtime environment_context, source_thread_id, or pasted text is not that reference.
+  return {v:3,kind:'ordinary-work',route:'cloud-task',threadId:reference.threadId};
+}
+export function targetLocatorFromNativeChatReference(reference) {
+  const old=targetLocatorFromOfficialReference(reference);
+  return {...old,v:3,route:'native-chat'};
+}
 export function canonicalTargetLocator(locator) {
   if (!locator || typeof locator !== 'object' || Array.isArray(locator)) fail('LOCATOR_REQUIRED');
-  validateIdentifier(locator.environmentId, 'ENVIRONMENT_REFERENCE_REQUIRED');
-  validateIdentifier(locator.threadId, 'LOCATOR_REQUIRED');
-  if (Object.keys(locator).sort().join(',') !== 'environmentId,kind,threadId,v'
-      || locator.v !== 2 || locator.kind !== 'ordinary-work') fail('TARGET_LOCATOR_SCHEMA');
-  // Exact Python canonical ordering. The only numeric field is integer v=2.
-  return JSON.stringify({environmentId: locator.environmentId, kind: locator.kind,
-    threadId: locator.threadId, v: locator.v});
+  if(locator.v===2 || locator.route==='native-chat') validateIdentifier(locator.environmentId,'ENVIRONMENT_REFERENCE_REQUIRED');
+  validateIdentifier(locator.threadId,'LOCATOR_REQUIRED');
+  targetLocatorRoute(locator);
+  return JSON.stringify(Object.fromEntries(Object.keys(locator).sort().map(k=>[k,locator[k]])));
 }
 
 /** Exactly one official invocation. UNKNOWN_QUERY_ONLY is returned unchanged, never retried. */
@@ -47,4 +55,33 @@ export async function submitTargetedRegistration({tools, requestJson, targetLoca
   // Server validates canonical request bytes. Never parse/reserialize or augment them here.
   return await tools[REQUEST_TOOL]({mailbox_id: MAILBOX_ID, request_json: requestJson,
     target_locator_json: targetLocatorJson});
+}
+
+/** Typed official address only, not origin, user authorship, or authority. */
+function targetLocatorRoute(locator) {
+  if(!locator||typeof locator!=='object'||Array.isArray(locator)||locator.kind!=='ordinary-work')throw Error('TARGET_LOCATOR_SCHEMA');
+  const route=locator.v===2?'native-chat':locator.v===3?locator.route:undefined;
+  if(!['cloud-task','native-chat'].includes(route))throw Error('TARGET_LOCATOR_SCHEMA');
+  const keys=['kind','threadId','v',...(locator.v===3?['route']:[]),...(route==='native-chat'?['environmentId']:[])].sort().join(',');
+  if(Object.keys(locator).sort().join(',')!==keys)throw Error('TARGET_LOCATOR_SCHEMA');
+  for(const key of ['threadId',...(route==='native-chat'?['environmentId']:[])]){
+    const value=locator[key];if(typeof value!=='string'||!value.trim()||/[\u0000-\u001f\u007f]/u.test(value))throw Error('VERIFIED_NATIVE_REFERENCE_REQUIRED');
+    try{if(unescape(encodeURIComponent(value)).length>256)throw Error('VERIFIED_NATIVE_REFERENCE_REQUIRED');}catch{throw Error('VERIFIED_NATIVE_REFERENCE_REQUIRED');}
+  }
+  return route;
+}
+function targetReadArguments(locator,args) {
+  const route=targetLocatorRoute(locator);
+  if(!args||typeof args!=='object'||Array.isArray(args)||args.threadId!==locator.threadId||![1,20].includes(args.limit)||
+    Object.keys(args).some(k=>!['threadId','environmentId','limit','cursor'].includes(k))||
+    (Object.hasOwn(args,'cursor')&&(typeof args.cursor!=='string'||!args.cursor)))throw Error('EXACT_TARGET_NATIVE_ADDRESS_REQUIRED');
+  if(route==='cloud-task'){
+    if(Object.hasOwn(args,'environmentId'))throw Error('CLOUD_ROUTE_OMITS_ENVIRONMENT');
+    return {...args};
+  }
+  if(Object.hasOwn(args,'environmentId')&&args.environmentId!==locator.environmentId)throw Error('EXACT_TARGET_NATIVE_ADDRESS_REQUIRED');
+  return {...args,environmentId:locator.environmentId};
+}
+function targetEnvironmentMatches(locator,value) {
+  return targetLocatorRoute(locator)==='cloud-task'||!Object.hasOwn(value,'environmentId')||value.environmentId===locator.environmentId;
 }

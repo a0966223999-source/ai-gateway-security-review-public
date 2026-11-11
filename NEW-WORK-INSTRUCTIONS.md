@@ -1,49 +1,52 @@
-# New Work: targeted registration v2
+# Explicit cloud/native target routing
 
-## Prerequisite
+These files alone do not establish a live deployment. Verify the final release commit, matching host pins, and the refreshed tool schema before use. The same official mailbox tool accepts optional string `target_locator_json`, separate from untouched canonical `request_json`. No private runtime installation is needed in ordinary Work.
 
-These files alone do not establish a live deployment. The official mailbox MCP server must have the matching version installed and the connector tool schema refreshed. Before the user runs the one final trial, verify the discovered schema for `mcp__codex_apps__x_redis_test_gateway_source_rpc_request` includes optional string `target_locator_json`. An old schema cannot transport the target. Do not fall back to a different tool, a direct Redis write, or adding target fields to `request_json`.
+## Select a route from an official reference
 
-## Inputs
+- A task created by `thread_management.create_thread`: use its exact official `threadId` and explicit `cloud-task` route. Official `read_thread` must omit `environmentId` on every page.
+- A user-created native chat: use `threadId` and the connected computer's `environmentId` from its official chat reference, with explicit `native-chat` route. Keep that same environment on every page.
+- Existing v2 locators retain their original native-chat semantics and required environment. They do not turn into cloud locators.
 
-Use the original exact canonical registration `request_json` and its original request ID. Obtain the target `threadId` and `environmentId` from the verified official chat reference supplied to the producer context. Do not guess IDs, derive an environment from a thread ID, copy an unrelated default environment, or substitute the current host environment. If no reference is available, stop with `LOCATOR_REQUIRED`; if the environment reference is absent, stop with `ENVIRONMENT_REFERENCE_REQUIRED`. Neither case invokes MCP.
+A runtime `environment_context` ID is not a registered-computer reference. A `hostId` is a desktop navigation label. Missing environment, a cloud computer, copied text, or `source_thread_id` does not select or prove the route. If the official route/reference is unavailable, stop before submitting; do not guess.
 
-The locator schema is exactly:
+The two v3 schemas are exactly:
 
 ```json
-{"environmentId":"<verified official environment ID>","kind":"ordinary-work","threadId":"<verified official thread ID>","v":2}
+{"kind":"ordinary-work","route":"cloud-task","threadId":"<official task ID>","v":3}
+{"environmentId":"<official computer reference>","kind":"ordinary-work","route":"native-chat","threadId":"<official chat ID>","v":3}
 ```
 
-Both IDs must be nonblank strings, contain no control characters, and fit within 256 UTF-8 bytes. Only `register` accepts a target locator. The locator is metadata separate from the canonical request and is not proof of the caller's origin or runtime authority.
+Cloud locators reject `environmentId`, including null or an empty string. Native locators require it. IDs are nonblank strings, at most 256 UTF-8 bytes and without control characters. Unknown route, version, or extra fields are rejected.
 
 ## Producer usage
 
-`functions_producer_v2.mjs` exports the helper and has no side effects on import. In a JavaScript module producer with the official `tools` binding:
+Use the existing `functions_producer_v2.mjs` compatibility module, which now exports explicit typed constructors. In a JavaScript module with the real official `tools` binding:
 
 ```js
-import {targetLocatorFromOfficialReference, submitTargetedRegistration}
-  from './functions_producer_v2.mjs';
+import {targetLocatorFromCloudTaskReference, targetLocatorFromNativeChatReference,
+  submitTargetedRegistration} from './functions_producer_v2.mjs';
 
-// These two values must already come from the authorized producer context.
-// originalRequestJson is not reconstructed or augmented by the helper.
-const targetLocator = targetLocatorFromOfficialReference(verifiedOfficialChatReference);
-const result = await submitTargetedRegistration({
-  tools,
-  requestJson: originalRequestJson,
-  targetLocator,
+// Choose exactly one constructor using an actual official reference.
+const targetLocator = targetLocatorFromCloudTaskReference(officialCreateThreadResult);
+// For an official user-created native-chat reference instead:
+// const targetLocator = targetLocatorFromNativeChatReference(officialChatReference);
+
+const outcome = await submitTargetedRegistration({
+  tools, requestJson: originalCanonicalRequestJson, targetLocator,
 });
 ```
 
-For a `functions.exec` invocation without local-module imports, paste the helper's declarations into the execution cell with `export` removed, then append the same usage with the already verified inputs. Do not run the final call while preparing the cell. The user alone runs the final trial.
+For `functions.exec`, include the published helper declarations with `export` removed, then the selected usage. Do not execute submission while preparing the cell. A missing route/reference or missing official request tool is a blocker, not permission for a workaround.
 
-The helper calls only the official request tool, once, with `mailbox_id`, untouched `request_json`, and canonical `target_locator_json`. A missing official tool is a blocker, not permission for a workaround.
+Use only a current registration request that has never been submitted. Keep its original canonical bytes and nonce. The host preserves the original signed 80-second RPC deadline and 20-second native preparation bound.
 
-## Outcome handling
+## Authority and uncertain outcomes
 
-Return `UNKNOWN_QUERY_ONLY` unchanged. Do not repeat registration, generate a new nonce, alter the target, or extend the request deadline. An exception after invocation also does not authorize retry. The parent can query the existing official request outcome using the original request ID. Same-operation locator conflicts are rejected atomically; the unchanged legacy wait transport reports them as query-only outcomes.
+A locator is a search address, never proof of invocation origin, task creation lineage, original user authorship, consent, or Source authority. The exact successful official read establishes target accessibility only. The original host still requires the current complete turn, exact `SOURCE_RPC_PLAN` / `SOURCE_RPC_REQUEST` declarations, genuine original USER authorization for the precise task and registration/activation/self-wake scope, unchanged USER evidence, and the existing Source/global-once fences. Copied/delegated prompts and USER role labels alone are not consent.
 
-## Offline validation
+FORBIDDEN, CONFLICT, missing target, timeout, UNKNOWN, or any other read error stops. Never retry by stripping the environment, changing route, using another tool, changing nonce, or extending the deadline. The entire locator is immutable with the original request/nonce/event. Return `UNKNOWN_QUERY_ONLY` unchanged and use only the existing official query path for uncertain outcomes.
 
-Run `node --test tests/test_functions_producer_v2.mjs` from this directory. Six tests cover missing-input no-call behavior, preservation of reference and exact request bytes, strict locator validation, query-only no retry, and uncertain-failure no retry. No live MCP invocation is part of these tests.
+The official send tool retains `threadId`/`prompt` arguments, without `environmentId`. Its preceding fresh read uses the exact pinned route; a successful read does not promise permission to send.
 
-Use this path only for a current registration request that has never been submitted. Do not resubmit any prior UNKNOWN request or event, and never create a new nonce to bypass an uncertain outcome. The user personally performs the final live business trial; operators run only offline checks and authorized release validation.
+The user personally performs the final live business trial. Offline fixtures and release readback do not count as that acceptance test.

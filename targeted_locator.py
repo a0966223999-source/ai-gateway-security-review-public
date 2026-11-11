@@ -14,22 +14,24 @@ MAX_LOCATOR_BYTES = 2048
 
 
 def validate_target_locator(value):
-    if (not isinstance(value, dict)
-            or set(value) != {'v', 'kind', 'threadId', 'environmentId'}
-            or type(value['v']) is not int or value['v'] != 2
-            or value['kind'] != 'ordinary-work'):
+    if type(value) is not dict or type(value.get('v')) is not int or value.get('kind') != 'ordinary-work':
         raise ValueError('TARGET_LOCATOR_SCHEMA')
-    for field in ('threadId', 'environmentId'):
+    if value['v'] == 2:
+        keys = {'v','kind','threadId','environmentId'}
+    elif value['v'] == 3 and value.get('route') in ('cloud-task','native-chat'):
+        keys = {'v','kind','route','threadId'}
+        if value['route'] == 'native-chat': keys.add('environmentId')
+    else:
+        raise ValueError('TARGET_LOCATOR_SCHEMA')
+    if set(value) != keys: raise ValueError('TARGET_LOCATOR_SCHEMA')
+    for field in keys & {'threadId','environmentId'}:
         identifier = value[field]
-        if (not isinstance(identifier, str) or not identifier.strip()
+        if (type(identifier) is not str or not identifier.strip()
                 or any(ord(c) < 32 or ord(c) == 127 for c in identifier)):
             raise ValueError('TARGET_LOCATOR_IDENTIFIER')
-        try:
-            size = len(identifier.encode('utf-8'))
-        except UnicodeError as exc:
-            raise ValueError('TARGET_LOCATOR_IDENTIFIER') from exc
-        if size > MAX_IDENTIFIER_BYTES:
-            raise ValueError('TARGET_LOCATOR_IDENTIFIER')
+        try: size = len(identifier.encode('utf-8'))
+        except UnicodeError as exc: raise ValueError('TARGET_LOCATOR_IDENTIFIER') from exc
+        if size > MAX_IDENTIFIER_BYTES: raise ValueError('TARGET_LOCATOR_IDENTIFIER')
     return dict(value)
 
 

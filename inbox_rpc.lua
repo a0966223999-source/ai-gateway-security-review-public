@@ -50,10 +50,14 @@ elseif action=='send' or action=='rpc_submit' then
     or #req.rpc_target_locator>2048 then return error('rpc_target_locator') end
    local ok,t=pcall(cjson.decode,req.rpc_target_locator)
    local request_ok,body=pcall(cjson.decode,req.rpc_request)
-   if not ok or type(t)~='table' or count(t)~=4 or t.v~=2 or t.kind~='ordinary-work'
+   if not ok or type(t)~='table' or t.kind~='ordinary-work'
     or type(t.threadId)~='string' or #t.threadId==0 or #t.threadId>256
-    or type(t.environmentId)~='string' or #t.environmentId==0 or #t.environmentId>256
     or not request_ok or type(body)~='table' or body.method~='register' then return error('rpc_target_locator') end
+   local native=(t.v==2 and count(t)==4 and t.route==nil) or (t.v==3 and t.route=='native-chat' and count(t)==5)
+   local cloud=t.v==3 and t.route=='cloud-task' and count(t)==4 and t.environmentId==nil
+   if not native and not cloud then return error('rpc_target_locator') end
+   if native and (type(t.environmentId)~='string' or #t.environmentId==0 or #t.environmentId>256) then return error('rpc_target_locator') end
+
   end
   local q=cjson.decode(req.message)
   if q.kind~='source-finalize-rpc-v1' or q.requestSHA256~=req.rpc_sha256
