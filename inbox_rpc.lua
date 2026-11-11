@@ -45,6 +45,16 @@ elseif action=='send' or action=='rpc_submit' then
    or #req.rpc_sha256~=64 or type(req.rpc_deadline)~='number' or req.rpc_deadline<=now
    or req.rpc_deadline>now+600 or type(req.rpc_deadline_string)~='string'
    or tonumber(req.rpc_deadline_string)~=req.rpc_deadline then return error('rpc_scope') end
+  if req.rpc_target_locator~=nil then
+   if type(req.rpc_target_locator)~='string' or #req.rpc_target_locator==0
+    or #req.rpc_target_locator>2048 then return error('rpc_target_locator') end
+   local ok,t=pcall(cjson.decode,req.rpc_target_locator)
+   local request_ok,body=pcall(cjson.decode,req.rpc_request)
+   if not ok or type(t)~='table' or count(t)~=4 or t.v~=2 or t.kind~='ordinary-work'
+    or type(t.threadId)~='string' or #t.threadId==0 or #t.threadId>256
+    or type(t.environmentId)~='string' or #t.environmentId==0 or #t.environmentId>256
+    or not request_ok or type(body)~='table' or body.method~='register' then return error('rpc_target_locator') end
+  end
   local q=cjson.decode(req.message)
   if q.kind~='source-finalize-rpc-v1' or q.requestSHA256~=req.rpc_sha256
    or q.deadline~=req.rpc_deadline or q.nonce~=req.rpc_nonce then return error('rpc_locator') end
@@ -56,7 +66,7 @@ elseif action=='send' or action=='rpc_submit' then
   if existing.operation_key==req.operation_key and event_name(existing)==name then m=existing; break end
  end
  if m then
-  if rpc and (m.rpc_request~=req.rpc_request or m.rpc_request_sha256~=req.rpc_sha256) then return error('rpc_operation_conflict') end
+  if rpc and (m.rpc_request~=req.rpc_request or m.rpc_request_sha256~=req.rpc_sha256 or m.rpc_target_locator~=req.rpc_target_locator) then return error('rpc_operation_conflict') end
   if not rpc and m.rpc_request then return error('rpc_operation_reserved') end
   if rpc then return result({event_id=m.event_id,duplicate=true,expires_at=m.expires_at}) end
   if m.digest~=req.digest then return error('operation_conflict') end
@@ -67,6 +77,7 @@ elseif action=='send' or action=='rpc_submit' then
  m={event_name=name,event_id=req.event_id,digest=req.digest,operation_key=req.operation_key,message=req.message,
     sequence=doc.seq,created_at=now,expires_at=now+86400,state='available',version=0}
  if rpc then
+  if req.rpc_target_locator~=nil then m.rpc_target_locator=req.rpc_target_locator end
   m.rpc_request=req.rpc_request; m.rpc_request_sha256=req.rpc_sha256
   m.rpc_state='reserved_query_only'; m.rpc_nonce=req.rpc_nonce; m.rpc_deadline=req.rpc_deadline_string
  end
