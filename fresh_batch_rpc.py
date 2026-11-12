@@ -17,7 +17,8 @@ from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from typing import Literal
 
-from batch_mcp_entry import Submit, Status, Cancel, RequestBase, planning_response
+from batch_mcp_entry import Submit, Status, RequestBase, planning_response
+from platform_pending_cancel import PendingCancel as Cancel
 from fresh_batch_host import canonical, digest, enrollment_active, request_deadline
 from platform_codex_executor import Execute
 

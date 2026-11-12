@@ -224,7 +224,8 @@ class FreshBatchHost:
         return runtime, bind_batch_tools(submitter_provider=provider), BatchTaskItem
 
     async def execute(self, envelope, *, repository):
-        from batch_mcp_entry import Submit, Status, Cancel, _public_result
+        from batch_mcp_entry import Submit, Status, _public_result
+        from platform_pending_cancel import PendingCancel as Cancel, cancel_pending_items
         body = self.verify_request(envelope)
         action = body['action']
         if action == 'execute':
@@ -240,6 +241,13 @@ class FreshBatchHost:
         model = {'submit': Submit, 'read': Status, 'cancel': Cancel}[action]
         request = model.model_validate(dict(body['payload'], parent_id=body['parent_id'],
                                            operation_key=body['operation_key']))
+        if action == 'cancel' and request.pending_only:
+            self.reserve(body)
+            result = await cancel_pending_items(self, repository, request)
+            response = dict(generation=self.config['generation'], request_id=body['request_id'],
+                            request_sha256=digest(body), result=result, automatic_dispatch=False,
+                            native_execution_verified=False)
+            return dict(body=response, signature=base64.b64encode(self.key.sign(canonical(response))).decode())
         if action == 'submit' and (request.items is None or request.subagent_type != 'general-purpose'
                 or len({i.key for i in request.items}) != len(request.items)):
             raise HostDenied('BATCH_ITEMS_OR_SUBAGENT_INVALID')
@@ -252,6 +260,7 @@ class FreshBatchHost:
         runtime, tools, item_model = self.compose(repository, decomposition=decomposition)
         args = request.model_dump(exclude={'parent_id', 'operation_key'}, exclude_none=True)
         args.pop('goal', None)
+        args.pop('pending_only', None)
         include_plan = args.pop('include_plan', False)
         if action == 'submit':
             args['items'] = [item_model.model_validate(item) for item in args['items']]
