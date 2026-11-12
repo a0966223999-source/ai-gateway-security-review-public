@@ -88,7 +88,7 @@ submit 只呼叫原 request 工具，不新增第二個傳輸或業務事件。q
 
 - 用 `batch_status` 帶原 batch ID、parent 與全新讀取 operation key 取得最新快照；`include_result: true` 查已保存結果；要求項目頁或結果時同時帶 `item_offset: 0` 與 `item_limit: 25`，避免原 Holder 拒絕未指定分頁的請求。支援時 `include_plan: true` 查原目標與分頁子任務。
 - 建立或取消失回時，使用 `batch_receipt` 查同一 operation key 及原 operation_kind；不得換鍵重送 UNKNOWN。單次查詢的相同讀取鍵只恢復原快照。
-- 用 `cancel_batch` 取消未開始項目；取消完成須以獨立查詢讀回。此工具不等於停止已啟動的 Codex 程序。
+- 原 `cancel_batch` 預設只接受整批都未開始的批次。若同批已有執行紀錄，要取消其餘待辦，須明確傳 `pending_only: true`；原宿主只取消 status=pending、attempt=0、無租約／啟動時間且不在原 native attempt fence 的項目。已完成結果與執行中項目保留。取消後以全新讀鍵獨立查回，不能將它當作停止已啟動的 Codex。
 - 撤權、過期、帳號不符、宿主未綁定或簽章不符時停止相依操作，不切換帳號或沿用歷史 parent。
 
 ### 經平台明確執行單項 Codex
@@ -115,4 +115,19 @@ submit 只呼叫原 request 工具，不新增第二個傳輸或業務事件。q
 
 不得把歷史單次成功冒成本 Work 或新 Work 驗收。沒有實際執行能力時回 EXECUTION_NOT_BOUND；工具缺失回 TOOL_NOT_FOUND，不拼裝另一個 HTTP client、服務或模擬回執。接受標準與獨立 QA 判定另外保存，不以 CLI 正常完成代簽 QA。
 
+
+
+## 多項子任務受控執行與取消剩餘待辦（v1.0.7）
+
+使用者明確授權執行整批時，在同一平台 batch 保存獨立子項後，由當前 Work 逐項沿上節 codex_once 執行。每項使用獨立執行鍵，先查原項目 pending；完成後查原回執及以新讀鍵查 SQL 結果，再執行下一項。任一項 UNKNOWN、拒絕或撤權時停止相依啟動，只查原筆；不得換鍵重跑。這是當前 Work 的有界逐項協調，未提供背景自動派工、相依 DAG、Router 動態選路或 AIO 容器隔離。
+
+同一批次部分成功後，若使用者要求取消剩餘待辦，使用原 cancel_batch：
+
+```json
+{"parent_id":"<當次宿主parent>","batch_id":"<原batch>","operation_key":"<新取消鍵>","pending_only":true}
+```
+
+本版原入口已支持 pending_only。舊工具 schema 若拒絕此欄位，回報版本未刷新；不刪欄位改作整批取消、不另造 HTTP client。回件必須有 cancelled_pending_item_ids 與原 counts；running_items_stopped=false。再以獨立 batch_status(include_result=true,item_offset=0,item_limit=25) 核取消項 cancelled/attempt=0、已完成項結果及 attempt=1 全部保留。取消失回只以 batch_receipt(operation_kind=cancel) 查同鍵。舊取消 UNKNOWN 保史，不冒作本新模式成功。
+
+單項執行中停止目前仍只具宿主 STOP／撤回的程序清理邊界，沒有共用的單項在途停止工具。不能為停止一項而擅停整個帳號平台服務，或宣稱完整子系統／真沙盒已驗收。
 
