@@ -13,7 +13,10 @@ ENDPOINT='https://ai-gateway-security-review-public-hy1ysqmpn-yoyo-5560.vercel.a
 
 def sha(raw):return hashlib.sha256(raw).hexdigest()
 def main():
-    assert subprocess.check_output(['git','-C',str(D),'rev-parse','HEAD'],text=True).strip()=='411272e8ab6e86f53b919c8dcc9f81db54ed5958','ORIGINAL_STAGE_CHANGED'
+    guards={"fresh_batch_host.py":"23cd919dd4c5e3be89145e02fd956a4239efd76f","fresh_batch_worker.py":"ad08bfe9e75ba09ebdc8753e666412287e9c0146","platform_service_manager.py":"f812b44525a963334cc6764df19a2e254c945bac","deer_management_rpc.py":"e09c2ff815d00ba00bcdd2f45fb5e4c2a294df59","worker_signal_lifecycle.py":"7915c41b5eaf5011f7311b77f6b951958391eff8","deer_management_host.py":"35374ed211b2ae552354dcf02a2ae6d2432b2fa8","deer_management_consent.py":"075522fdabb8609592fe422828093ae3d6fe1292","deer_management_journal.py":"a6d8e70d0b3c363c4b35ca21c36a07e2691eb3c9","deer_agent_management.py":"445d93f74093dec21f2f30d38d03c03f041c5849","gateway_agent_consent.py":"c9d72e1884018e183fa6defb246f9a02df000f75","agent_management_consent.html":"eaaf67c26aa4cb1f8ce544e315deec13dd5f3fa4"}
+    for name,pin in guards.items():
+        raw=(D/name).read_bytes()
+        assert hashlib.sha1(b'blob '+str(len(raw)).encode()+bytes([0])+raw).hexdigest()==pin,'ORIGINAL_STAGE_BLOB_CHANGED:'+name
     for name in ('fresh_batch_host.py','fresh_batch_worker.py','platform_service_manager.py','deer_management_rpc.py','worker_signal_lifecycle.py','deer_management_host.py','deer_management_consent.py','deer_management_journal.py','deer_agent_management.py'):
         assert (S/name).read_bytes()==(D/name).read_bytes(),'ORIGINAL_SERVICE_CODE_CHANGED:'+name
     e=R/'dr-consent-page-install-v1'
