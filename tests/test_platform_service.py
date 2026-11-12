@@ -72,7 +72,7 @@ class PlatformServiceTests(unittest.TestCase):
                 successful_output(raw(bad))
 
     def test_caller_cannot_supply_executable_path_or_unbounded_timeout(self):
-        kwargs = dict(parent_id='p', operation_key='once', batch_id='b', item_id='i')
+        kwargs = dict(parent_id='p', operation_key='once', batch_id='b', item_id='i', execution_mode='codex_once')
         for changes in [dict(executable='/bin/sh'), dict(timeout_seconds=91), dict(timeout_seconds=True)]:
             with self.assertRaises(ValueError):
                 Execute(**kwargs, **changes)

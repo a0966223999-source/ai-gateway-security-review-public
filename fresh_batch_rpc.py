@@ -19,6 +19,7 @@ from typing import Literal
 
 from batch_mcp_entry import Submit, Status, Cancel, RequestBase, planning_response
 from fresh_batch_host import canonical, digest, enrollment_active, request_deadline
+from platform_codex_executor import Execute
 
 
 def install_fresh_batch_routes(app, *, env=os.environ, connection_factory=None):
@@ -250,16 +251,23 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
                                                         idempotentHint=True, openWorldHint=True))
-    async def batch_task(request: Submit) -> dict:
-        """Turn a big goal into saved Deer child tasks using this current GPT.
+    async def batch_task(request: Submit | Execute) -> dict:
+        """Save a goal and child tasks, or explicitly execute ONE saved item.
+
+        To execute: execution_mode=codex_once, batch_id, item_id, parent_id,
+        operation_key. No new items or prompt accepted in execute mode.
+        Execution is explicit and requires operator-enabled host capability.
+        Query UNKNOWN with batch_receipt(operation_kind=execute), same key.
 
         With goal only, return the planning contract without saving or launching.
         This GPT decomposes it, then calls once with the same goal/key and items.
         The original Holder atomically saves goal and children. Verify with
         batch_status(include_plan=true, item_offset=0). No extra model is called.
-        Items must be independent. This stores pending work only, never dispatches.
+        Items must be independent. Ordinary goal/items requests only store pending work.
         Unknown commit outcomes: retain the same key and query batch_receipt.
         """
+        if isinstance(request, Execute):
+            return await invoke('execute', request)
         if request.items is None:
             owner = principal()
             rpc.check(owner, request.parent_id)
@@ -286,8 +294,6 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
         return await invoke('cancel', request)
 
     if 'execute' in rpc.config['actions']:
-        from platform_codex_executor import Execute
-
         @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
                                                             idempotentHint=True, openWorldHint=True))
         async def batch_execute(request: Execute) -> dict:

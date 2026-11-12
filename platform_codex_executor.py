@@ -14,7 +14,7 @@ import shutil
 import signal
 import subprocess
 import time
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field
 from batch_mcp_entry import RequestBase, Text
@@ -22,6 +22,7 @@ from fresh_batch_host import canonical, exclusive_write, HostDenied
 
 
 class Execute(RequestBase):
+    execution_mode: Literal['codex_once']
     batch_id: Text
     item_id: Text
     timeout_seconds: Annotated[int, Field(strict=True, ge=10, le=90)] = 90
