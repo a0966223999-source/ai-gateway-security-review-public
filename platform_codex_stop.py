@@ -74,6 +74,7 @@ def track_owned_descendants(proc, tracked):
 
 
 def signal_tracked(tracked, sig):
+    count = 0
     for pid,start in list(tracked.items()):
         fd = None
         try:
@@ -82,9 +83,11 @@ def signal_tracked(tracked, sig):
             fields = Path('/proc',str(pid),'stat').read_text().rsplit(') ',1)[1].split()
             if fields[19] == start and fields[0] not in ('Z','X'):
                 signal.pidfd_send_signal(fd,sig)
+                count += 1
         except (ProcessLookupError,FileNotFoundError):pass
         finally:
             if fd is not None:os.close(fd)
+    return count
 
 
 async def terminate_owned_group(proc, tracked=None):
@@ -95,12 +98,14 @@ async def terminate_owned_group(proc, tracked=None):
         alive = track_owned_descendants(proc,tracked)
         if proc.poll() is not None and not live_group_members(proc.pid) and not alive:
             break
+        signalled = False
         try:
             os.killpg(proc.pid, sig)
-            sent.append(sig.name)
+            signalled = True
         except ProcessLookupError:
             pass
-        signal_tracked(tracked,sig)
+        signalled = signal_tracked(tracked,sig) > 0 or signalled
+        if signalled:sent.append(sig.name)
         deadline = time.monotonic() + 3
         while time.monotonic() < deadline:
             alive = track_owned_descendants(proc,tracked)

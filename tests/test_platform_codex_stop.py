@@ -49,7 +49,8 @@ class OriginalStopTests(unittest.IsolatedAsyncioTestCase):
         child_code = ('import os,signal,time;from pathlib import Path;'
             'signal.signal(signal.SIGTERM,signal.SIG_IGN);'
             f'Path({str(self.root/"child-ready")!r}).write_text(str(os.getpid()));time.sleep(60)')
-        stub.write_text('#!'+sys.executable+'\nimport json,os,sys,time,subprocess\nfrom pathlib import Path\n'
+        stub.write_text('#!'+sys.executable+'\nimport json,os,sys,time,subprocess,signal\nfrom pathlib import Path\n'
+            'signal.signal(signal.SIGTERM,signal.SIG_IGN)\n'
             'p=sys.stdin.read()\n'
             f'root=Path({str(self.root)!r})\n'
             'target="stop-target" in p\n'
