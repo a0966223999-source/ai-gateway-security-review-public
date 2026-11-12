@@ -61,7 +61,7 @@ submit 只呼叫原 request 工具，不新增第二個傳輸或業務事件。q
 ### 每次開始先發現宿主
 
 1. 發現並呼叫原 `batch_host_status`，從當次回件取得 `parent_id`、`generation`、`expires_at` 與 `worker_heartbeat_verified`。不得硬編碼其他回合的 parent 或期限。
-2. 僅當宿主期限尚有效且簽章心跳已驗時才建立新任務。無工具回 `TOOL_NOT_FOUND`；無有效宿主回 `HOST_NOT_READY`，保留原始回件，不用離線測具代替。
+2. 僅當宿主仍有效且簽章心跳已驗時才建立新任務。有數字 expires_at 時核其期限；只有 lifecycle=owner-platform-service-v1 且 expires_at=null 時，代表帳號平台服務持續至明確停止／撤回，不能由 Work 自行把過期的測試宿主改成此模式。無工具回 `TOOL_NOT_FOUND`；無有效宿主回 `HOST_NOT_READY`，保留原始回件，不用離線測具代替。
 3. 本流程不會因載入就自動登記、執行或續期。建立任務需使用者當前指示或既有未撤回的任務授權。
 
 ### 拆解與登記
@@ -79,6 +79,27 @@ submit 只呼叫原 request 工具，不新增第二個傳輸或業務事件。q
 - 用 `cancel_batch` 取消未開始項目；取消完成須以獨立查詢讀回。此工具不等於停止已啟動的 Codex 程序。
 - 撤權、過期、帳號不符、宿主未綁定或簽章不符時停止相依操作，不切換帳號或沿用歷史 parent。
 
-### Codex 執行邊界
+### 經平台明確執行單項 Codex
 
-已保存任務不會自行啟動 Codex。只有當前平台實際提供並已驗證的執行工具才可使用；不得自行拼裝 shell、SSH 或模擬執行回執。找不到執行工具，明確回 `EXECUTION_NOT_BOUND`。歷史宿主單次啟動成功只能證明該次執行，不能證明所有 Work 皆可透過平台啟動。分開回報登記、執行、結果保存及 GPT 查回狀態。
+1. 宿主回件的 `execution_available` 必須為 true，且心跳有效。先以 batch_status 分頁取得原 batch ID 與原 item ID；只執行使用者授權、尚未開始的 pending 項目。
+2. 使用全新執行 operation_key，呼叫 `batch_execute`；若本回合尚未載入此新增工具，使用**同一原平台** `batch_task` 的明確執行模式。兩者的 request 相同：
+
+```json
+{
+  "parent_id": "<當次宿主 parent>",
+  "operation_key": "<全新執行鍵>",
+  "execution_mode": "codex_once",
+  "batch_id": "<原 batch ID>",
+  "item_id": "<原 item ID>",
+  "timeout_seconds": 90
+}
+```
+
+執行模式不接受新 prompt、items、shell、路徑或可執行檔；宿主從原 Deer 讀取已保存內容，核原完整 binding 與 payloadDigest，沿原 repository 預留一次後才啟動。普通 goal/items 登記仍不派工。不要因看到執行能力就自動把所有 pending 項目啟動。
+
+3. 如回 PENDING_OR_UNKNOWN，保存原鍵，只用 `batch_receipt` 加 `operation_kind: "execute"` 查回；不可換鍵、換 item 或重建 batch 來重送同一次未知執行。執行開始後的崩潰或失回保留原防重紀錄與原 SQL 狀態。
+4. 成功回件應有 `original_result_saved: true` 與 `observed_execution_verified: true`。再用獨立 batch_status，帶新讀鍵、`item_offset: 0`、`item_limit: 25`、`include_result: true`，核原 item succeeded、attempt=1 及原結果。外層 native_execution_verified=false 表示管理端不提供原生程序即時狀態；不要因此忽略已保存的執行回執，也不把只入隊當成執行成功。
+5. 目前宿主使用既有 Codex CLI 登入、ephemeral/read-only 設定、空工作目錄與最長90秒的單項執行。這不是 AIO 容器沙盒；不能宣稱檔案寫入、任意長時間執行、全平台沙盒或24小時可用。Codespace 停止／休眠時宿主也不能接單。cancel_batch 只取消未開始項目；宿主 STOP／撤回會使受管 Codex 程序停止。
+
+不得把歷史單次成功冒成本 Work 或新 Work 驗收。沒有實際執行能力時回 EXECUTION_NOT_BOUND；工具缺失回 TOOL_NOT_FOUND，不拼裝另一個 HTTP client、服務或模擬回執。接受標準與獨立 QA 判定另外保存，不以 CLI 正常完成代簽 QA。
+
