@@ -16,7 +16,8 @@ from mcp.types import ToolAnnotations
 from request_store import RequestStore, submit_and_wait
 from targeted_locator import parse_target_locator
 from self_report import parse_registration_sidebands, parse_self_report
-from transport import SameInboxRPC, ReplyVerifier, READ, canonical, UnknownOutcome
+from transport import SameInboxRPC, READ, canonical, UnknownOutcome
+from rpc_trust import deployment_trust_snapshot, load_reply_verifier
 
 MAILBOX='gateway_internal_v1'
 
@@ -67,9 +68,8 @@ def install_rpc_tools(mcp, mailbox, formal, principal, oauth_meta, *, host_confi
         if not 0<wait<=600 or not wait<min(function,connector)-5:
             raise ValueError('BUDGET_MARGIN_REQUIRED')
         # Key comes only from original host setup environment; never caller config.
-        public=os.getenv('XJ_SOURCE_RPC_HOST_PUBLIC_KEY','')
-        if not re.fullmatch('[0-9a-f]{64}',public):raise ValueError('PINNED_HOST_KEY_REQUIRED')
-        verifier=ReplyVerifier(bytes.fromhex(public))
+        trust_snapshot = deployment_trust_snapshot()
+        verifier = load_reply_verifier(trust_snapshot)
     except (ValueError,KeyError,TypeError):
         return {'enabled':False,'reason':'HOST_RPC_CONFIG_UNVERIFIED','tools':[]}
 
@@ -80,9 +80,14 @@ def install_rpc_tools(mcp, mailbox, formal, principal, oauth_meta, *, host_confi
         if not isinstance(owner,str) or not owner:raise ValueError('OWNER_REQUIRED')
         inbox=mailbox(MAILBOX).for_event('gateway.continuation.ready')
         if inbox.owner!=owner or inbox.mailbox_id!=MAILBOX:raise ValueError('OWNER_MAILBOX_MISMATCH')
+        if deployment_trust_snapshot() != trust_snapshot:
+            raise ValueError('HOST_TRUST_CONFIG_CHANGED')
+        require_active = getattr(verifier, 'require_active', None)
+        if require_active is not None:
+            require_active()
         client=connection_factory(wait)
         def current():
-            try:return principal()==owner and os.getenv('XJ_SOURCE_RPC_HOST_PUBLIC_KEY')==public
+            try:return principal()==owner and deployment_trust_snapshot()==trust_snapshot
             except Exception:return False
         rpc=SameInboxRPC(redis=client,inbox_key=inbox.key,owner=owner,mailbox=MAILBOX,
             verifier=verifier,current=current,max_wait_seconds=wait,
@@ -101,7 +106,10 @@ def install_rpc_tools(mcp, mailbox, formal, principal, oauth_meta, *, host_confi
         m=json.loads(raw);q=json.loads(m['message'])
         _,sha=RequestStore.exact(request)
         if q['requestSHA256']!=sha:raise ValueError('REQUEST_READBACK_CHANGED')
-        return request,m,rpc.context(m['operation_key'],q['nonce'],sha,q['deadline'],event)
+        context = rpc.context(m['operation_key'],q['nonce'],sha,q['deadline'],event)
+        if not allow_expired:
+            rpc.require_live_message(m, context)
+        return request,m,context
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True))
     async def gateway_source_rpc_request(mailbox_id:str,request_json:str,target_locator_json:str='',self_report_json:str='')->dict:
@@ -163,7 +171,11 @@ def install_rpc_tools(mcp, mailbox, formal, principal, oauth_meta, *, host_confi
                 event_id=matches[0]['event_id']
             _,m,context=await event_context(rpc,event_id,allow_expired=True)
             if not m.get('rpc_response'):return {'status':'UNKNOWN_QUERY_ONLY','event_id':event_id}
-            result=rpc.verifier.verify(json.loads(m['rpc_response']),context)
+            result=rpc.verify_message(json.loads(m['rpc_response']),context,m,historical=True)
+            cutover = getattr(rpc.verifier, 'cutover_epoch', None)
+            if cutover is not None and m['created_at'] < cutover:
+                return {'status':'verified_historical_host_response', 'event_id':event_id,
+                        'result':result, 'historical_only':True, 'authority':False}
             return {'status':'verified_host_response','event_id':event_id,'result':result}
 
     return {'enabled':True,'tools':['gateway_source_rpc_request','gateway_source_rpc_read',
