@@ -5,8 +5,8 @@
     "defaultPrompt": null,
     "developerName": "App developer",
     "displayName": "X Redis Test",
-    "longDescription": "\u5408\u6210 Redis \u4e8b\u4ef6\u5beb\u5165\u3001\u8b80\u56de\u8207\n\nTTL \u6e2c\u8a66",
-    "shortDescription": "\u5408\u6210 Redis \u4e8b\u4ef6\u5beb\u5165\u3001\u8b80\u56de\u8207\n\nTTL \u6e2c\u8a66"
+    "longDescription": "合成 Redis 事件寫入、讀回與\n\nTTL 測試",
+    "shortDescription": "合成 Redis 事件寫入、讀回與\n\nTTL 測試"
   },
   "apps": "./.app.json",
   "extensions": {
@@ -15,8 +15,8 @@
     }
   },
   "name": "dev-6af05e97756c8191affb9700b02418e7",
-  "version": "1.0.10",
-  "description": "\u5408\u6210 Redis \u4e8b\u4ef6\u5beb\u5165\u3001\u8b80\u56de\u8207\n\nTTL \u6e2c\u8a66",
+  "version": "1.0.11",
+  "description": "合成 Redis 事件寫入、讀回與\n\nTTL 測試",
   "author": {
     "name": "App developer"
   },
