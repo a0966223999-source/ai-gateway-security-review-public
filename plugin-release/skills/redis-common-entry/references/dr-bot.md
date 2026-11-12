@@ -29,6 +29,16 @@
 6. 需要停止時先分清固定 Agent 停用、在途工作停止與待辦取消。只用原工具已提供的操作。cancel_batch 不能停止 running；不能為停一項擅停整個平台服務。原管理／單項停止工具未綁時標 `STOP_NOT_BOUND`，不能宣稱清理完成。
 7. 交付時分開報告：DESIGNED、REGISTRY_SAVED、READBACK_VERIFIED、EXECUTED、STOP_VERIFIED 與獨立驗收。只有收到相應真回件才升格；缺件保留卡片與下一步。自行測試不能代簽獨立 QA。
 
+## 原共用角色管理工具
+
+1. 先核當次真的有 `agent_manage`、`agent_management_receipt`，再用原 `batch_host_status` 核有效宿主與簽章心跳。缺工具仍回 DESIGNED_NOT_CREATED，不拼另一個 HTTP client 或借用私鑰。
+2. 只使用原 Gateway 互動登入核出的具名帳號、原會話及明確管理同意。範圍由宿主選定角色名稱、list/read/create及期限；工具參數不能指定owner、grant、網址或憑證。缺同意、到期、撤回時停止，不能用續點link、信箱通知、角色文字或舊測試批准升權。
+3. 當次schema支援時，呼叫 `agent_manage(request={kind:"list",operation_key:"<全新讀鍵>"})` 查授權範圍內名冊；單項讀取使用 kind:"read"、name及新讀鍵。這不是全平台Agent清單。
+4. 使用者要求建立且原同意有效時，以 kind:"create"、name、description、soul、全新operation_key建立原定義。現版固定 tool_groups、skills、allowed_subagents皆為空，不接受要求工具／技能／派工權限的額外欄位；如需求需要這些能力，保留設計並明示尚未接入，不能刪去需求後宣稱全功能完成。
+5. 保存原create_operation_key、payload_sha256／create_payload_sha256與request_id。建立回REGISTRY_SAVED_READBACK_REQUIRED後，另用全新讀鍵kind:"read"核同一名稱、description、soul與三個空權限陣列。名稱是原帳號名冊內的身份，不捏造另一個Bot ID。
+6. 寫入失回只呼叫 `agent_management_receipt(operation_key:"<原鍵>",kind:"create")` 查原筆，不能換鍵重送。其historical_only=true、authority=false僅稽核摘要，不含當前角色內容，也不續權。有效同意內可用kind:"receipt"、name、原create_operation_key、payload_sha256及新查詢鍵核原日誌；CONFIRMED後仍需獨立完整read，不能用日誌代替讀回。
+7. 受控測試完成或使用者要求撤權時，在原Gateway撤回該筆同意，再以新讀鍵核拒絕。撤回管理權不等於刪除角色、停止在途任務或固定Agent停用；未授權刪除就保留零權限測試定義。既有grant與本次工程成功不授權下一次工作。分列工程驗收、獨立QA及執行／停止狀態。
+
 ## 原 Grok 操作的對應
 
 | 上游用語 | 本平台處理 |
@@ -40,9 +50,11 @@
 
 ## 已核能力與待接範圍
 
-共用入口提供原 batch 登記／查詢／取消流程；宿主與工具版本要每次重核。固定 Agent 的名冊、建立／版本修改、停用及單項在途停止，尚無本入口的正式綁定證據。程式備份中的 `app/gateway/routers/agents.py` 有 GET/POST/PUT/DELETE `/api/agents`（單項帶名稱），但靜態原碼不是當前部署、授權或 MCP 工具證明；不得因此直接打網址、開 agents_api.enabled 或假設會話身分可共用。
+原共用 MCP 已提供 `agent_manage` 與 `agent_management_receipt`；2026-11-13 原帳號具名600秒授權下，真實建立、獨立完整讀回、原寫入日誌 CONFIRMED、撤權後新讀拒絕已通過工程驗收。這是固定角色定義管理，不是固定 Agent 已執行。版本修改、刪除、啟用及固定 Agent 執行／停止仍未綁定；既有 batch 的 Codex 單項停止另按 SKILL.md 操作。工具版本、宿主及當前授權每次重核。原 `/api/agents` 路由的靜態原碼不授權直接打網址、開 agents_api.enabled 或移用其他會話身分。
 
 ## 來源
 
 改編依據為使用者保存的 `/作業/dr-eggbot.md`（615 bytes）與 https://github.com/elie222/botdirectory.ai/blob/main/bots/dr-eggbot.md 。這是本平台適配流程，不是宣稱還原另有但未取得的完整 DR Bot 執行程式。上游 MIT 授權及著作權聲明見同目錄 `dr-bot-LICENSE.txt`。
+
+
 
