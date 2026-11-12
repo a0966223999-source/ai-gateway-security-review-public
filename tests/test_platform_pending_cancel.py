@@ -40,7 +40,8 @@ class PendingCancelTests(unittest.IsolatedAsyncioTestCase):
             await connection.run_sync(Base.metadata.create_all)
         body = dict(generation=self.cfg['generation'], owner=self.cfg['owner'],
             parent_id=self.cfg['parent_id'], action='submit', operation_key='fixture-submit',
-            payload={'title':'fixture', 'items':[{'key':str(i),'prompt':'synthetic'} for i in range(3)]},
+            payload={'title':'fixture', 'max_live_items':3, 'max_running_items':3,
+                     'items':[{'key':str(i),'prompt':'synthetic'} for i in range(3)]},
             expires_at=time.time()+60)
         body['request_id'] = digest([self.cfg['generation'], self.cfg['owner'], 'submit', 'fixture-submit'])
         await self.host.execute({'body':body,'mac':hmac.new(self.host.ingress,canonical(body),'sha256').hexdigest()}, repository=self.repo)
