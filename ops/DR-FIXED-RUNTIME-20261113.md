@@ -84,3 +84,38 @@ All 211 Git blob hashes matched. The actual original .venv installer exited 1
 at its first original SQL idle check: ORIGINAL_TASKS_NOT_IDLE_STOP. No formal
 source or service restart was reached; the other workstream's three pending
 items remain untouched. See evidence/dr-fixed-runtime-stage-receipt-20261113.json.
+
+## Current installed delta — supersedes the terminal-only maintenance gate
+
+Owner requested installation. Fresh original SQL confirmed exactly the three
+known pending rows had attempt0, no lease/start/cancel timestamps and no native
+attempt fence. The maintenance gate now permits only these exact acknowledged
+IDs and pins the entire original batch/item SQL snapshot before and after
+supervisor drain and before receiver restart; active/leased/attempted/unknown
+rows or concurrent changes still stop. Five new distinct guard tests plus the
+three existing hook tests pass. No pending item was cancelled, adopted or run.
+The manifest original fresh_batch_host hash was corrected from the extra-newline
+fetch copy to the actual byte-exact Git/host preimage d28ea8a5...d7914a3d.
+
+Actual install commit 2b12f7beebf6cb9e651e1c9ea0f30ca28259e41e, 212 blobs verified,
+installer exit0, SOURCE_INSTALLED_RUNTIME_GRANT_NOT_SELECTED. Gateway73004 /
+manager73107; original config/JWT pins unchanged. SQL pending3/succeeded7/cancelled17
+and full snapshot SHA bf9ba456acb04430b0b264220e827f67f2828710385847169f766f0873969f3c
+preserved. health200, anonymous auth/me401, runtime static review page200.
+New original signed heartbeat1794508800.4343004 verified after install1794508594.9954836.
+Original short-memory Reader/factory/run_bindings source files were not overwritten.
+
+Original MCP test branch fast-forwarded under expected-head lease to 2b12f7b;
+Vercel dpl_Hp1cKTFtWKkvTgP7jnwYmVFZTnEA READY. Original MCP alias independently
+verified pointing at it. Added only branch-scoped XJ_FIXED_AGENT_RUNTIME_ENABLED;
+existing account/config/ingress keys preserved. Existing App Refresh tools clicked
+once, then independent App tool dialog showed fixed_agent_task and
+fixed_agent_receipt. Common plugin package remains1.0.13; do not overwrite its
+background/notification files with this snapshot's historical1.0.12 package.
+
+No runtime grant selected/issued, no real model execution, no fixed-role live
+stop acceptance. Current Work's native schema had not yet loaded these new tools.
+Next real acceptance must use the newly discovered native tools, fresh named
+management consent to create/read qa-dr-runtime-20261113, and then a distinct
+600-second/two-run original Gateway runtime consent confirmed at action time.
+Do not reuse the revoked management-test grant or role that prohibits models.
