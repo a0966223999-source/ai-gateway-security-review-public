@@ -1,0 +1,2 @@
+router_dynamic_candidate/src/index.ts: transformed syntax PASS; imports not linked or executed
+router_dynamic_candidate/src/app/runtime.ts: transformed syntax PASS; imports not linked or executed

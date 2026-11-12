@@ -1,0 +1,20 @@
+{
+  "status": "DYNAMIC_SELECTION_CORE_TESTED_NOT_RUNTIME_BOUND",
+  "tests_passed": 19,
+  "test_original_engine": true,
+  "test_original_memory_repository": true,
+  "temporary_sqlite_kv_and_effect_contract_fixture": true,
+  "production_store_effects_runtime_tested": false,
+  "identities_sources_and_executors_are_synthetic": true,
+  "runtime_index_overlay_withdrawn": true,
+  "reason": "Original DshExecutor.resume and queued launch lifecycle can bypass an Engine-only executor wrapper",
+  "full_typescript_project_typecheck": "NOT_RUN",
+  "formal_s61_store_registry_fiber_bound": false,
+  "native_work_callables_in_this_work": "TOOL_NOT_FOUND",
+  "live_dynamic_routing": false,
+  "native_dispatches": 0,
+  "gateway_or_worker_restarted": false,
+  "plugin_updated": false,
+  "d2_changed": false,
+  "gate1": "DENY"
+}
