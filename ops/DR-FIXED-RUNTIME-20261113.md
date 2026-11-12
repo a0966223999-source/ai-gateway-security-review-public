@@ -76,3 +76,11 @@ remain NOT_RUN. Do not classify isolation CLI fixtures as real model execution.
 
 No D2/Gate1 changes. Earlier source candidates remain historical and must not
 replace these original-pin instructions.
+
+## Actual original-host gate result
+
+The exact aac92a1 checkout was fetched into /home/codespace/dr-fixed-runtime-aac92a1.
+All 211 Git blob hashes matched. The actual original .venv installer exited 1
+at its first original SQL idle check: ORIGINAL_TASKS_NOT_IDLE_STOP. No formal
+source or service restart was reached; the other workstream's three pending
+items remain untouched. See evidence/dr-fixed-runtime-stage-receipt-20261113.json.

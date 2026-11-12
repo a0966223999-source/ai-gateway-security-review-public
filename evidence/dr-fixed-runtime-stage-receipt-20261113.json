@@ -1,0 +1,25 @@
+{
+  "schema": "dr-fixed-runtime-stage-receipt-v1",
+  "status": "STAGED_GATE_BLOCKED",
+  "commit": "aac92a167f00665a2d41329310ffb8fbb974ae2c",
+  "tree_files_verified": 211,
+  "stage": "/home/codespace/dr-fixed-runtime-aac92a1",
+  "installer_exit": 1,
+  "reason": "ORIGINAL_TASKS_NOT_IDLE_STOP",
+  "failure_location": "ops/install_management_consent_page.py:33 idle",
+  "formal_source_written": false,
+  "gateway_restarted": false,
+  "manager_restarted": false,
+  "other_batch_cancelled": false,
+  "new_runtime_grant_issued": false,
+  "real_model_executed": false,
+  "mcp_test_branch_not_updated_by_this_work": true,
+  "private_plugin_not_updated_by_this_work": true,
+  "same_source_root_uses_existing_registry_sql_codex": true,
+  "next_actions": [
+    "Original background acceptance workstream finishes or explicitly cancels its own pending batch; do not adopt/cancel it from DR.",
+    "Recheck original source/process manifest before controlled original-host update.",
+    "Confirm actual original heartbeat and protected Gateway boundary; enable merged MCP tools preserving current config.",
+    "Obtain distinct original management/runtime consent for a new arithmetic-only test role; real completion/stop/readback/revocation acceptance remains NOT_RUN."
+  ]
+}
