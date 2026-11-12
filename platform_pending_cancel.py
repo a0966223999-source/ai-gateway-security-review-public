@@ -50,6 +50,8 @@ async def cancel_pending_items(host, repository, request):
         # Reuse original aggregation; never rewrite completed/running item state,
         # native attempt records, results, binding or payloadDigest.
         await session.flush()
+        if len(pending) == batch.total_items:
+            batch.status = 'cancelled'
         await repository._refresh_batch_status(session, batch, now=now)
         checked(batch)
         await session.commit()

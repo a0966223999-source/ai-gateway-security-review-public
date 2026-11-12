@@ -244,6 +244,7 @@ class FreshBatchHost:
         if action == 'cancel' and request.pending_only:
             self.reserve(body)
             result = await cancel_pending_items(self, repository, request)
+            self.check('cancel')
             response = dict(generation=self.config['generation'], request_id=body['request_id'],
                             request_sha256=digest(body), result=result, automatic_dispatch=False,
                             native_execution_verified=False)
