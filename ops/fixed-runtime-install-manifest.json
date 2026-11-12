@@ -59,7 +59,7 @@
       "root": "service",
       "target": "fresh_batch_host.py",
       "source": "fresh_batch_host.py",
-      "before_sha256": "41e70b317e467244908248c0f8ba10db3662db9ca3b25144111c60c79a19acac",
+      "before_sha256": "d28ea8a5d1c7a3d3cd88554fb0dc2f8df18cc1ee88b9c6a3e83253e1d7914a3d",
       "after_sha256": "2c63cd80feced1377e7e70d9e0cd2569711f63c8141e8306f8414f890cf4cba3"
     },
     {
@@ -104,5 +104,10 @@
       "before_sha256": "c67ba33e9b98e05340788b950c6e0009de677b72e852a05191c5ee7edbb9f78f",
       "after_sha256": "15e5073dff7d44d3f2e90e10666c066bb6989c45b1793a69586bdf29dae1552a"
     }
-  ]
+  ],
+  "preserved_pending_items": {
+    "batch-item-0a461b461e154f7fa98201c7c15f8218": "native-batch-605006c8346943798f96895f3d46be59",
+    "batch-item-859265fab4734197935aea29f3ace51f": "native-batch-605006c8346943798f96895f3d46be59",
+    "batch-item-8644281c7214420cacc5cd6f83155d6e": "native-batch-605006c8346943798f96895f3d46be59"
+  }
 }
