@@ -1,0 +1,20 @@
+{
+  "status": "CANDIDATE_TESTED_NOT_DEPLOYED",
+  "tests_passed": 20,
+  "test_log": "test-output.txt",
+  "authority_fixture": true,
+  "durable_once_fixture": false,
+  "once_fixture": "in-memory only; no production durability claim",
+  "original_router_sources_sha256": {
+    "app/gateway/routers/agents.py": "64614da569c9a30297adf4de22511abb4263dbc2bf548e0118c3c25d695fbfc2",
+    "packages/harness/deerflow/persistence/agents/sql.py": "da981ff45a24636e8e32037f445c37e61c59901c813c18d0146c9afc77a236c7",
+    "packages/harness/deerflow/persistence/agents/model.py": "5bc7e0be4e1b65baf100c0b56e08d109a336f80ed567697e954a3de4ab27c240",
+    "packages/harness/deerflow/runtime/user_context.py": "abb9eb379100bbd7d25dcfe6bccb500c92556f8f4f84ad40862c5fc2f98e47e7"
+  },
+  "live_agent_created": false,
+  "management_scope_bound": false,
+  "cas_bound": false,
+  "fixed_agent_stop_bound": false,
+  "model_api_added": false,
+  "gate1": "unchanged"
+}

@@ -1,0 +1,41 @@
+test_bad_fence_cannot_invoke_same_effect_twice (test_deer_agent_management.OriginalRouterTests.test_bad_fence_cannot_invoke_same_effect_twice) ... ok
+test_binding_must_match_original_mcp_principal (test_deer_agent_management.OriginalRouterTests.test_binding_must_match_original_mcp_principal) ... ok
+test_checkpoint_binding_is_not_management_grant (test_deer_agent_management.OriginalRouterTests.test_checkpoint_binding_is_not_management_grant) ... ok
+test_different_owner_cannot_read_definition (test_deer_agent_management.OriginalRouterTests.test_different_owner_cannot_read_definition) ... ok
+test_fixture_same_key_does_not_repeat_original_post (test_deer_agent_management.OriginalRouterTests.test_fixture_same_key_does_not_repeat_original_post) ... ok
+test_lost_reply_after_original_commit_is_not_retried (test_deer_agent_management.OriginalRouterTests.test_lost_reply_after_original_commit_is_not_retried) ... ok
+test_missing_once_fence_does_not_write (test_deer_agent_management.OriginalRouterTests.test_missing_once_fence_does_not_write) ... ok
+test_name_conflict_is_not_reported_as_our_success (test_deer_agent_management.OriginalRouterTests.test_name_conflict_is_not_reported_as_our_success) ... ok
+test_original_api_disabled_stays_denied (test_deer_agent_management.OriginalRouterTests.test_original_api_disabled_stays_denied) ... ok
+test_original_create_read_and_list_persist_same_owner (test_deer_agent_management.OriginalRouterTests.test_original_create_read_and_list_persist_same_owner) ... ok
+test_original_mcp_sdk_lists_only_bound_tools_without_context_input (test_deer_agent_management.OriginalRouterTests.test_original_mcp_sdk_lists_only_bound_tools_without_context_input) ... ok
+test_owner_changed_before_effect_is_rejected (test_deer_agent_management.OriginalRouterTests.test_owner_changed_before_effect_is_rejected) ... ok
+test_path_and_oversize_input_are_rejected (test_deer_agent_management.OriginalRouterTests.test_path_and_oversize_input_are_rejected) ... ok
+test_payload_owner_route_or_inherit_all_injection_is_rejected (test_deer_agent_management.OriginalRouterTests.test_payload_owner_route_or_inherit_all_injection_is_rejected) ... ok
+test_request_snapshot_survives_caller_mutation (test_deer_agent_management.OriginalRouterTests.test_request_snapshot_survives_caller_mutation) ... [11/12/26 22:41:51] INFO     Created agent 'qa-dr-fixed'           agents.py:354
+                    INFO     HTTP Request: POST                  _client.py:1740
+                             http://isolated-gateway.test/api/ag                
+                             ents "HTTP/1.1 201 Created"                        
+ok
+test_revocation_before_effect_is_rechecked (test_deer_agent_management.OriginalRouterTests.test_revocation_before_effect_is_rechecked) ... ok
+test_truthy_authorization_is_rejected (test_deer_agent_management.OriginalRouterTests.test_truthy_authorization_is_rejected) ... ok
+test_unbound_default_does_not_mount_or_call (test_deer_agent_management.OriginalRouterTests.test_unbound_default_does_not_mount_or_call) ... ok
+test_update_and_stop_do_not_call_unsafe_original_routes (test_deer_agent_management.OriginalRouterTests.test_update_and_stop_do_not_call_unsafe_original_routes) ...                     WARNING  Executing <Task finished        base_events.py:1994
+                             name='Task-92'                                     
+                             coro=<OriginalRouterTests.async                    
+                             SetUp() done, defined at                           
+                             /workspace/scratch/12555d48d790                    
+                             /dr-agent-management/tests/test                    
+                             _deer_agent_management.py:32>                      
+                             result=None created at                             
+                             /opt/codex/runtimes/codex-prima                    
+                             ry-runtime/dependencies/python/                    
+                             lib/python3.12/asyncio/runners.                    
+                             py:100> took 0.177 seconds                         
+ok
+test_wrong_create_reply_is_query_only_not_success (test_deer_agent_management.OriginalRouterTests.test_wrong_create_reply_is_query_only_not_success) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.414s
+
+OK

@@ -22,7 +22,8 @@ from generation_host_config import host_generation_config
 from cycle_envelope import CycleAwareEventCatalog
 
 
-def install(api_app, write_event, read_event, event_model, *, batch_scope_resolver=None):
+def install(api_app, write_event, read_event, event_model, *, batch_scope_resolver=None,
+            agent_management_resolver=None):
     # Only trusted startup can supply the original batch authority. Environment
     # flags, mailbox payloads and model-provided IDs cannot create this capability.
     if batch_scope_resolver is not None and not callable(batch_scope_resolver):
@@ -80,6 +81,14 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
     from fresh_batch_rpc import install_fresh_batch_tools, install_fresh_batch_routes
     install_fresh_batch_tools(mcp, principal=principal, oauth_meta=oauth_meta)
     install_fresh_batch_routes(api_app)
+
+    # Original verified OAuth owner plus an explicit Gateway management binding.
+    # Checkpoint-only links, batch enrollment and environment flags are not grants.
+    # Default remains off; no new server, credentials or model API is created.
+    if agent_management_resolver is not None:
+        from deer_agent_management import install_agent_management_tools
+        install_agent_management_tools(mcp, resolve_binding=agent_management_resolver,
+                                       principal=principal, oauth_meta=oauth_meta)
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(
         readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=True))
@@ -166,3 +175,4 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
         catalog = CycleAwareEventCatalog(catalog)
     api_app.mount('/', install_events_transport(mcp, catalog))
     return mcp
+
