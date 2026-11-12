@@ -34,6 +34,8 @@ if not m or m.event_name~='gateway.continuation.ready' then return redis.error_r
 local now=tonumber(redis.call('TIME')[1]); local q=cjson.decode(m.message)
 if q.kind~='source-finalize-rpc-v1' or m.operation_key~=ARGV[2] or q.nonce~=ARGV[3]
  or q.requestSHA256~=ARGV[4] or q.deadline~=tonumber(ARGV[5]) then return redis.error_reply('REQUEST_BINDING') end
+if ARGV[8] and ARGV[8]~='' and (type(m.created_at)~='number' or m.created_at<tonumber(ARGV[8])
+ or m.created_at>now or m.created_at~=math.floor(m.created_at)) then return redis.error_reply('LEGACY_EVENT_QUERY_ONLY') end
 if now>=q.deadline or now>=m.expires_at then return redis.error_reply('EXPIRED') end
 if m.rpc_response then
  if m.rpc_response~=ARGV[6] then return redis.error_reply('RESPONSE_CONFLICT') end
@@ -87,6 +89,17 @@ class SameInboxRPC:
         return dict(domain='source-finalize-rpc-reply-v1', owner=self.owner, mailbox=self.mailbox,
                     operation=operation, nonce=nonce, requestSHA256=request_sha, deadline=deadline, eventId=event)
 
+    def require_live_message(self, message, context):
+        check = getattr(self.verifier, 'require_live_message', None)
+        if check is not None:
+            check(message, context)
+
+    def verify_message(self, envelope, context, message, *, historical=False):
+        verify = getattr(self.verifier, 'verify_message', None)
+        if verify is not None:
+            return verify(envelope, context, message, historical=historical)
+        return self.verifier.verify(envelope, context)
+
     async def _read(self, event, context):
         if self.current() is not True:
             raise ValueError('HOST_AUTHORITY_REVOKED')
@@ -103,9 +116,10 @@ class SameInboxRPC:
                                requestSHA256=context['requestSHA256'], deadline=context['deadline'])):
             raise ValueError('ORIGINAL_EVENT_BINDING')
         response = message.get('rpc_response')
+        self.require_live_message(message, context)
         if response is None:
             return None
-        return self.verifier.verify(json.loads(response), context)
+        return self.verify_message(json.loads(response), context, message)
 
     async def wait(self, *, operation, nonce, request_sha, deadline, send_once=None, existing_event=None):
         if (not re.fullmatch('[0-9a-f]{64}', nonce) or not re.fullmatch('[0-9a-f]{64}', request_sha)
@@ -171,12 +185,18 @@ class SameInboxRPC:
         request = await RequestStore(self.redis, self.key, self.current).read(context['eventId'])
         if hashlib.sha256(canonical(request).encode()).hexdigest() != context['requestSHA256']:
             raise ValueError('EXACT_REQUEST_SHA_MISMATCH')
+        if getattr(self.verifier, 'require_live_message', None) is not None:
+            raw = await self.redis.eval(READ, 1, self.key, context['eventId'])
+            if not raw:
+                raise UnknownOutcome('EVENT_MISSING_QUERY_ONLY')
+            self.require_live_message(json.loads(raw), context)
         if self.current() is not True:
             raise ValueError('HOST_AUTHORITY_REVOKED')
         try:
             result = await self.redis.eval(COMMIT, 1, self.key, context['eventId'], context['operation'],
              context['nonce'], context['requestSHA256'], context['deadline'], canonical(envelope),
-             channel(self.key, context['operation'], context['nonce']))
+             channel(self.key, context['operation'], context['nonce']),
+             getattr(self.verifier, 'cutover_epoch', ''))
             if self.current() is not True:
                 raise ValueError('HOST_AUTHORITY_REVOKED_AFTER_COMMIT')
             # Verify durable reply from original event, independent of eval return.
