@@ -14,7 +14,7 @@ from typing import Annotated, Any, Literal
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=256)]
 Key = Annotated[str, StringConstraints(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$")]
@@ -35,11 +35,20 @@ class Item(BaseModel):
 
 
 class Submit(RequestBase):
-    title: Text
-    items: Annotated[list[Item], Field(min_length=1, max_length=100)]
-    subagent_type: Text
+    title: Text = 'Task decomposition'
+    goal: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=12000)] | None = None
+    items: Annotated[list[Item], Field(min_length=1, max_length=100)] | None = None
+    subagent_type: Text = 'general-purpose'
     max_live_items: PositiveInt | None = None
     max_running_items: PositiveInt | None = None
+
+    @model_validator(mode='after')
+    def require_goal_or_items(self):
+        if self.goal is None and self.items is None:
+            raise ValueError('GOAL_OR_CHILD_ITEMS_REQUIRED')
+        if self.items is not None and len({item.key for item in self.items}) != len(self.items):
+            raise ValueError('DUPLICATE_BATCH_ITEM_KEYS')
+        return self
 
 
 class Status(RequestBase):
@@ -48,6 +57,34 @@ class Status(RequestBase):
     item_limit: Annotated[int, Field(strict=True, ge=1, le=25)] = 10
     item_status: Literal["pending", "queued", "leased", "running", "succeeded", "failed", "cancelled"] | None = None
     include_result: bool = False
+    include_plan: bool = False
+
+
+def planning_response(request: Submit) -> dict[str, Any]:
+    """Prepare this GPT's planning turn; never claim a model ran on this API."""
+    import hashlib
+    if request.goal is None or request.items is not None:
+        raise ValueError('GOAL_ONLY_PLANNING_REQUEST_REQUIRED')
+    return {
+        'status': 'AWAITING_CURRENT_GPT_DECOMPOSITION',
+        'goal': request.goal,
+        'goal_sha256': hashlib.sha256(request.goal.encode()).hexdigest(),
+        'parent_id': request.parent_id,
+        'operation_key': request.operation_key,
+        'saved': False,
+        'automatic_dispatch': False,
+        'planner': 'current_gpt_work',
+        'next_action': (
+            'In this same GPT turn, decompose the goal into 1..100 self-contained, '
+            'independent child tasks with stable unique keys, clear prompts and acceptance_criteria. '
+            'Do not execute them. Call batch_task once with the identical goal, parent_id and '
+            'operation_key plus those items. This preparation did not enqueue a submission. '
+            'Keep each dependency chain together in one item; this independent batch is not '
+            'a dependency scheduler. Then use batch_status with include_plan=true and '
+            'item_offset=0 to verify the original saved goal and children. Unknown commit '
+            'outcomes must be recovered with batch_receipt using the same key.'
+        ),
+    }
 
 
 class Cancel(RequestBase):
@@ -153,8 +190,12 @@ async def mount_batch_tools(server: FastMCP, *, resolve_scope: ScopeResolver, oa
         Retain the original operation key on unknown outcomes; never blindly
         resubmit. Pending is not native dispatch, person ACK or completion.
         """
-        if len({item.key for item in request.items}) != len(request.items):
-            raise ToolError("DUPLICATE_BATCH_ITEM_KEYS")
+        if request.items is None:
+            scope = await resolve_scope(ctx, request.parent_id, request.operation_key, 'read')
+            _check(scope)
+            return planning_response(request)
+        if request.goal is not None:
+            raise ToolError('ORIGINAL_PLAN_PERSISTENCE_NOT_BOUND')
         args = request.model_dump(exclude={"parent_id", "operation_key"}, exclude_none=True)
         return await invoke(ctx, request, "batch_task", args)
 
@@ -164,6 +205,8 @@ async def mount_batch_tools(server: FastMCP, *, resolve_scope: ScopeResolver, oa
     async def batch_status(request: Status, ctx: Context) -> dict[str, Any]:
         """Read the original Holder's stored batch progress; never dispatch work."""
         args = request.model_dump(exclude={"parent_id", "operation_key"})
+        if args.pop('include_plan'):
+            raise ToolError('ORIGINAL_PLAN_READ_NOT_BOUND')
         return await invoke(ctx, request, "batch_status", args)
 
     @server.tool(name="cancel_batch", meta=oauth_meta, annotations=ToolAnnotations(

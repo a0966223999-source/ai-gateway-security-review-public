@@ -17,7 +17,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from typing import Literal
 
-from batch_mcp_entry import Submit, Status, Cancel, RequestBase
+from batch_mcp_entry import Submit, Status, Cancel, RequestBase, planning_response
 from fresh_batch_host import canonical, digest
 
 
@@ -251,13 +251,22 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
                                                         idempotentHint=True, openWorldHint=True))
     async def batch_task(request: Submit) -> dict:
-        """Record independent child tasks on the newly enrolled original Deer host.
+        """Turn a big goal into saved Deer child tasks using this current GPT.
 
-        This stores pending work only. It does not launch agents. On an unknown
-        response, retain the same operation key and call batch_receipt.
+        With goal only, return the planning contract without saving or launching.
+        This GPT decomposes it, then calls once with the same goal/key and items.
+        The original Holder atomically saves goal and children. Verify with
+        batch_status(include_plan=true, item_offset=0). No extra model is called.
+        Items must be independent. This stores pending work only, never dispatches.
+        Unknown commit outcomes: retain the same key and query batch_receipt.
         """
-        if len({i.key for i in request.items}) != len(request.items):
-            raise ToolError('DUPLICATE_BATCH_ITEM_KEYS')
+        if request.items is None:
+            owner = principal()
+            rpc.check(owner, request.parent_id)
+            result = planning_response(request)
+            if principal() != owner:
+                raise ToolError('BATCH_PRINCIPAL_CHANGED_QUERY_ONLY')
+            return result
         return await invoke('submit', request)
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False,

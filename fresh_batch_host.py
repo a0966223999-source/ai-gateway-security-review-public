@@ -168,13 +168,31 @@ class FreshBatchHost:
         return dict(taskRef=c['parent_id'], version='1', operationRef=c['generation'],
                     ownerRef=c['owner'], sourceRevision='1', sourceDigest=self.pin)
 
-    def compose(self, repository):
+    def compose(self, repository, *, decomposition=None):
         """Instantiate the ORIGINAL Holder and bind the ORIGINAL tool triple."""
         from deerflow.subagents.batch_runtime import HolderBoundBatchSubmitter
         from deerflow.tools.builtins.batch_task_tool import bind_batch_tools, BatchTaskItem
         c = self.config
         holder = HolderBoundBatchSubmitter(repository=repository, binding=self.binding('read'),
             thread_id=c['parent_id'], run_id=c['generation'], check_current=self.binding)
+        if decomposition is not None:
+            from dataclasses import replace
+            from copy import deepcopy
+            original_holder = holder
+            frozen_plan = json.loads(canonical(decomposition))
+            class PlanSubmitter:
+                def __getattr__(self, name):
+                    return getattr(original_holder, name)
+
+                async def submit(self, request):
+                    # The ORIGINAL Holder hashes and atomically stores this metadata
+                    # together with its original child items in the same SQL batch.
+                    enriched = replace(request, execution_spec={
+                        **deepcopy(request.execution_spec),
+                        'task_decomposition': deepcopy(frozen_plan),
+                    })
+                    return await original_holder.submit(enriched)
+            holder = PlanSubmitter()
         def provider():
             self.check('read')
             return holder
@@ -191,11 +209,19 @@ class FreshBatchHost:
         model = {'submit': Submit, 'read': Status, 'cancel': Cancel}[action]
         request = model.model_validate(dict(body['payload'], parent_id=body['parent_id'],
                                            operation_key=body['operation_key']))
-        if action == 'submit' and (request.subagent_type != 'general-purpose'
+        if action == 'submit' and (request.items is None or request.subagent_type != 'general-purpose'
                 or len({i.key for i in request.items}) != len(request.items)):
             raise HostDenied('BATCH_ITEMS_OR_SUBAGENT_INVALID')
-        runtime, tools, item_model = self.compose(repository)
+        decomposition = None
+        if action == 'submit' and request.goal is not None:
+            decomposition = dict(schema='deer-task-decomposition-v1', goal=request.goal,
+                goal_sha256=hashlib.sha256(request.goal.encode()).hexdigest(),
+                parent_id=self.config['parent_id'], planner='current_gpt_work',
+                item_keys=[item.key for item in request.items], automatic_dispatch=False)
+        runtime, tools, item_model = self.compose(repository, decomposition=decomposition)
         args = request.model_dump(exclude={'parent_id', 'operation_key'}, exclude_none=True)
+        args.pop('goal', None)
+        include_plan = args.pop('include_plan', False)
         if action == 'submit':
             args['items'] = [item_model.model_validate(item) for item in args['items']]
             args['tool_call_id'] = body['operation_key']
@@ -205,6 +231,37 @@ class FreshBatchHost:
         value = await tools[('submit', 'read', 'cancel').index(action)].coroutine(runtime=runtime, **args)
         self.check(action)
         result = _public_result(value)
+        if action == 'read' and include_plan:
+            # The ordinary repository projection intentionally excludes the
+            # worker execution spec. Read only our plan field through original
+            # ORM/session, rechecking the original owner/source binding.
+            from deerflow.persistence.subagent_batches.model import SubagentBatchRow
+            async with repository._sf() as session:
+                row = await session.get(SubagentBatchRow, request.batch_id)
+                expected = self.binding('read')
+                if row is None or row.user_id != self.config['owner']:
+                    raise HostDenied('DECOMPOSITION_BATCH_NOT_FOUND')
+                binding = row.execution_spec.get('native_control', {}).get('binding', {})
+                if {k: binding.get(k) for k in expected} != expected:
+                    raise HostDenied('DECOMPOSITION_SOURCE_MISMATCH')
+                repository._native_control(row, user_id=self.config['owner'], binding=binding)
+                saved_plan = json.loads(canonical(row.execution_spec.get('task_decomposition')))
+            if saved_plan is not None:
+                if (saved_plan.get('parent_id') != self.config['parent_id']
+                        or hashlib.sha256(saved_plan['goal'].encode()).hexdigest() != saved_plan['goal_sha256']):
+                    raise HostDenied('DECOMPOSITION_SNAPSHOT_INVALID')
+                children = await repository.list_items(request.batch_id, user_id=self.config['owner'],
+                    offset=request.item_offset or 0, limit=request.item_limit, status=request.item_status,
+                    include_prompt=True, include_result=False, native_binding=self.binding('read'))
+                result['decomposition'] = dict(saved_plan, batch_id=request.batch_id,
+                    children=children, offset=request.item_offset or 0, limit=request.item_limit)
+            else:
+                result['decomposition'] = None
+            self.check('read')
+        if decomposition is not None:
+            result['decomposition'] = decomposition
+        if len(canonical(result)) > 65536:
+            raise HostDenied('DECOMPOSITION_RESPONSE_TOO_LARGE')
         response = {'generation': self.config['generation'], 'request_id': body['request_id'],
                     'request_sha256': digest(body), 'result': result,
                     'automatic_dispatch': False, 'native_execution_verified': False}
