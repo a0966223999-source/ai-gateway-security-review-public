@@ -202,8 +202,10 @@ class ConsentServiceTests(unittest.IsolatedAsyncioTestCase):
         calls = []
         def call(**kwargs):
             calls.append(kwargs)
-            return {"status": "fixture"}
-        rpc = SimpleNamespace(config=self.config, call=call, query=call)
+            return {"request_id": "fixture-request", "result": {
+                "kind": "original-deer-agent-management-v1", "status": "fixture"}}
+        rpc = SimpleNamespace(config=self.config, call=call,
+            query=lambda **kwargs: {"status": "NOT_FOUND_QUERY_ONLY"})
         self.assertTrue(install_management_rpc_tools(mcp, rpc=rpc,
             principal=lambda: self.config["owner"], oauth_meta={}, enabled=True))
         tools = {tool.name: tool for tool in await mcp.list_tools()}
@@ -214,6 +216,24 @@ class ConsentServiceTests(unittest.IsolatedAsyncioTestCase):
         await mcp.call_tool("agent_manage", {"request": {"operation_key": "read-mcp", "kind": "list"}})
         self.assertEqual(calls[0]["owner"], self.config["owner"])
         self.assertEqual(calls[0]["action"], "agent")
+
+    async def test_cached_management_receipt_never_discloses_role_or_reenqueues(self):
+        from mcp.server.fastmcp import FastMCP
+        mcp = FastMCP("fixture-management-history")
+        effects = []
+        rpc = SimpleNamespace(config=self.config,
+            call=lambda **kwargs: effects.append(kwargs),
+            query=lambda **kwargs: {"request_id": "original-request", "result": {
+                "kind": "original-deer-agent-management-v1", "status": "REGISTRY_READBACK",
+                "agent": {"soul": "private-role-content"}}})
+        install_management_rpc_tools(mcp, rpc=rpc, principal=lambda: self.config["owner"],
+                                     oauth_meta={}, enabled=True)
+        for name, args in (("agent_manage", {"request": {"operation_key": "old-read", "kind": "list"}}),
+                           ("agent_management_receipt", {"operation_key": "old-read"})):
+            reply = await mcp.call_tool(name, args)
+            self.assertIn("historical_only", str(reply))
+            self.assertNotIn("private-role-content", str(reply))
+        self.assertEqual(effects, [])
 
     async def test_original_sql_live_identity_rechecks_token_role_and_thread(self):
         database = self.root / "identity.sqlite"

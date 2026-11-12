@@ -233,12 +233,13 @@ class FreshBatchHost:
                 raise HostDenied('ORIGINAL_AGENT_MANAGEMENT_NOT_BOUND')
             from deer_management_host import ManagementDefinitionService
             from deer_agent_management import AgentManagementDenied
+            from deer_management_rpc import MODE
             if type(agent_management) is not ManagementDefinitionService:
                 raise HostDenied('ORIGINAL_AGENT_MANAGEMENT_CAPABILITY_REQUIRED')
             try:
                 result = await agent_management.execute(body)
             except AgentManagementDenied as error:
-                result = {'status': 'DENIED_OR_UNKNOWN_QUERY_ONLY', 'reason': str(error),
+                result = {'kind': MODE, 'status': 'DENIED_OR_UNKNOWN_QUERY_ONLY', 'reason': str(error),
                           'execution_started': False}
             self.check('agent')
             response = dict(generation=self.config['generation'], request_id=body['request_id'],

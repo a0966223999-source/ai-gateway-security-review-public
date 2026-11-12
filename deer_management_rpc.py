@@ -13,6 +13,24 @@ from mcp.types import ToolAnnotations
 
 from deer_agent_management import _name, _canonical
 
+MODE = "original-deer-agent-management-v1"
+
+
+def public_management_reply(result, *, historical=False):
+    if result.get("status") in {"NOT_FOUND_QUERY_ONLY", "PENDING_OR_UNKNOWN_QUERY_SAME_KEY"}:
+        return {key: result[key] for key in ("request_id", "status") if key in result}
+    value = result.get("result")
+    if type(value) is not dict or value.get("kind") != MODE:
+        raise ToolError("MANAGEMENT_REPLY_SCOPE_INVALID_QUERY_ONLY")
+    if historical:
+        # A cached reply is audit evidence, not renewed consent or definition
+        # read authority. Match the original checkpoint receipt boundary.
+        return {"request_id": result["request_id"], "historical_only": True,
+                "authority": False, **{key: value[key] for key in (
+                    "kind", "status", "operation_id", "payload_sha256", "create_operation_key")
+                    if key in value}}
+    return {"request_id": result["request_id"], **value}
+
 
 class ManagementRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -71,12 +89,19 @@ def install_management_rpc_tools(mcp, *, rpc, principal, oauth_meta, enabled=Fal
         request.scoped()
         owner = principal()
         try:
+            prior = await asyncio.to_thread(rpc.query, owner=owner,
+                parent=rpc.config["parent_id"], action="agent", operation_key=request.operation_key)
+            if principal() != owner:
+                raise ToolError("MANAGEMENT_MCP_OWNER_CHANGED_QUERY_ONLY")
+            if prior.get("status") != "NOT_FOUND_QUERY_ONLY":
+                return public_management_reply(prior, historical=True)
             result = await asyncio.to_thread(rpc.call, owner=owner,
                 parent=rpc.config["parent_id"], action="agent",
                 operation_key=request.operation_key,
                 payload=request.model_dump(exclude={"operation_key"}, exclude_unset=True))
             if principal() != owner:
                 raise ToolError("MANAGEMENT_MCP_OWNER_CHANGED_QUERY_ONLY")
+            result = public_management_reply(result)
             if request.kind == "create":
                 _, payload_sha = create_payload(request)
                 return {**result, "create_operation_key": request.operation_key,
@@ -98,5 +123,5 @@ def install_management_rpc_tools(mcp, *, rpc, principal, oauth_meta, enabled=Fal
             parent=rpc.config["parent_id"], action="agent", operation_key=operation_key)
         if principal() != owner:
             raise ToolError("MANAGEMENT_MCP_OWNER_CHANGED_QUERY_ONLY")
-        return result
+        return public_management_reply(result, historical=True)
     return True

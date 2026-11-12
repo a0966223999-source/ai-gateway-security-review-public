@@ -16,7 +16,7 @@ from types import SimpleNamespace
 from deer_agent_management import AgentManagementDenied, _canonical
 from deer_management_consent import ManagementConsentStore
 from deer_management_journal import OriginalManagementJournal
-from deer_management_rpc import ManagementRequest, create_payload
+from deer_management_rpc import ManagementRequest, create_payload, MODE
 
 
 class ManagementDefinitionService:
@@ -114,7 +114,7 @@ class ManagementDefinitionService:
         await check()
         if len(_canonical(result)) > 65536:
             raise AgentManagementDenied("MANAGEMENT_RESPONSE_TOO_LARGE_QUERY_ONLY")
-        return {**result, "execution_started": False, "fixed_agent_stop_bound": False}
+        return {**result, "kind": MODE, "execution_started": False, "fixed_agent_stop_bound": False}
 
 
 def project_management_user(database, record):
