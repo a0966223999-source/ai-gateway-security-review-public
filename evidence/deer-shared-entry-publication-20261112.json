@@ -1,0 +1,41 @@
+{
+  "schema": "deer-shared-entry-publication-v1",
+  "date": "2026-11-12",
+  "plugin_id": "plugin_asdk_app_6af05e97756c8191affb9700b02418e7",
+  "version": "1.0.4",
+  "release": "pluginrel_6af5a57f81d88191a547821191bd8dc8",
+  "scope": "same-authorized-account-with-plugin-connected",
+  "server_code": "03f018859edd4bd5829f9162841c9ed999948ff9",
+  "host_expires_at": "2026-11-12T11:41:26.847557Z",
+  "operation_key": "platform-release-1794483370070",
+  "batch_id": "native-batch-dbacb06b56bb48208ecca2490ed89797",
+  "cancel_receipt": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f44ef39530e896d9b07066aa52a0ae51\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"516861ae7037724f134634146366f261ce6d93dd7a0f242f883af2e88450b347\",\n  \"request_sha256\": \"1c784d961f7cceb0943cd2cd5d2b81d6f28eb164a4ebfdfb3492df37cd56c035\",\n  \"result\": {\n    \"content\": \"Batch native-batch-dbacb06b56bb48208ecca2490ed89797 cancelled before any native dispatch attempt. No native child was stopped.\"\n  }\n}"
+      }
+    ],
+    "structuredContent": null,
+    "isError": false
+  },
+  "final_read": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f44ef39530e896d9b07066aa52a0ae51\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"7e2feb48e1b769e61721de92cf85073f08292572caf617539066142c83a465ad\",\n  \"request_sha256\": \"0ef1a4d56ae0b48812e488f0b72e1845eb1ad10c3c49136aa3f63f5c94a4a81d\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-dbacb06b56bb48208ecca2490ed89797\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"Query stored pending item and cancel with zero execution attempts.\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-dbacb06b56bb48208ecca2490ed89797\\\",\\\"completed_at\\\":\\\"2026-11-12T11:36:48.291021+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T11:36:14.059059+00:00\\\",\\\"error\\\":\\\"Cancelled before any native dispatch attempt\\\",\\\"id\\\":\\\"batch-item-4e7b4911161d435c85ff410643c3ddce\\\",\\\"item_key\\\":\\\"registration-only\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"cancelled\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T11:36:48.291021+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":1}\"\n  }\n}"
+      }
+    ],
+    "structuredContent": null,
+    "isError": false
+  },
+  "fresh_work_verified": false,
+  "persistent_host_deployed": false,
+  "generic_codex_execution_bound": false,
+  "automatic_dispatch": false,
+  "remaining": [
+    "Replace bounded test host enrollment with approved platform service lifetime and start/stop/revocation wiring.",
+    "Expose and verify generic Codex execution through original Holder; current stored-task tools do not launch agents.",
+    "Verify tools discovery and request/read/cancel from a fresh Work."
+  ]
+}

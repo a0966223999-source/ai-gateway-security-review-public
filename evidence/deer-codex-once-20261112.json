@@ -1,0 +1,23 @@
+{
+  "batch_id": "native-batch-d85bda9ee0bc4b21b3604d62139ac049",
+  "item_id": "batch-item-b5e4b6e0e2044e7abd68bea4303d71ed",
+  "intent_id": "codex-once-f129a220423d563e89d46a7bf5935797",
+  "exit_code": 0,
+  "stop": null,
+  "event_types": [
+    "thread.started",
+    "turn.started",
+    "item.completed",
+    "turn.completed"
+  ],
+  "events_sha256": "d4095abb4c8f5737fc1b40b74d4272e45983ceaa71722e04a4ea27d4f2de854e",
+  "native_execution_verified": true,
+  "child_canonical": "codex-thread:01a1cf3a-e524-73a3-8edc-6e2a0b718ce5",
+  "ack_evidence_sha256": "6564661a5d5abc53d82baeb7f4d48d9a9ffa2856c21d6c9b40cd2c8214a7a627",
+  "result": {
+    "nonce": "deer-exec-20261112-a7f9",
+    "sum": 5121
+  },
+  "result_sha256": "4695175fc04c459738e37e4e6179a06d3c5849a7bb6ccfe409cc08350f9ddf1c",
+  "original_result_saved": true
+}

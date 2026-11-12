@@ -1,0 +1,14 @@
+{
+  "deer_management_consent.py": "8dd291ccb580805043f517ccabb81e68b9d81a8643d39e37015b80bd84c92af7",
+  "gateway_agent_consent.py": "b7b6cd41226b5ec78a256dab2b0b0aad21f3f1fdf714131eebddbb3ca10018c6",
+  "deer_management_host.py": "ba98f9b13c4cc21acbf50fee87f70e9a550865d880e6e4f856aa70d478d66ea7",
+  "deer_management_rpc.py": "35502babd46319092f2510c4b9354663ab326f3e83890ae6e32a951a0c944c27",
+  "agent_management_consent.html": "5c1525ae7028ad4500ff4faaae0c8ccad82351335abed1c274355bd5460857f1",
+  "ops/gateway-management-hook.patch": "7cb16ba870e11c663f302238f7455790f61ca02790c88867bebc5f9a8da692f5",
+  "fresh_batch_rpc.py": "d418892cf94220773eaa8d34f5f85a5bf51cedf2d13bcc27177977e92a44ca3b",
+  "fresh_batch_host.py": "329606c667d46464d085199d509b2f0a83d41075cfbe720112ea4d80b21d0cad",
+  "fresh_batch_worker.py": "4633eb5219393beca59b8665f41c30fa73c890dcc3dee9a8c4a09ae9461af9c0",
+  "platform_service_manager.py": "bbf71d7a9ff072abd1c7447e3756c18d0dc12c65f341c508cd60c913e40c06dd",
+  "tests/test_deer_management_consent.py": "93911e933a2e3585da642121cb1fc1bb1a14bfd9a6281572975e2279cc265851",
+  "tests/test_gateway_agent_consent.py": "717835465cba09884fe362c649ab330120bb9a5d8ccb127a5df9857a4f218bba"
+}

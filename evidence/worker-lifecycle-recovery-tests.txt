@@ -1,0 +1,10 @@
+test_actual_sigint_reports_stop_only_after_cleanup (test_worker_signal_lifecycle.WorkerSignalTests.test_actual_sigint_reports_stop_only_after_cleanup) ... ok
+test_actual_sigterm_reports_maintenance_only_after_cleanup (test_worker_signal_lifecycle.WorkerSignalTests.test_actual_sigterm_reports_maintenance_only_after_cleanup) ... ok
+test_maintenance_does_not_reset_unexpected_failure_budget (test_worker_signal_lifecycle.WorkerSignalTests.test_maintenance_does_not_reset_unexpected_failure_budget) ... ok
+test_maintenance_reload_does_not_exhaust_three_failure_budget (test_worker_signal_lifecycle.WorkerSignalTests.test_maintenance_reload_does_not_exhaust_three_failure_budget) ... ok
+test_unexpected_cancellation_does_not_report_maintenance (test_worker_signal_lifecycle.WorkerSignalTests.test_unexpected_cancellation_does_not_report_maintenance) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 26.437s
+
+OK

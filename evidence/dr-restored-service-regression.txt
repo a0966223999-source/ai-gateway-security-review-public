@@ -1,0 +1,11 @@
+test_caller_cannot_supply_executable_path_or_unbounded_timeout (test_platform_service.PlatformServiceTests.test_caller_cannot_supply_executable_path_or_unbounded_timeout) ... ok
+test_complete_cli_result_and_rejected_incomplete_events (test_platform_service.PlatformServiceTests.test_complete_cli_result_and_rejected_incomplete_events) ... ok
+test_executor_not_enabled_in_legacy_mode (test_platform_service.PlatformServiceTests.test_executor_not_enabled_in_legacy_mode) ... ok
+test_null_expiry_is_not_an_implicit_extension_of_test_enrollment (test_platform_service.PlatformServiceTests.test_null_expiry_is_not_an_implicit_extension_of_test_enrollment) ... ok
+test_service_requests_still_expire_and_durable_attempts_never_replay (test_platform_service.PlatformServiceTests.test_service_requests_still_expire_and_durable_attempts_never_replay) ... ok
+test_service_restart_preserves_generation_and_stop_revokes (test_platform_service.PlatformServiceTests.test_service_restart_preserves_generation_and_stop_revokes) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.006s
+
+OK

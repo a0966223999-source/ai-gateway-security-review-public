@@ -1,0 +1,194 @@
+{
+  "schema": "deer-multiple-subtasks-live-v1",
+  "code_revision": "23c87bb16464d13b2f8e8c929c14027c26898401",
+  "deployment": "dpl_9P7i3EuuBeBqFtwj7XS9DtAnFgBG",
+  "responses": {
+    "subtasksLiveSubmit": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "operation_key": "subtasks-live-1794490963644-submit",
+      "title": "子任務多項執行與獨立查回驗收",
+      "subagent_type": "general-purpose",
+      "items": [
+        {
+          "key": "first",
+          "prompt": "不使用工具、不讀寫檔案。計算 137+286，只回覆 JSON {\"nonce\":\"subtasks-live-1794490963644-first\",\"sum\":423}。",
+          "acceptance_criteria": [
+            "nonce 相符且 sum 為423",
+            "原始結果保存且 attempt=1"
+          ]
+        },
+        {
+          "key": "second",
+          "prompt": "不使用工具、不讀寫檔案。計算 914-357，只回覆 JSON {\"nonce\":\"subtasks-live-1794490963644-second\",\"sum\":557}。",
+          "acceptance_criteria": [
+            "nonce 相符且 sum 為557",
+            "原始結果保存且 attempt=1"
+          ]
+        },
+        {
+          "key": "cancel-only",
+          "prompt": "這是明確指定只登記後取消的測試項，禁止啟動，查回 cancelled 且 attempt=0。",
+          "acceptance_criteria": [
+            "未啟動並獨立讀回 cancelled、attempt=0"
+          ]
+        }
+      ]
+    },
+    "subtasksLiveSubmitReply": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"9de707bd1a501494c7e41e24e2ab147a0673533445d6a625dab03866f849739f\",\n  \"request_sha256\": \"0daa38595318c87bd7860c39d9b84ec50369a757ed55c494dd62404ff099cc44\",\n  \"result\": {\n    \"messages\": [\n      {\n        \"content\": \"Batch native-batch-9fc335f8796f437e9c93bf909d44617e recorded with 3 items. It is pending authorized holder dispatch; this call did not launch native tasks. Use batch_status for stored state only. Do not duplicate these items or change their submission key.\",\n        \"name\": \"batch_task\",\n        \"status\": \"success\"\n      }\n    ]\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "subtasksLiveInitialReadRecovered": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"446367df975a8e43e06503a93f8f70c371320f7a795588fde12173f07785eb63\",\n  \"request_sha256\": \"4904221ed161c35407438f735b0fc6f4040331fb7ce1f2ecf6812956611f5c52\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-9fc335f8796f437e9c93bf909d44617e\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"nonce 相符且 sum 為423\\\",\\\"原始結果保存且 attempt=1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-9fc335f8796f437e9c93bf909d44617e\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T13:42:47.533483+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-ea77c272ee8f428790dca8fbbc65ee16\\\",\\\"item_key\\\":\\\"first\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T13:42:47.533483+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"nonce 相符且 sum 為557\\\",\\\"原始結果保存且 attempt=1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-9fc335f8796f437e9c93bf909d44617e\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T13:42:47.533483+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-689b11b1abf44e09b85e4520d655b312\\\",\\\"item_key\\\":\\\"second\\\",\\\"model_name\\\":null,\\\"position\\\":1,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T13:42:47.533483+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"未啟動並獨立讀回 cancelled、attempt=0\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-9fc335f8796f437e9c93bf909d44617e\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T13:42:47.533483+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-63b68b0dc35a4afaab88972e8260319d\\\",\\\"item_key\\\":\\\"cancel-only\\\",\\\"model_name\\\":null,\\\"position\\\":2,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T13:42:47.533483+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":3}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "subtasksLiveExecuteFirstRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "operation_key": "subtasks-live-1794490963644-execute-first",
+      "execution_mode": "codex_once",
+      "batch_id": "native-batch-9fc335f8796f437e9c93bf909d44617e",
+      "item_id": "batch-item-ea77c272ee8f428790dca8fbbc65ee16",
+      "timeout_seconds": 90
+    },
+    "subtasksLiveExecuteFirstReceipt2": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"7f5ecc720722629dcb862dd820e1da49cf7042bec41dd8839184d64d24fb4221\",\n  \"request_sha256\": \"e174975992a6438a0d50d432473a74c027ef5f49f1b164d2c98afdbc080a3318\",\n  \"result\": {\n    \"batch_id\": \"native-batch-9fc335f8796f437e9c93bf909d44617e\",\n    \"child_canonical\": \"codex-thread:01a1cfff-b73a-7661-a180-9d72ad6c6b65\",\n    \"events_sha256\": \"c4ad2aca7dc3489ad012e51e8219e244d4eecca9795ad5517874ac3e707b930f\",\n    \"exit_code\": 0,\n    \"item_id\": \"batch-item-ea77c272ee8f428790dca8fbbc65ee16\",\n    \"observed_execution_verified\": true,\n    \"original_result_saved\": true,\n    \"result_sha256\": \"11209b2af6fe031b4b36be9bb5c4355dfa570e32ce3f5d13cc8a5511e4dc6fd1\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "subtasksLiveExecuteSecondRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "operation_key": "subtasks-live-1794490963644-execute-second",
+      "execution_mode": "codex_once",
+      "batch_id": "native-batch-9fc335f8796f437e9c93bf909d44617e",
+      "item_id": "batch-item-689b11b1abf44e09b85e4520d655b312",
+      "timeout_seconds": 90
+    },
+    "subtasksLiveSecondReceipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"8663c4c709a3c260e1db1d6e774cb36b6ca43e600874d951ffc8f4dc17090ee6\",\n  \"request_sha256\": \"de5332edc6cabc75125cb21694c206ae9e3df38c86d5dc1e1ae37bc230b72132\",\n  \"result\": {\n    \"batch_id\": \"native-batch-9fc335f8796f437e9c93bf909d44617e\",\n    \"child_canonical\": \"codex-thread:01a1d000-513a-7903-9b34-e6fd057dd551\",\n    \"events_sha256\": \"3820810e87858787ec2e9033e6f15be2a8208418023a76c1005d08c6026c9f61\",\n    \"exit_code\": 0,\n    \"item_id\": \"batch-item-689b11b1abf44e09b85e4520d655b312\",\n    \"observed_execution_verified\": true,\n    \"original_result_saved\": true,\n    \"result_sha256\": \"78a98b464ce54aab8eb7b3ec4565de608b94d99f319ca381a9dbc7e89572575c\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "subtasksLiveCancelRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "batch_id": "native-batch-9fc335f8796f437e9c93bf909d44617e",
+      "operation_key": "subtasks-live-1794490963644-cancel-remaining"
+    },
+    "subtasksLiveCancelReceipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"request_id\": \"0a8f3f6fe4df6e9719938748996d7ff71be3baac4af71aa8bd0d551be5b4fd2b\",\n  \"status\": \"PENDING_OR_UNKNOWN_QUERY_SAME_KEY\",\n  \"automatic_dispatch\": false\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "subtasksLivePendingCancelV2Request": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "batch_id": "native-batch-9fc335f8796f437e9c93bf909d44617e",
+      "operation_key": "subtasks-live-1794490963644-pending-only-cancel-v2",
+      "pending_only": true
+    },
+    "subtasksLivePendingCancelV2": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Error executing tool cancel_batch: 1 validation error for cancel_batchArguments\nrequest.pending_only\n  Extra inputs are not permitted [type=extra_forbidden, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.14/v/extra_forbidden"
+        }
+      ],
+      "structuredContent": {
+        "error_code": "INVALID_ARGUMENT"
+      },
+      "isError": true
+    },
+    "subtasksLivePendingCancelV2Published": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"request_id\": \"a35a7e186eef3782d8953ab855b9b302cc3b6aff558a7558c846f176b013ad9f\",\n  \"status\": \"PENDING_OR_UNKNOWN_QUERY_SAME_KEY\",\n  \"automatic_dispatch\": false,\n  \"native_execution_verified\": false\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "subtasksLivePendingCancelV2Receipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"a35a7e186eef3782d8953ab855b9b302cc3b6aff558a7558c846f176b013ad9f\",\n  \"request_sha256\": \"c68742b0f426e777edfc7180c20c7ba49a2687c7b82d8e261282f79e0c4cb50a\",\n  \"result\": {\n    \"batch_id\": \"native-batch-9fc335f8796f437e9c93bf909d44617e\",\n    \"batch_status\": \"completed\",\n    \"cancelled_pending_item_ids\": [\n      \"batch-item-63b68b0dc35a4afaab88972e8260319d\"\n    ],\n    \"counts\": {\n      \"cancelled\": 1,\n      \"failed\": 0,\n      \"leased\": 0,\n      \"pending\": 0,\n      \"queued\": 0,\n      \"running\": 0,\n      \"succeeded\": 2\n    },\n    \"running_items_stopped\": false\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "subtasksLiveFirstReplayReceipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"7f5ecc720722629dcb862dd820e1da49cf7042bec41dd8839184d64d24fb4221\",\n  \"request_sha256\": \"e174975992a6438a0d50d432473a74c027ef5f49f1b164d2c98afdbc080a3318\",\n  \"result\": {\n    \"batch_id\": \"native-batch-9fc335f8796f437e9c93bf909d44617e\",\n    \"child_canonical\": \"codex-thread:01a1cfff-b73a-7661-a180-9d72ad6c6b65\",\n    \"events_sha256\": \"c4ad2aca7dc3489ad012e51e8219e244d4eecca9795ad5517874ac3e707b930f\",\n    \"exit_code\": 0,\n    \"item_id\": \"batch-item-ea77c272ee8f428790dca8fbbc65ee16\",\n    \"observed_execution_verified\": true,\n    \"original_result_saved\": true,\n    \"result_sha256\": \"11209b2af6fe031b4b36be9bb5c4355dfa570e32ce3f5d13cc8a5511e4dc6fd1\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "subtasksLiveFinalReadVerified": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"5d01df682c10a9adb771faa62008aa029139f0fecc6e4d6c1944c58e5396eeee\",\n  \"request_sha256\": \"e2b0e04e7950b97bf743df7a1ea32d44015ecb91bef7fbb0c6c651650bbada5e\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-9fc335f8796f437e9c93bf909d44617e\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"nonce 相符且 sum 為423\\\",\\\"原始結果保存且 attempt=1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-9fc335f8796f437e9c93bf909d44617e\\\",\\\"completed_at\\\":\\\"2026-11-12T13:43:35.258881+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T13:42:47.533483+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-ea77c272ee8f428790dca8fbbc65ee16\\\",\\\"item_key\\\":\\\"first\\\",\\\"model_name\\\":\\\"codex-cli-default\\\",\\\"position\\\":0,\\\"result\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"subtasks-live-1794490963644-first\\\\\\\",\\\\\\\"sum\\\\\\\":423}\\\",\\\"result_preview\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"subtasks-live-1794490963644-first\\\\\\\",\\\\\\\"sum\\\\\\\":423}\\\",\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T13:43:22.148409+00:00\\\",\\\"status\\\":\\\"succeeded\\\",\\\"stop_reason\\\":\\\"completed\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T13:43:35.258881+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"nonce 相符且 sum 為557\\\",\\\"原始結果保存且 attempt=1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-9fc335f8796f437e9c93bf909d44617e\\\",\\\"completed_at\\\":\\\"2026-11-12T13:44:10.725967+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T13:42:47.533483+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-689b11b1abf44e09b85e4520d655b312\\\",\\\"item_key\\\":\\\"second\\\",\\\"model_name\\\":\\\"codex-cli-default\\\",\\\"position\\\":1,\\\"result\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"subtasks-live-1794490963644-second\\\\\\\",\\\\\\\"sum\\\\\\\":557}\\\",\\\"result_preview\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"subtasks-live-1794490963644-second\\\\\\\",\\\\\\\"sum\\\\\\\":557}\\\",\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T13:44:03.904105+00:00\\\",\\\"status\\\":\\\"succeeded\\\",\\\"stop_reason\\\":\\\"completed\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T13:44:10.725967+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"未啟動並獨立讀回 cancelled、attempt=0\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-9fc335f8796f437e9c93bf909d44617e\\\",\\\"completed_at\\\":\\\"2026-11-12T14:01:28.629613+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T13:42:47.533483+00:00\\\",\\\"error\\\":\\\"Pending item cancelled before dispatch\\\",\\\"id\\\":\\\"batch-item-63b68b0dc35a4afaab88972e8260319d\\\",\\\"item_key\\\":\\\"cancel-only\\\",\\\"model_name\\\":null,\\\"position\\\":2,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"cancelled\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:01:28.629613+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":3}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    }
+  },
+  "final_host_status": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"parent_id\": \"deer-parent-c6d05126d042ad6da9eb089b34a40c16\",\n  \"expires_at\": null,\n  \"worker_heartbeat_verified\": true,\n  \"lifecycle\": \"owner-platform-service-v1\",\n  \"execution_available\": true,\n  \"observed_at\": 1794492333.79705,\n  \"automatic_dispatch\": false\n}"
+      }
+    ],
+    "structuredContent": null,
+    "isError": false
+  },
+  "final_alias": {
+    "deployment_id": "dpl_9P7i3EuuBeBqFtwj7XS9DtAnFgBG",
+    "aliases": [
+      "ai-gateway-security-review-public-git-test-ver-e7ace3-yoyo-5560.vercel.app"
+    ],
+    "sensitive_access_configuration": "omitted"
+  },
+  "plugin_preservation_checks": {
+    "release": "pluginrel_6af5c738dc508191a65c22c50a831b52",
+    "version": "1.0.7",
+    "app_preserved": true,
+    "skill_matches": true,
+    "helper_size": 19938,
+    "plugin.json_presentation_preserved": true,
+    ".codex-plugin/plugin.json_presentation_preserved": true
+  },
+  "plugin_release": "pluginrel_6af5c738dc508191a65c22c50a831b52"
+}

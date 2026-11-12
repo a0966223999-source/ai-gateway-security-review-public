@@ -1,0 +1,446 @@
+{
+  "kind": "deer-single-item-stop-live-v1",
+  "runtime_commit": "5a59f642e0e3d037b467de77e38d744c3cccaa5e",
+  "deployment_id": "dpl_3vBkaBLT7unkn2KfQgvSDdanAzjU",
+  "plugin_version": "1.0.9",
+  "plugin_release": "pluginrel_6af5d29b1e088191b65499cc74dbcfcc",
+  "plugin_checks": {
+    ".app.json": {
+      "candidate_equal_ignoring_trailing_newlines": true,
+      "unchanged_from_108_ignoring_trailing_newlines": true
+    },
+    "plugin.json": {
+      "candidate_equal_ignoring_trailing_newlines": true,
+      "unchanged_from_108_ignoring_trailing_newlines": false
+    },
+    ".codex-plugin/plugin.json": {
+      "candidate_equal_ignoring_trailing_newlines": false,
+      "unchanged_from_108_ignoring_trailing_newlines": false
+    },
+    "skills/redis-common-entry/SKILL.md": {
+      "candidate_equal_ignoring_trailing_newlines": true,
+      "unchanged_from_108_ignoring_trailing_newlines": false
+    },
+    "skills/redis-common-entry/scripts/functions_producer_v2.mjs": {
+      "candidate_equal_ignoring_trailing_newlines": true,
+      "unchanged_from_108_ignoring_trailing_newlines": true
+    },
+    "skills/redis-common-entry/references/dr-bot-LICENSE.txt": {
+      "candidate_equal_ignoring_trailing_newlines": true,
+      "unchanged_from_108_ignoring_trailing_newlines": true
+    },
+    "skills/redis-common-entry/references/dr-bot.md": {
+      "candidate_equal_ignoring_trailing_newlines": true,
+      "unchanged_from_108_ignoring_trailing_newlines": true
+    }
+  },
+  "receipts": {
+    "itemStopLiveOp": "item-stop-live-1794494701223",
+    "itemStopLiveSubmitRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "operation_key": "item-stop-live-1794494701223-submit",
+      "title": "單項停止與同批兄弟任務真實驗收",
+      "subagent_type": "general-purpose",
+      "max_live_items": 2,
+      "max_running_items": 2,
+      "items": [
+        {
+          "key": "stop-target",
+          "prompt": "這是已明確授權可中途停止的有界驗收。請只使用一次本地 shell 工具執行 python3 -c 'import time; time.sleep(55)'。不讀寫檔案、不連網、不建立任何其他任務。若工具正常完成，再只回 JSON {\"nonce\":\"item-stop-live-1794494701223-target\",\"status\":\"completed\"}。停止由原宿主處理，不要自行另外啟動背景程序。",
+          "acceptance_criteria": [
+            "GPT 指定停止後原程序已終止",
+            "原項目 cancelled/attempt=1/stop_reason=stopped_by_request"
+          ]
+        },
+        {
+          "key": "sibling",
+          "prompt": "這是已授權的同批獨立兄弟任務。請只使用一次本地 shell 工具執行 python3 -c 'import time; time.sleep(18); print(827+196)'。不讀寫檔案、不連網、不建立其他任務。工具完成後只回 JSON {\"nonce\":\"item-stop-live-1794494701223-sibling\",\"sum\":1023}。",
+          "acceptance_criteria": [
+            "不受另一項停止影響，成功保存正確 nonce 與 sum1023",
+            "succeeded/attempt=1"
+          ]
+        },
+        {
+          "key": "cancel-only",
+          "prompt": "只登記後取消的哨兵項目，禁止啟動；查回 cancelled、attempt=0。",
+          "acceptance_criteria": [
+            "沒有執行且 cancelled/attempt=0"
+          ]
+        }
+      ]
+    },
+    "itemStopLiveSubmit": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"request_id\": \"e8bf2864959c4408b567b0ce748c26ffebb70423b11f709affb1a310f979d088\",\n  \"status\": \"PENDING_OR_UNKNOWN_QUERY_SAME_KEY\",\n  \"automatic_dispatch\": false,\n  \"native_execution_verified\": false\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopLiveSubmitReceipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"e8bf2864959c4408b567b0ce748c26ffebb70423b11f709affb1a310f979d088\",\n  \"request_sha256\": \"8cc5df151cba5e2507f6974d5a2317b3f7e5aebe17ce77e9254e6d8216e4a57c\",\n  \"result\": {\n    \"messages\": [\n      {\n        \"content\": \"Batch native-batch-c834bb01c41e4027a51939bc77e3ebd7 recorded with 3 items. It is pending authorized holder dispatch; this call did not launch native tasks. Use batch_status for stored state only. Do not duplicate these items or change their submission key.\",\n        \"name\": \"batch_task\",\n        \"status\": \"success\"\n      }\n    ]\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopInitialReadRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "batch_id": "native-batch-c834bb01c41e4027a51939bc77e3ebd7",
+      "operation_key": "item-stop-live-1794494701223-read-initial",
+      "item_offset": 0,
+      "item_limit": 25,
+      "include_result": true
+    },
+    "itemStopInitialRead": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"58a56d33f5d691ed516a85614b3bf9923dc3a7e7e1b7eec1c8d8615b14d3aaf9\",\n  \"request_sha256\": \"eba080e3bd9c3977b34bcb69db6845ab45da7fe8826d4ff6d80c431a70ddbfc1\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"GPT 指定停止後原程序已終止\\\",\\\"原項目 cancelled/attempt=1/stop_reason=stopped_by_request\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-a05bef52ea5c4e648232c5cd00db4667\\\",\\\"item_key\\\":\\\"stop-target\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"不受另一項停止影響，成功保存正確 nonce 與 sum1023\\\",\\\"succeeded/attempt=1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-7ff5d54adfc746de81d79161a43f0e7c\\\",\\\"item_key\\\":\\\"sibling\\\",\\\"model_name\\\":null,\\\"position\\\":1,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"沒有執行且 cancelled/attempt=0\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-4736f82e06b44fc5879c9fc476ea2076\\\",\\\"item_key\\\":\\\"cancel-only\\\",\\\"model_name\\\":null,\\\"position\\\":2,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":3}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopTargetExecuteRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "operation_key": "item-stop-live-1794494701223-execute-target",
+      "execution_mode": "codex_once",
+      "batch_id": "native-batch-c834bb01c41e4027a51939bc77e3ebd7",
+      "item_id": "batch-item-a05bef52ea5c4e648232c5cd00db4667",
+      "timeout_seconds": 90
+    },
+    "itemStopTargetExecute": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"request_id\": \"471e772b3c92e756f406f92cd7ba19bf4bb10764d3c89552cffdbf8ad3283502\",\n  \"status\": \"PENDING_OR_UNKNOWN_QUERY_SAME_KEY\",\n  \"automatic_dispatch\": false,\n  \"native_execution_verified\": false\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopSiblingExecuteRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "operation_key": "item-stop-live-1794494701223-execute-sibling",
+      "execution_mode": "codex_once",
+      "batch_id": "native-batch-c834bb01c41e4027a51939bc77e3ebd7",
+      "item_id": "batch-item-7ff5d54adfc746de81d79161a43f0e7c",
+      "timeout_seconds": 90
+    },
+    "itemStopSiblingExecute": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"request_id\": \"5c2ce8ce28fdcbf998ae94747f8e0bb8da757c0efe53c59045954b5302645016\",\n  \"status\": \"PENDING_OR_UNKNOWN_QUERY_SAME_KEY\",\n  \"automatic_dispatch\": false,\n  \"native_execution_verified\": false\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopRunningRead": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"2497071dfe09f539178a3a21a5de23fb4e30ddaab21c73ac56358522ca9a8955\",\n  \"request_sha256\": \"601fefd5402ae4c732edbeb099925e11ad3b947b5a8aad3684227157bed4a53b\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"GPT 指定停止後原程序已終止\\\",\\\"原項目 cancelled/attempt=1/stop_reason=stopped_by_request\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-a05bef52ea5c4e648232c5cd00db4667\\\",\\\"item_key\\\":\\\"stop-target\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:46:07.489631+00:00\\\",\\\"status\\\":\\\"running\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:46:07.489631+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"不受另一項停止影響，成功保存正確 nonce 與 sum1023\\\",\\\"succeeded/attempt=1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-7ff5d54adfc746de81d79161a43f0e7c\\\",\\\"item_key\\\":\\\"sibling\\\",\\\"model_name\\\":null,\\\"position\\\":1,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:46:21.980068+00:00\\\",\\\"status\\\":\\\"running\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:46:21.980068+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"沒有執行且 cancelled/attempt=0\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-4736f82e06b44fc5879c9fc476ea2076\\\",\\\"item_key\\\":\\\"cancel-only\\\",\\\"model_name\\\":null,\\\"position\\\":2,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":3}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "operation_key": "item-stop-live-1794494701223-stop-target",
+      "execution_mode": "stop_codex_once",
+      "batch_id": "native-batch-c834bb01c41e4027a51939bc77e3ebd7",
+      "item_id": "batch-item-a05bef52ea5c4e648232c5cd00db4667"
+    },
+    "itemStopReply": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"request_id\": \"ca7461bf3bac84227168a45579597d94ad0cb870c3e4d018a4f99f269235c16f\",\n  \"status\": \"PENDING_OR_UNKNOWN_QUERY_SAME_KEY\",\n  \"automatic_dispatch\": false,\n  \"native_execution_verified\": false\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopReceipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"ca7461bf3bac84227168a45579597d94ad0cb870c3e4d018a4f99f269235c16f\",\n  \"request_sha256\": \"2ddbf3f66f6dfb1caecaac2cc10f82f9aaf8746b4fc117cd0c61e785cc808652\",\n  \"result\": {\n    \"batch_id\": \"native-batch-c834bb01c41e4027a51939bc77e3ebd7\",\n    \"events_sha256\": \"5cc419a5efc0c1dd907d35e4620b1cdb672d08040d64760bad16ac663ae77504\",\n    \"execution_operation_key\": \"item-stop-live-1794494701223-execute-target\",\n    \"exit_code\": 0,\n    \"intent_id\": \"codex-1ca784709ebbd83957945ee0db6d48d4\",\n    \"item_id\": \"batch-item-a05bef52ea5c4e648232c5cd00db4667\",\n    \"observed_descendants_stopped\": true,\n    \"observed_execution_verified\": true,\n    \"original_terminal_state_saved\": true,\n    \"process_group_stopped\": true,\n    \"signals_sent\": [\n      \"SIGTERM\"\n    ],\n    \"status\": \"STOPPED\",\n    \"stderr_sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n    \"stop_operation_key\": \"item-stop-live-1794494701223-stop-target\",\n    \"stopped_at\": 1794494815.8774767,\n    \"stopped_by_this_request\": true,\n    \"tracked_process_count\": 7\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopAfterStopRead": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"5bbbeeee2638f5906aa48ba8662c645cb3cff3e367c485d6d8c026c2396a860b\",\n  \"request_sha256\": \"c9fb22b75168ca102232489c411cd99166f67d786924dbd73083efb8d3bf68b4\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"GPT 指定停止後原程序已終止\\\",\\\"原項目 cancelled/attempt=1/stop_reason=stopped_by_request\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"completed_at\\\":\\\"2026-11-12T14:46:55.885828+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\",\\\"error\\\":\\\"Stopped by authorized request; process group termination verified\\\",\\\"id\\\":\\\"batch-item-a05bef52ea5c4e648232c5cd00db4667\\\",\\\"item_key\\\":\\\"stop-target\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:46:07.489631+00:00\\\",\\\"status\\\":\\\"cancelled\\\",\\\"stop_reason\\\":\\\"stopped_by_request\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:46:55.885828+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"不受另一項停止影響，成功保存正確 nonce 與 sum1023\\\",\\\"succeeded/attempt=1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"completed_at\\\":\\\"2026-11-12T14:46:52.175880+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-7ff5d54adfc746de81d79161a43f0e7c\\\",\\\"item_key\\\":\\\"sibling\\\",\\\"model_name\\\":\\\"codex-cli-default\\\",\\\"position\\\":1,\\\"result\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"item-stop-live-1794494701223-sibling\\\\\\\",\\\\\\\"sum\\\\\\\":1023}\\\",\\\"result_preview\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"item-stop-live-1794494701223-sibling\\\\\\\",\\\\\\\"sum\\\\\\\":1023}\\\",\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:46:21.980068+00:00\\\",\\\"status\\\":\\\"succeeded\\\",\\\"stop_reason\\\":\\\"completed\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:46:52.175880+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"沒有執行且 cancelled/attempt=0\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-4736f82e06b44fc5879c9fc476ea2076\\\",\\\"item_key\\\":\\\"cancel-only\\\",\\\"model_name\\\":null,\\\"position\\\":2,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":3}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopSiblingReceipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"5c2ce8ce28fdcbf998ae94747f8e0bb8da757c0efe53c59045954b5302645016\",\n  \"request_sha256\": \"3a56fc8c7c459e9dd03d91abcaabfd8ff15ab3a4ef5b0cbac7676e87d704fcbd\",\n  \"result\": {\n    \"batch_id\": \"native-batch-c834bb01c41e4027a51939bc77e3ebd7\",\n    \"child_canonical\": \"codex-thread:01a1d039-613c-7a50-969d-a8f3e8aef99b\",\n    \"events_sha256\": \"ad30f5abf463cd71b2821e704ef54f85473612fa3d041f96e10dce288e885b2b\",\n    \"exit_code\": 0,\n    \"item_id\": \"batch-item-7ff5d54adfc746de81d79161a43f0e7c\",\n    \"observed_execution_verified\": true,\n    \"original_result_saved\": true,\n    \"result_sha256\": \"a82af8ef5a9e32e4d44e1553084aeae9e1ff970db911bfa69bb0cb872e1633c6\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopCancelPendingRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "batch_id": "native-batch-c834bb01c41e4027a51939bc77e3ebd7",
+      "operation_key": "item-stop-live-1794494701223-cancel-pending",
+      "pending_only": true
+    },
+    "itemStopCancelPending": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"request_id\": \"e0ed6f91d7e0d82d3536ef855a96da964674a7abe69d47548ba2edd044c2f8e5\",\n  \"status\": \"PENDING_OR_UNKNOWN_QUERY_SAME_KEY\",\n  \"automatic_dispatch\": false,\n  \"native_execution_verified\": false\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopCancelPendingReceipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"e0ed6f91d7e0d82d3536ef855a96da964674a7abe69d47548ba2edd044c2f8e5\",\n  \"request_sha256\": \"7a29f8fc06b5e43e51bb60df6b96fbba4cb7a05beb70cb420adace4005f65d27\",\n  \"result\": {\n    \"batch_id\": \"native-batch-c834bb01c41e4027a51939bc77e3ebd7\",\n    \"batch_status\": \"completed\",\n    \"cancelled_pending_item_ids\": [\n      \"batch-item-4736f82e06b44fc5879c9fc476ea2076\"\n    ],\n    \"counts\": {\n      \"cancelled\": 2,\n      \"failed\": 0,\n      \"leased\": 0,\n      \"pending\": 0,\n      \"queued\": 0,\n      \"running\": 0,\n      \"succeeded\": 1\n    },\n    \"running_items_stopped\": false\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopRoundOneFinalVerified": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"1b2338fae40873f73284bf4f8f945ece48c19a02df14f9593c34cd6803136224\",\n  \"request_sha256\": \"f312d73d86ab4b7f2cb6e4803738912ca79c512915991f5425c6f47106cde5d3\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"GPT 指定停止後原程序已終止\\\",\\\"原項目 cancelled/attempt=1/stop_reason=stopped_by_request\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"completed_at\\\":\\\"2026-11-12T14:46:55.885828+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\",\\\"error\\\":\\\"Stopped by authorized request; process group termination verified\\\",\\\"id\\\":\\\"batch-item-a05bef52ea5c4e648232c5cd00db4667\\\",\\\"item_key\\\":\\\"stop-target\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:46:07.489631+00:00\\\",\\\"status\\\":\\\"cancelled\\\",\\\"stop_reason\\\":\\\"stopped_by_request\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:46:55.885828+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"不受另一項停止影響，成功保存正確 nonce 與 sum1023\\\",\\\"succeeded/attempt=1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"completed_at\\\":\\\"2026-11-12T14:46:52.175880+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-7ff5d54adfc746de81d79161a43f0e7c\\\",\\\"item_key\\\":\\\"sibling\\\",\\\"model_name\\\":\\\"codex-cli-default\\\",\\\"position\\\":1,\\\"result\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"item-stop-live-1794494701223-sibling\\\\\\\",\\\\\\\"sum\\\\\\\":1023}\\\",\\\"result_preview\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"item-stop-live-1794494701223-sibling\\\\\\\",\\\\\\\"sum\\\\\\\":1023}\\\",\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:46:21.980068+00:00\\\",\\\"status\\\":\\\"succeeded\\\",\\\"stop_reason\\\":\\\"completed\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:46:52.175880+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"沒有執行且 cancelled/attempt=0\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-c834bb01c41e4027a51939bc77e3ebd7\\\",\\\"completed_at\\\":\\\"2026-11-12T14:48:06.371977+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T14:45:26.741507+00:00\\\",\\\"error\\\":\\\"Pending item cancelled before dispatch\\\",\\\"id\\\":\\\"batch-item-4736f82e06b44fc5879c9fc476ea2076\\\",\\\"item_key\\\":\\\"cancel-only\\\",\\\"model_name\\\":null,\\\"position\\\":2,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"cancelled\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:48:06.371977+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":3}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapOp": "item-stop-overlap-1794494887384",
+    "itemStopOverlapSubmitRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "operation_key": "item-stop-overlap-1794494887384-submit",
+      "title": "兩項同時在途的單項停止驗收",
+      "subagent_type": "general-purpose",
+      "max_live_items": 2,
+      "max_running_items": 2,
+      "items": [
+        {
+          "key": "target",
+          "prompt": "這是已授權、可由原宿主中途停止的測試。只使用一次本地 shell 工具執行 python3 -c 'import time; time.sleep(70)'，不讀寫檔案、不連網、不新增其他任務或背景程序。工具完成後僅回 JSON {\"nonce\":\"item-stop-overlap-1794494887384-target\",\"status\":\"completed\"}。",
+          "acceptance_criteria": [
+            "兄弟仍執行時指定停止本項",
+            "原程序已停止、SQL cancelled/attempt1"
+          ]
+        },
+        {
+          "key": "sibling",
+          "prompt": "這是已授權的獨立兄弟任務。只使用一次本地 shell 工具執行 python3 -c 'import time; time.sleep(60); print(619+284)'，不讀寫檔案、不連網、不新增其他任務或背景程序。工具完成後僅回 JSON {\"nonce\":\"item-stop-overlap-1794494887384-sibling\",\"sum\":903}。",
+          "acceptance_criteria": [
+            "指定停止另一項後仍能正常執行",
+            "succeeded/attempt1，原 nonce 與 sum903 保存"
+          ]
+        }
+      ]
+    },
+    "itemStopOverlapSubmit": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"request_id\": \"556381c89cffc56a4ea7d263a750378daf1becd009a3d9958ae50d1cbc74b6da\",\n  \"status\": \"PENDING_OR_UNKNOWN_QUERY_SAME_KEY\",\n  \"automatic_dispatch\": false,\n  \"native_execution_verified\": false\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapSubmitReceipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"556381c89cffc56a4ea7d263a750378daf1becd009a3d9958ae50d1cbc74b6da\",\n  \"request_sha256\": \"42fc0ecb54694ed7459fcdad225f19e26e5691082cfa19d5600ffe285f3f4d91\",\n  \"result\": {\n    \"messages\": [\n      {\n        \"content\": \"Batch native-batch-47f036ff01604dccbc8dd8d2dd9bd498 recorded with 2 items. It is pending authorized holder dispatch; this call did not launch native tasks. Use batch_status for stored state only. Do not duplicate these items or change their submission key.\",\n        \"name\": \"batch_task\",\n        \"status\": \"success\"\n      }\n    ]\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapInitialVerified": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"d49e237b940cc3122d3039275565bbc9e8d4fd84398a243147360e786d93d5e4\",\n  \"request_sha256\": \"6617ac90eadcc0dd75fb1c951c0e3443b6745a1fed207e0ddac33f86b9d6517f\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"兄弟仍執行時指定停止本項\\\",\\\"原程序已停止、SQL cancelled/attempt1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T14:48:13.669807+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-f07c271593db486da4c19afd82b39500\\\",\\\"item_key\\\":\\\"target\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:48:13.669807+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"指定停止另一項後仍能正常執行\\\",\\\"succeeded/attempt1，原 nonce 與 sum903 保存\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T14:48:13.669807+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-656710cb1c594ed6baf45428ea260219\\\",\\\"item_key\\\":\\\"sibling\\\",\\\"model_name\\\":null,\\\"position\\\":1,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:48:13.669807+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":2}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapTargetRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "batch_id": "native-batch-47f036ff01604dccbc8dd8d2dd9bd498",
+      "item_id": "batch-item-f07c271593db486da4c19afd82b39500",
+      "operation_key": "item-stop-overlap-1794494887384-execute-target",
+      "execution_mode": "codex_once",
+      "timeout_seconds": 90
+    },
+    "itemStopOverlapTargetReply": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"request_id\": \"545177d5752c52bdcc986722709aa07ab3268aad2e3bcaf5dd5077be8279837e\",\n  \"status\": \"PENDING_OR_UNKNOWN_QUERY_SAME_KEY\",\n  \"automatic_dispatch\": false,\n  \"native_execution_verified\": false\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapSiblingRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "batch_id": "native-batch-47f036ff01604dccbc8dd8d2dd9bd498",
+      "item_id": "batch-item-656710cb1c594ed6baf45428ea260219",
+      "operation_key": "item-stop-overlap-1794494887384-execute-sibling",
+      "execution_mode": "codex_once",
+      "timeout_seconds": 90
+    },
+    "itemStopOverlapSiblingReply": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"request_id\": \"be8c48e21aa720a6fd611551eb85b38baccd9d0ecfb4dfa78b64b1f003243d5e\",\n  \"status\": \"PENDING_OR_UNKNOWN_QUERY_SAME_KEY\",\n  \"automatic_dispatch\": false,\n  \"native_execution_verified\": false\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapRunningRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "batch_id": "native-batch-47f036ff01604dccbc8dd8d2dd9bd498",
+      "operation_key": "item-stop-overlap-1794494887384-read-running",
+      "item_offset": 0,
+      "item_limit": 25,
+      "include_result": true
+    },
+    "itemStopOverlapRunningVerified": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"a6868b22b0394d6bf391ae1a039941a161262a0d34a050ff5bec3a79946cb106\",\n  \"request_sha256\": \"a954d87bbc7476f1e5a3239bd4b6503769b11836c584a49ceeec89b463eda394\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"兄弟仍執行時指定停止本項\\\",\\\"原程序已停止、SQL cancelled/attempt1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T14:48:13.669807+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-f07c271593db486da4c19afd82b39500\\\",\\\"item_key\\\":\\\"target\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:49:22.444697+00:00\\\",\\\"status\\\":\\\"running\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:49:22.444697+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"指定停止另一項後仍能正常執行\\\",\\\"succeeded/attempt1，原 nonce 與 sum903 保存\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T14:48:13.669807+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-656710cb1c594ed6baf45428ea260219\\\",\\\"item_key\\\":\\\"sibling\\\",\\\"model_name\\\":null,\\\"position\\\":1,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:49:28.095369+00:00\\\",\\\"status\\\":\\\"running\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:49:28.095369+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":2}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapStopRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "batch_id": "native-batch-47f036ff01604dccbc8dd8d2dd9bd498",
+      "item_id": "batch-item-f07c271593db486da4c19afd82b39500",
+      "operation_key": "item-stop-overlap-1794494887384-stop-target",
+      "execution_mode": "stop_codex_once"
+    },
+    "itemStopOverlapStopReply": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"b661d35c7f3927bf309212f64e8b9b9465f17b2b4e9c06883ef0c980ea481320\",\n  \"request_sha256\": \"48ee30a7f32ce49fab0c0957c698d8c43c1fd8259cf73118f913b3a6ef2f30f1\",\n  \"result\": {\n    \"batch_id\": \"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\",\n    \"events_sha256\": \"8b1cbf4c873635fcc5bb45e36950fca98819d1a245ce74aad9e3b580f62b4aa7\",\n    \"execution_operation_key\": \"item-stop-overlap-1794494887384-execute-target\",\n    \"exit_code\": 0,\n    \"intent_id\": \"codex-e4854c1a6581b80f596698803ead22ee\",\n    \"item_id\": \"batch-item-f07c271593db486da4c19afd82b39500\",\n    \"observed_descendants_stopped\": true,\n    \"observed_execution_verified\": true,\n    \"original_terminal_state_saved\": true,\n    \"process_group_stopped\": true,\n    \"signals_sent\": [\n      \"SIGTERM\"\n    ],\n    \"status\": \"STOPPED\",\n    \"stderr_sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n    \"stop_operation_key\": \"item-stop-overlap-1794494887384-stop-target\",\n    \"stopped_at\": 1794494979.2748117,\n    \"stopped_by_this_request\": true,\n    \"tracked_process_count\": 9\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapAfterRequest": {
+      "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+      "batch_id": "native-batch-47f036ff01604dccbc8dd8d2dd9bd498",
+      "operation_key": "item-stop-overlap-1794494887384-read-after-stop",
+      "item_offset": 0,
+      "item_limit": 25,
+      "include_result": true
+    },
+    "itemStopOverlapAfterReply": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"ca8cdeb44b809a97c251716c62bed49ad94325cd7cf6c16b83365a4dddd5fba6\",\n  \"request_sha256\": \"b4c189671b01f708768a6e3426ca2949712be31598735eebabdcb98066ea75c5\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"兄弟仍執行時指定停止本項\\\",\\\"原程序已停止、SQL cancelled/attempt1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"completed_at\\\":\\\"2026-11-12T14:49:39.280810+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T14:48:13.669807+00:00\\\",\\\"error\\\":\\\"Stopped by authorized request; process group termination verified\\\",\\\"id\\\":\\\"batch-item-f07c271593db486da4c19afd82b39500\\\",\\\"item_key\\\":\\\"target\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:49:22.444697+00:00\\\",\\\"status\\\":\\\"cancelled\\\",\\\"stop_reason\\\":\\\"stopped_by_request\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:49:39.280810+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"指定停止另一項後仍能正常執行\\\",\\\"succeeded/attempt1，原 nonce 與 sum903 保存\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T14:48:13.669807+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-656710cb1c594ed6baf45428ea260219\\\",\\\"item_key\\\":\\\"sibling\\\",\\\"model_name\\\":null,\\\"position\\\":1,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:49:28.095369+00:00\\\",\\\"status\\\":\\\"running\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:49:28.095369+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":2}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapSiblingReceipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"be8c48e21aa720a6fd611551eb85b38baccd9d0ecfb4dfa78b64b1f003243d5e\",\n  \"request_sha256\": \"727f6327e0c9cf9b41a1e0743b5c68749648e0d0cf597bc647f08dec2b85c27e\",\n  \"result\": {\n    \"batch_id\": \"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\",\n    \"child_canonical\": \"codex-thread:01a1d03c-31c2-7231-a831-7637a01de4e2\",\n    \"events_sha256\": \"b54454f829d764ef98068a83e7018d48973acf5eb0d81970ab989dc9db99119c\",\n    \"exit_code\": 0,\n    \"item_id\": \"batch-item-656710cb1c594ed6baf45428ea260219\",\n    \"observed_execution_verified\": true,\n    \"original_result_saved\": true,\n    \"result_sha256\": \"d48e56281d7db9f2c511193506b453810995ad2008d3b8c9f7412279182027eb\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapFinalVerified": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"1f9c586916c394237c092c4b835ebb18148716bd17ad98d753e0b1b2dae1586b\",\n  \"request_sha256\": \"54cd2dbe8638a6bdb6bfe7656c19bfb6a1e1b8ff3f13b2744b063e5034a50631\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"兄弟仍執行時指定停止本項\\\",\\\"原程序已停止、SQL cancelled/attempt1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"completed_at\\\":\\\"2026-11-12T14:49:39.280810+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T14:48:13.669807+00:00\\\",\\\"error\\\":\\\"Stopped by authorized request; process group termination verified\\\",\\\"id\\\":\\\"batch-item-f07c271593db486da4c19afd82b39500\\\",\\\"item_key\\\":\\\"target\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:49:22.444697+00:00\\\",\\\"status\\\":\\\"cancelled\\\",\\\"stop_reason\\\":\\\"stopped_by_request\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:49:39.280810+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"指定停止另一項後仍能正常執行\\\",\\\"succeeded/attempt1，原 nonce 與 sum903 保存\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"completed_at\\\":\\\"2026-11-12T14:50:37.590209+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T14:48:13.669807+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-656710cb1c594ed6baf45428ea260219\\\",\\\"item_key\\\":\\\"sibling\\\",\\\"model_name\\\":\\\"codex-cli-default\\\",\\\"position\\\":1,\\\"result\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"item-stop-overlap-1794494887384-sibling\\\\\\\",\\\\\\\"sum\\\\\\\":903}\\\",\\\"result_preview\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"item-stop-overlap-1794494887384-sibling\\\\\\\",\\\\\\\"sum\\\\\\\":903}\\\",\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:49:28.095369+00:00\\\",\\\"status\\\":\\\"succeeded\\\",\\\"stop_reason\\\":\\\"completed\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:50:37.590209+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":2}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapStopReplay": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"b661d35c7f3927bf309212f64e8b9b9465f17b2b4e9c06883ef0c980ea481320\",\n  \"request_sha256\": \"48ee30a7f32ce49fab0c0957c698d8c43c1fd8259cf73118f913b3a6ef2f30f1\",\n  \"result\": {\n    \"batch_id\": \"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\",\n    \"events_sha256\": \"8b1cbf4c873635fcc5bb45e36950fca98819d1a245ce74aad9e3b580f62b4aa7\",\n    \"execution_operation_key\": \"item-stop-overlap-1794494887384-execute-target\",\n    \"exit_code\": 0,\n    \"intent_id\": \"codex-e4854c1a6581b80f596698803ead22ee\",\n    \"item_id\": \"batch-item-f07c271593db486da4c19afd82b39500\",\n    \"observed_descendants_stopped\": true,\n    \"observed_execution_verified\": true,\n    \"original_terminal_state_saved\": true,\n    \"process_group_stopped\": true,\n    \"signals_sent\": [\n      \"SIGTERM\"\n    ],\n    \"status\": \"STOPPED\",\n    \"stderr_sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n    \"stop_operation_key\": \"item-stop-overlap-1794494887384-stop-target\",\n    \"stopped_at\": 1794494979.2748117,\n    \"stopped_by_this_request\": true,\n    \"tracked_process_count\": 9\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapTargetReceipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"545177d5752c52bdcc986722709aa07ab3268aad2e3bcaf5dd5077be8279837e\",\n  \"request_sha256\": \"4b7c9e56b47aef7df30afd27fd6b96e887aee550994c4d945ac847c4ebdfd51e\",\n  \"result\": {\n    \"batch_id\": \"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\",\n    \"events_sha256\": \"8b1cbf4c873635fcc5bb45e36950fca98819d1a245ce74aad9e3b580f62b4aa7\",\n    \"execution_operation_key\": \"item-stop-overlap-1794494887384-execute-target\",\n    \"exit_code\": 0,\n    \"intent_id\": \"codex-e4854c1a6581b80f596698803ead22ee\",\n    \"item_id\": \"batch-item-f07c271593db486da4c19afd82b39500\",\n    \"observed_descendants_stopped\": true,\n    \"observed_execution_verified\": true,\n    \"original_terminal_state_saved\": true,\n    \"process_group_stopped\": true,\n    \"signals_sent\": [\n      \"SIGTERM\"\n    ],\n    \"status\": \"STOPPED\",\n    \"stderr_sha256\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\n    \"stop_operation_key\": \"item-stop-overlap-1794494887384-stop-target\",\n    \"stopped_at\": 1794494979.2748117,\n    \"stopped_by_this_request\": true,\n    \"tracked_process_count\": 9\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopOverlapReplayRead": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"aafb282ab86d8851d72c374bee334c3faabe2eabfb8966b6037426e0add07e66\",\n  \"request_sha256\": \"c61d7300b78e477399513717cb64dd97f7eaced5b72e708f457f7dc2ffa8c344\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"兄弟仍執行時指定停止本項\\\",\\\"原程序已停止、SQL cancelled/attempt1\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"completed_at\\\":\\\"2026-11-12T14:49:39.280810+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T14:48:13.669807+00:00\\\",\\\"error\\\":\\\"Stopped by authorized request; process group termination verified\\\",\\\"id\\\":\\\"batch-item-f07c271593db486da4c19afd82b39500\\\",\\\"item_key\\\":\\\"target\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result\\\":null,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:49:22.444697+00:00\\\",\\\"status\\\":\\\"cancelled\\\",\\\"stop_reason\\\":\\\"stopped_by_request\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:49:39.280810+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"指定停止另一項後仍能正常執行\\\",\\\"succeeded/attempt1，原 nonce 與 sum903 保存\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-47f036ff01604dccbc8dd8d2dd9bd498\\\",\\\"completed_at\\\":\\\"2026-11-12T14:50:37.590209+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T14:48:13.669807+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-656710cb1c594ed6baf45428ea260219\\\",\\\"item_key\\\":\\\"sibling\\\",\\\"model_name\\\":\\\"codex-cli-default\\\",\\\"position\\\":1,\\\"result\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"item-stop-overlap-1794494887384-sibling\\\\\\\",\\\\\\\"sum\\\\\\\":903}\\\",\\\"result_preview\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"item-stop-overlap-1794494887384-sibling\\\\\\\",\\\\\\\"sum\\\\\\\":903}\\\",\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T14:49:28.095369+00:00\\\",\\\"status\\\":\\\"succeeded\\\",\\\"stop_reason\\\":\\\"completed\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T14:50:37.590209+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":2}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "itemStopPostInstallHost": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"parent_id\": \"deer-parent-c6d05126d042ad6da9eb089b34a40c16\",\n  \"expires_at\": null,\n  \"worker_heartbeat_verified\": true,\n  \"lifecycle\": \"owner-platform-service-v1\",\n  \"execution_available\": true,\n  \"observed_at\": 1794494614.8814662,\n  \"automatic_dispatch\": false\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    }
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "schema": "deer-platform-service-live-v1",
+  "date": "2026-11-12",
+  "status": "CONNECTED_ACCOUNT_MANAGEMENT_AND_EXPLICIT_READONLY_CODEX_VERIFIED",
+  "server_commit": "2cabd8501ed8cce4ec9d45597fc884a72fb4a004",
+  "deployment_id": "dpl_2qPC3nmYx5RX3d7KugspKjvvh8Tw",
+  "stable_mcp": "https://ai-gateway-security-review-public-git-test-ver-e7ace3-yoyo-5560.vercel.app/mcp",
+  "config": {
+    "actions": [
+      "submit",
+      "read",
+      "cancel",
+      "execute"
+    ],
+    "authority": "owner-platform-service-enrollment",
+    "automatic_dispatch": false,
+    "created_at": 1794484376.5646553,
+    "expires_at": null,
+    "generation": "f8a69fac5f1b2acd07918b0afe7348c5",
+    "lifecycle": "owner-platform-service-v1",
+    "owner": "oauth:a8ba31a42a7ee885551e6876bbd39951ec417f3c7f5d171474789efc2d35e7d3",
+    "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+    "public_key": "c279250aab349a1020d3636b06868928382454301ea88afc74aaf246fa184c1b",
+    "schema": "fresh-deer-batch-host-v1"
+  },
+  "scope": "same-authorized-OAuth-account connected Work",
+  "plugin": {
+    "id": "plugin_asdk_app_6af05e97756c8191affb9700b02418e7",
+    "version": "1.0.5",
+    "release": "pluginrel_6af5af2953b881918fb69de43bdfa09f"
+  },
+  "supervisor": {
+    "observed_pid": 101644,
+    "initial_worker_pid": 101657,
+    "reloaded_worker_pid": 114056,
+    "restarts_maximum": 3,
+    "codespace_suspend_autostart_verified": false
+  },
+  "tests": {
+    "local_batch_boundaries": 12,
+    "local_fresh_host_control": 16,
+    "local_service_and_event_contract": 6,
+    "original_temporary_sql_and_synthetic_process_integration": "PASS 1 test / success-save-once and STOP-kills-child scenarios; 3.432s",
+    "synthetic_mcp_execute_mode_routing": "PASS; no live authority"
+  },
+  "first_live_failure": {
+    "batch_id": "native-batch-792522fe9bfd4a409389c8854b7243b2",
+    "operation_key": "platform-codex-1794484684240",
+    "execution_request_id": "f8baada274be744b8345a24d53b24e018e3608d948577bf01ce16b535ba93edc",
+    "transport_outcome": "UNKNOWN_QUERY_ONLY_PRESERVED",
+    "identified_code_defect": "Six-field read binding passed to original seven-field reserve; fixed by recovering validated saved payloadDigest.",
+    "final_sql_state": "cancelled",
+    "attempt": 0,
+    "replayed": false
+  },
+  "current_work": {
+    "operation_key": "platform-codex-fixed-1794485918466",
+    "batch_id": "native-batch-d55d6217c1e54273b46df6589196aacf",
+    "item_id": "batch-item-26070558fcb046f5b4b528acd3b8e7ed",
+    "execution_receipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"e2ad50a5dde351eba69a9dcb8e86fef9b3d2767627763eda6d6f7731cb29de3f\",\n  \"request_sha256\": \"c8b34f8f313ef9bfaab64c496ad15273c05b3ee79ce60612cc4a72e1625f513c\",\n  \"result\": {\n    \"batch_id\": \"native-batch-d55d6217c1e54273b46df6589196aacf\",\n    \"child_canonical\": \"codex-thread:01a1cfb3-2cb3-71d2-9c8a-acdb1aba63da\",\n    \"events_sha256\": \"d30729f40d0ce7700447cb9b2aa7c016f69a1e3397ff72a5c31d6406f0e25390\",\n    \"exit_code\": 0,\n    \"item_id\": \"batch-item-26070558fcb046f5b4b528acd3b8e7ed\",\n    \"observed_execution_verified\": true,\n    \"original_result_saved\": true,\n    \"result_sha256\": \"6f5b91f013ac8412c1950c52f5da70f8c020883c159d5a7b67745f2e746a94aa\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "independent_result_read": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"7d7cd59767d50c12090d5b80aa5cc779adc7929f9e6d58d26d260d24b7485ba6\",\n  \"request_sha256\": \"39099876b34979b3f9387d9926501f1650278e0c51e8f8e3883078a40abf2a33\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-d55d6217c1e54273b46df6589196aacf\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"Result nonce is platform-codex-fixed-20261112-02 and sum is 2803.\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-d55d6217c1e54273b46df6589196aacf\\\",\\\"completed_at\\\":\\\"2026-11-12T12:19:58.993489+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T12:18:44.024081+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-26070558fcb046f5b4b528acd3b8e7ed\\\",\\\"item_key\\\":\\\"fixed-binding-arithmetic\\\",\\\"model_name\\\":\\\"codex-cli-default\\\",\\\"position\\\":0,\\\"result\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"platform-codex-fixed-20261112-02\\\\\\\",\\\\\\\"sum\\\\\\\":2803}\\\",\\\"result_preview\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"platform-codex-fixed-20261112-02\\\\\\\",\\\\\\\"sum\\\\\\\":2803}\\\",\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T12:19:46.149214+00:00\\\",\\\"status\\\":\\\"succeeded\\\",\\\"stop_reason\\\":\\\"completed\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T12:19:58.993489+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":1}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    }
+  },
+  "fresh_work": {
+    "url": "https://chatgpt.com/c/6af5af86-6160-83ec-b67c-9c0b2d2a6ba6",
+    "created_in_browser": true,
+    "completed": true,
+    "registration_cancel_batch_id": "native-batch-e7158e4e84324435afb9bd65178147b6",
+    "execution_batch_id": "native-batch-339c7bf216a04e2786de79ab12f6873a",
+    "execution_item_id": "batch-item-7b19190d1eb242c683f5909dafa91753",
+    "execution_operation_key": "fw-platform-20261112-1794486100-execute",
+    "execution_receipt": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"c26a68ac91a4ddba485ec2ea66e3ef39fcf0aee33e2a2603fce5cfb39112de84\",\n  \"request_sha256\": \"21fafbd539455a9d55c6615496f2920a44fe20947cf42fa67252534a1bb0b7ca\",\n  \"result\": {\n    \"batch_id\": \"native-batch-339c7bf216a04e2786de79ab12f6873a\",\n    \"child_canonical\": \"codex-thread:01a1cfb8-1430-7823-a39d-233913d74ea4\",\n    \"events_sha256\": \"57d6831d203425fd4e74edfac49e9fecae8dd21219076becaffd6354cb737272\",\n    \"exit_code\": 0,\n    \"item_id\": \"batch-item-7b19190d1eb242c683f5909dafa91753\",\n    \"observed_execution_verified\": true,\n    \"original_result_saved\": true,\n    \"result_sha256\": \"f2567ede654eb9c8afdce18ee32ee7262008a7214adab0442d52d7e9a9803599\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "original_work_independently_read_result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"d254295f7979993564ab023dc64278c53aa13b52ae76b52eecece8237ae276c3\",\n  \"request_sha256\": \"962eca4d4403522ed672b8a3b60b5fdab297add054fd3cf4c204230bb439c6e6\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-339c7bf216a04e2786de79ab12f6873a\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"只回覆 JSON {\\\\\\\"nonce\\\\\\\":\\\\\\\"fresh-work-platform-20261112-03\\\\\\\",\\\\\\\"sum\\\\\\\":803}\\\",\\\"不使用工具、不讀寫檔案\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":1,\\\"batch_id\\\":\\\"native-batch-339c7bf216a04e2786de79ab12f6873a\\\",\\\"completed_at\\\":\\\"2026-11-12T12:25:15.711632+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T12:24:42.898697+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-7b19190d1eb242c683f5909dafa91753\\\",\\\"item_key\\\":\\\"compute-03\\\",\\\"model_name\\\":\\\"codex-cli-default\\\",\\\"position\\\":0,\\\"result\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"fresh-work-platform-20261112-03\\\\\\\",\\\\\\\"sum\\\\\\\":803}\\\",\\\"result_preview\\\":\\\"{\\\\\\\"nonce\\\\\\\":\\\\\\\"fresh-work-platform-20261112-03\\\\\\\",\\\\\\\"sum\\\\\\\":803}\\\",\\\"result_truncated\\\":false,\\\"started_at\\\":\\\"2026-11-12T12:25:09.642739+00:00\\\",\\\"status\\\":\\\"succeeded\\\",\\\"stop_reason\\\":\\\"completed\\\",\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T12:25:15.711632+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":1}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "original_work_independently_read_cancel": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"a894bb133efae99d2a18237df8ea66a3bb9f25d338a308f9991aa1eda90000a3\",\n  \"request_sha256\": \"a4b37377179d83840ed2c8e808241c200ba1d5990bc733b794a36be5677a1913\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-e7158e4e84324435afb9bd65178147b6\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"取消後狀態 cancelled，attempt=0\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-e7158e4e84324435afb9bd65178147b6\\\",\\\"completed_at\\\":\\\"2026-11-12T12:24:16.057687+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T12:23:47.844740+00:00\\\",\\\"error\\\":\\\"Cancelled before any native dispatch attempt\\\",\\\"id\\\":\\\"batch-item-37b44aac43194af096ea123c16de6dca\\\",\\\"item_key\\\":\\\"cancel-only-01\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"cancelled\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T12:24:16.057687+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":1}\"\n  }\n}"
+        }
+      ],
+      "structuredContent": null,
+      "isError": false
+    },
+    "new_tool_name": "batch_execute TOOL_NOT_FOUND in tested catalogs; existing batch_task explicit codex_once route PASS"
+  },
+  "limits": [
+    "Original Codespace must be running; no 24-hour or suspension auto-restart guarantee.",
+    "CLI read-only, ephemeral, empty working directory, 90 seconds maximum, one item per explicit call; not AIO container sandbox.",
+    "No automatic dispatch or dependency scheduler. cancel_batch cancels unstarted items; STOP kills the executor-owned process group.",
+    "No independent QA verdict or native Work wake-up claimed. Outer management native_execution_verified remains false; saved CLI observation is separately verified."
+  ],
+  "excluded_from_backup": [
+    "OAuth credentials",
+    "signing.key",
+    "ingress.key",
+    "operator transfer private key",
+    "private host state and attempts",
+    "Redis contents",
+    "runtime SQLite",
+    "D2"
+  ],
+  "gate1": "DENY",
+  "d2": "UNTOUCHED"
+}
