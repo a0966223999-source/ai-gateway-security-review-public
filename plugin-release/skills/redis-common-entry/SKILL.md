@@ -1,9 +1,18 @@
 ---
 name: redis-common-entry
-description: "透過原平台建立、查詢、取消 Deer 子任務及拆解大任務；或提交、查回原 Gateway Source RPC、保存 Work 續點及使用共用 Redis 信箱。沿用原 MCP 與授權。"
+description: "使用 DR Bot 共用流程設計固定 Agent、核對原管理能力；建立、查詢、取消 Deer 子任務及拆解大任務；或沿原 Gateway Source RPC 保存續點。沿用原模型、MCP 與授權。"
 ---
 
 # Redis 共同入口
+
+## 當次工具版本核對
+
+所有操作先按當次工具 schema 核參數；下文是原服務能力說明，不代表本回合工具已刷新。goal、include_plan、execution_mode、pending_only、receipt 的 execute 類型只在當次 schema 接受時使用。缺 batch_host_status 時不得猜 parent 建立新任務；缺 batch_receipt 時遇寫入失回保存原鍵並停止，不用 batch_status 猜原 batch。舊 schema 不接受 goal 時，可依原需求只保存 items，並明示原 goal 快照未保存；不得回報完整目標保存 PASS。
+
+## DR Bot 共用入口
+
+使用者要求 DR Bot、建立／管理固定 Agent，或讓接入平台的 Agent 共用 Bot 設計能力時，讀取 [DR Bot 工作流程](references/dr-bot.md)，由當前 Agent 本身完成設計，不另要求 Grok API。沿原名冊與受權管理工具；固定 Agent 建立、啟用、執行與停止分別驗收。沒有管理工具時完成設計並明示 DESIGNED_NOT_CREATED，不能用子任務登記冒固定 Agent 建立。Bot Designer 保持其原技能與職責。
+
 
 ## 大任務拆解：平台共用工作流程
 
@@ -11,7 +20,7 @@ description: "透過原平台建立、查詢、取消 Deer 子任務及拆解大
 
 1. 用 `batch_host_status` 發現有效宿主，沿下方「每次開始先發現宿主」核當代心跳與 lifecycle。
 2. **由當前 GPT／Work 當回合完成拆解**，不是把大目標當成已執行，也不是另叫模型服務。保留使用者原大目標作為 `goal`，為每個獨立子任務產生穩定唯一 `key`、可直接交辦且自包含的 `prompt`、可查核的 `acceptance_criteria`。依賴鏈要合在同一工作包或先只登記當前可獨立完成的批次，不能冒稱已有 DAG 排程。
-3. 使用全新 `operation_key`，呼叫原 `batch_task`，在同一 request 提交 `parent_id`、`goal`、`title`、`subagent_type: "general-purpose"` 與 `items`。原 Holder 把目標快照與子任務一次保存到原 Deer SQL，不另建目標庫。僅送 goal 的規劃契約尚未保存；若先取得它，再以相同 goal／parent／operation_key 加 items 提交一次。
+3. 核當次 schema 支援 `goal` 後，使用全新 `operation_key`，呼叫原 `batch_task`，在同一 request 提交 `parent_id`、`goal`、`title`、`subagent_type: "general-purpose"` 與 `items`。若不支援，按上方版本核對只保存 items 並分列目標快照缺件。原 Holder 把目標快照與子任務一次保存到原 Deer SQL，不另建目標庫。僅送 goal 的規劃契約尚未保存；若先取得它，再以相同 goal／parent／operation_key 加 items 提交一次。
 4. 寫入失回時保留同鍵，僅用 `batch_receipt` 查原筆。取得 batch ID 後，以新讀鍵 `batch_status` 帶 `include_plan: true`、`item_offset: 0`、`item_limit: 25` 查回；逐項核原 goal、子項 key／prompt／驗收標準一致。多於25項時以新讀鍵分頁核對。每批最多100個獨立子項，且整個請求仍受64KiB限制。
 5. 回覆使用者大目標、拆解清單與原 batch ID，清楚回報「已保存、尚未執行」。使用者只要求拆解／發布時，不呼叫 Codex 執行。只有另有明確執行授權時，才沿下方原單項執行流程，並保留每項獨立回執。
 6. 測試批次在查回後沿原 cancel_batch 取消，再用新讀鍵確認每項 cancelled／attempt=0，保留原目標快照。不要刪除原歷史或用新任務冒舊任務的續辦。
@@ -94,7 +103,7 @@ submit 只呼叫原 request 工具，不新增第二個傳輸或業務事件。q
 ### 經平台明確執行單項 Codex
 
 1. 宿主回件的 `execution_available` 必須為 true，且心跳有效。先以 batch_status 分頁取得原 batch ID 與原 item ID；只執行使用者授權、尚未開始的 pending 項目。
-2. 使用全新執行 operation_key，呼叫 `batch_execute`；若本回合尚未載入此新增工具，使用**同一原平台** `batch_task` 的明確執行模式。兩者的 request 相同：
+2. 使用全新執行 operation_key，呼叫 `batch_execute`；若本回合尚未載入此新增工具，先核當次 schema 接受 execution_mode／batch_id／item_id，再使用**同一原平台** `batch_task` 的明確執行模式。不接受則回 EXECUTION_TOOL_SCHEMA_NOT_AVAILABLE，不嘗試傳未知欄位。兩者支援時的 request 相同：
 
 ```json
 {
@@ -130,4 +139,5 @@ submit 只呼叫原 request 工具，不新增第二個傳輸或業務事件。q
 本版原入口已支持 pending_only。舊工具 schema 若拒絕此欄位，回報版本未刷新；不刪欄位改作整批取消、不另造 HTTP client。回件必須有 cancelled_pending_item_ids 與原 counts；running_items_stopped=false。再以獨立 batch_status(include_result=true,item_offset=0,item_limit=25) 核取消項 cancelled/attempt=0、已完成項結果及 attempt=1 全部保留。取消失回只以 batch_receipt(operation_kind=cancel) 查同鍵。舊取消 UNKNOWN 保史，不冒作本新模式成功。
 
 單項執行中停止目前仍只具宿主 STOP／撤回的程序清理邊界，沒有共用的單項在途停止工具。不能為停止一項而擅停整個帳號平台服務，或宣稱完整子系統／真沙盒已驗收。
+
 
