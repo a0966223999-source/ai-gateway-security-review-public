@@ -1,0 +1,23 @@
+{
+  "status": "BATCH_BACKGROUND_TOOL_SCHEMA_NOT_AVAILABLE",
+  "host_parent": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+  "generation": "f8a69fac5f1b2acd07918b0afe7348c5",
+  "batch_id": "native-batch-605006c8346943798f96895f3d46be59",
+  "item_ids": [
+    "batch-item-0a461b461e154f7fa98201c7c15f8218",
+    "batch-item-859265fab4734197935aea29f3ace51f",
+    "batch-item-8644281c7214420cacc5cd6f83155d6e"
+  ],
+  "last_verified_state": "all pending, attempt=0; execute NOT_SUBMITTED",
+  "submit_operation_key": "codex-bg-live-20261113-1794506909520-submit",
+  "next_action": "After this Work's tool schema refresh or in a fresh Work, first verify live host and original pending batch, then call batch_execute_batch once with a fresh execution key; retain UNKNOWN and query same execute key only. Independently read each original SQL result.",
+  "expected_answers": [
+    333,
+    803,
+    803
+  ],
+  "nonce_prefix": "codex-bg-live-20261113-1794506909520",
+  "native_work_provider": "NOT_BOUND",
+  "router_dynamic_selection": "NOT_DEPLOYED",
+  "container_sandbox": "NOT_DEPLOYED"
+}

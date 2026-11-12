@@ -1,0 +1,19 @@
+{
+  "source": "Observed original Codespace unittest output",
+  "commit": "5424d7bb70710886f05696229a32615b0935d169",
+  "modules": [
+    "test_platform_codex_batch",
+    "test_platform_codex_batch_sql",
+    "test_platform_codex_batch_rpc"
+  ],
+  "tests": 15,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "duration_seconds": 6.169,
+  "temporary_original_sql": true,
+  "owned_process_groups": true,
+  "synthetic_cli": true,
+  "live_codex_execution": "NOT_RUN",
+  "independent_qa": "NOT_PROVIDED"
+}

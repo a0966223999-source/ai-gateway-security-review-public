@@ -1,0 +1,21 @@
+{
+  "status": "BOUNDED_CODEX_COORDINATOR_INSTALLED",
+  "source": "Observed original Codespace terminal output; transcribed fields, not independent QA",
+  "old_worker_pid": 27958,
+  "worker_pid": 47503,
+  "manager_pid": 27957,
+  "original_arguments_preserved": true,
+  "original_config_pin_unchanged": true,
+  "source_sha256": {
+    "fresh_batch_host.py": "d28ea8a5d1c7a3d3cd88554fb0dc2f8df18cc1ee88b9c6a3e83253e1d7914a3d",
+    "platform_codex_batch.py": "18b439c268f7c08a041e1847f6c0209aa24fb9cffdade9000035afb1a36ec13c"
+  },
+  "idle_sql_counts": {
+    "cancelled": 17,
+    "succeeded": 7
+  },
+  "model_executed": false,
+  "automatic_dispatch": false,
+  "native_work_dispatch": false,
+  "observed_at": 1794506818.01716
+}

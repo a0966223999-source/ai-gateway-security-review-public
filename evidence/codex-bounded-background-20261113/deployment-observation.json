@@ -1,0 +1,12 @@
+{
+  "source": "Observed Vercel tool output",
+  "state": "READY",
+  "deployment_id": "dpl_EsAqkHkXHhs5p47quCjHn5jZKfv8",
+  "runtime_commit": "5424d7bb70710886f05696229a32615b0935d169",
+  "alias": "ai-gateway-security-review-public-git-test-ver-e7ace3-yoyo-5560.vercel.app",
+  "alias_assignment_success": true,
+  "plugin_version": "1.0.13",
+  "plugin_release": "pluginrel_6af601109ec481918ae84a1d4ba7d85f",
+  "plugin_readback_files": 9,
+  "plugin_readback_failures": 0
+}
