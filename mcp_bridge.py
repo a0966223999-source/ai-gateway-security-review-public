@@ -79,6 +79,8 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
     # service/Redis connection. They never adopt the legacy Source RPC signer.
     from fresh_batch_rpc import install_fresh_batch_tools, install_fresh_batch_routes
     install_fresh_batch_tools(mcp, principal=principal, oauth_meta=oauth_meta)
+    from platform_checkpoint_rpc import install_checkpoint_rpc_tools
+    install_checkpoint_rpc_tools(mcp, principal=principal, oauth_meta=oauth_meta)
     install_fresh_batch_routes(api_app)
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(
@@ -166,3 +168,4 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
         catalog = CycleAwareEventCatalog(catalog)
     api_app.mount('/', install_events_transport(mcp, catalog))
     return mcp
+

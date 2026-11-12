@@ -58,7 +58,11 @@ async def serve(args):
 
             async def handle(envelope):
                 try:
-                    response = await host.execute(envelope, repository=repository)
+                    if envelope.get("body", {}).get("payload", {}).get("execution_mode") == "platform-checkpoint-v1":
+                        from platform_checkpoint_forward import forward_checkpoint
+                        response = await asyncio.to_thread(forward_checkpoint, host, envelope)
+                    else:
+                        response = await host.execute(envelope, repository=repository)
                     await asyncio.to_thread(control, 'respond',
                         {'request_id': response['body']['request_id'], 'response': response})
                 except Exception:
@@ -114,3 +118,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
