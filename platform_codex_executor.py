@@ -59,8 +59,18 @@ async def execute_item(host, repository, request):
     batch = await repository.get_bound_native_batch(request.batch_id, user_id=owner, binding=binding)
     if batch is None:
         raise HostDenied('CODEX_BATCH_NOT_BOUND')
-    from deerflow.persistence.subagent_batches.model import SubagentBatchItemRow
+    from deerflow.persistence.subagent_batches.model import SubagentBatchItemRow, SubagentBatchRow
     async with repository._sf() as session:
+        row = await session.get(SubagentBatchRow, request.batch_id)
+        if row is None or row.user_id != owner:
+            raise HostDenied('CODEX_BATCH_NOT_BOUND')
+        saved_binding = row.execution_spec.get('native_control', {}).get('binding', {})
+        if {key: saved_binding.get(key) for key in binding} != binding:
+            raise HostDenied('CODEX_SOURCE_CHANGED')
+        # Dispatch requires the ORIGINAL full seven-field binding, including
+        # the Holder's payloadDigest. The six-field read scope is insufficient.
+        repository._native_control(row, user_id=owner, binding=saved_binding)
+        binding = json.loads(canonical(saved_binding))
         item = await session.get(SubagentBatchItemRow, request.item_id)
         if item is None or item.batch_id != request.batch_id or item.status != 'pending':
             raise HostDenied('CODEX_PENDING_ITEM_REQUIRED')
