@@ -27,6 +27,8 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
     # flags, mailbox payloads and model-provided IDs cannot create this capability.
     if batch_scope_resolver is not None and not callable(batch_scope_resolver):
         raise ValueError('BATCH_SCOPE_RESOLVER_REQUIRED')
+    if batch_scope_resolver is not None and os.getenv('XJ_FRESH_BATCH_HOST_ENABLED') == 'true':
+        raise ValueError('ONE_BATCH_HOST_MODE_REQUIRED')
     verifier = Auth0Verifier()
     hostname = os.environ['VERCEL_URL']
     if not hostname.endswith('.vercel.app') or '/' in hostname:
@@ -73,6 +75,10 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
 
     events = Events(mailbox, verifier)
     oauth_meta = {'securitySchemes': [{'type': 'oauth2', 'scopes': ['synthetic:events']}]}
+    # New, explicitly enrolled batch generations use the existing authenticated
+    # service/Redis connection. They never adopt the legacy Source RPC signer.
+    from fresh_batch_rpc import install_fresh_batch_tools
+    install_fresh_batch_tools(mcp, principal=principal, oauth_meta=oauth_meta)
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(
         readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=True))
