@@ -22,7 +22,7 @@ FILES = (
     'sandbox/sandbox.py', 'sandbox/sandbox_provider.py', 'sandbox/identity.py',
     'community/aio_sandbox/aio_sandbox_provider.py',
     'community/aio_sandbox/aio_sandbox.py', 'community/aio_sandbox/backend.py',
-    'community/aio_sandbox/local_backend.py', 'community/aio_sandbox/ownership.py',
+    'community/aio_sandbox/local_backend.py', 'community/aio_sandbox/ownership/__init__.py',
     'community/aio_sandbox/network_proxy.py', 'community/warm_pool_lifecycle.py',
 )
 DIGEST_IMAGE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9._:/-]*@sha256:[0-9a-f]{64}$')
