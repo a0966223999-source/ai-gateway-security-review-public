@@ -58,6 +58,7 @@ def main():
     env.update(DEER_FLOW_HOME=str(B/'.deer-flow'),
                DEER_FLOW_SOURCE_ACCOUNT_CONFIG=str(R/'host.json'),
                DEER_FLOW_SOURCE_ACCOUNT_CONFIG_SHA256=pin,
+               GATEWAY_CORS_ORIGINS='https://fantastic-space-system-vprp5995g5q43xgv4-8001.app.github.dev',
                XJ_AGENT_MANAGEMENT_CONSENT_ENABLED='true')
     gateway=None
     manager=None
