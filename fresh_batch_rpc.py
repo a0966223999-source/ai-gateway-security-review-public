@@ -20,6 +20,94 @@ from typing import Literal
 from batch_mcp_entry import Submit, Status, Cancel, RequestBase
 from fresh_batch_host import canonical, digest
 
+
+def install_fresh_batch_routes(app, *, env=os.environ, connection_factory=None):
+    """The fresh host's signed control port on the EXISTING API service.
+
+    Redis credentials stay in the original Vercel environment. A host cannot
+    supply a Redis key, an owner, another generation or an arbitrary operation.
+    """
+    if env.get('XJ_FRESH_BATCH_HOST_ENABLED') != 'true':
+        return
+    from fastapi import Request
+    from starlette.responses import JSONResponse
+    from service_extension import original_redis_connection
+    config = json.loads(env['XJ_FRESH_BATCH_HOST_CONFIG'])
+    rpc = BatchRPC(config=config, ingress_key=bytes.fromhex(env['XJ_FRESH_BATCH_INGRESS_KEY']),
+                   connection_factory=connection_factory or original_redis_connection)
+
+    @app.post('/internal/deer-batch/rpc')
+    async def fresh_control(request: Request):
+        raw = await request.body()
+        if len(raw) > 131072:
+            return JSONResponse({'error': 'BATCH_CONTROL_SIZE'}, status_code=413)
+        try:
+            envelope = json.loads(raw)
+            if set(envelope) != {'body', 'signature'}:
+                raise ValueError('CONTROL_ENVELOPE')
+            body = envelope['body']
+            if set(body) != {'domain', 'generation', 'action', 'nonce', 'expires_at', 'payload'}:
+                raise ValueError('CONTROL_SCHEMA')
+            rpc.verifier.verify(base64.b64decode(envelope['signature'], validate=True), canonical(body))
+            now = time.time()
+            rpc.check(config['owner'], config['parent_id'])
+            if (body['domain'] != 'fresh-deer-batch-control-v1'
+                    or body['generation'] != config['generation']
+                    or body['action'] not in ('poll', 'respond', 'heartbeat')
+                    or not isinstance(body['nonce'], str) or len(body['nonce']) != 32
+                    or any(c not in '0123456789abcdef' for c in body['nonce'])
+                    or type(body['expires_at']) not in (int, float)
+                    or not now < body['expires_at'] <= now + 60
+                    or not isinstance(body['payload'], dict)):
+                raise ValueError('CONTROL_SCOPE')
+        except Exception:
+            return JSONResponse({'error': 'BATCH_CONTROL_DENIED'}, status_code=403)
+
+        def perform():
+            with rpc.connection_factory() as redis:
+                if not redis.set(rpc.prefix + ':control:' + body['nonce'], 'attempted', nx=True, ex=120):
+                    raise ValueError('CONTROL_ALREADY_ATTEMPTED')
+                payload = body['payload']
+                if body['action'] == 'poll':
+                    if payload:
+                        raise ValueError('CONTROL_POLL_SCOPE')
+                    key = redis.lpop(rpc.prefix + ':queue')
+                    if key is None:
+                        return {'request': None}
+                    key = key.decode() if isinstance(key, bytes) else key
+                    if not key.startswith(rpc.prefix + ':request:') or len(key) != len(rpc.prefix + ':request:') + 64:
+                        raise ValueError('CONTROL_QUEUE_SCOPE')
+                    record = redis.get(key)
+                    return {'request': json.loads(record)['envelope'] if record else None}
+                if body['action'] == 'heartbeat':
+                    if set(payload) != {'body', 'signature'}:
+                        raise ValueError('HEARTBEAT_SCHEMA')
+                    heartbeat = payload['body']
+                    rpc.verifier.verify(base64.b64decode(payload['signature'], validate=True), canonical(heartbeat))
+                    if (heartbeat.get('domain') != 'fresh-deer-batch-heartbeat-v1'
+                            or heartbeat.get('generation') != config['generation']
+                            or heartbeat.get('parent_id') != config['parent_id']
+                            or not 0 <= time.time() - heartbeat.get('observed_at', 0) <= 30):
+                        raise ValueError('HEARTBEAT_SCOPE')
+                    redis.set(rpc.prefix + ':heartbeat', canonical(payload), ex=30)
+                    return {'heartbeat_saved': True}
+                if set(payload) != {'request_id', 'response'}:
+                    raise ValueError('CONTROL_RESPONSE_SCHEMA')
+                rid = payload['request_id']
+                if not isinstance(rid, str) or len(rid) != 64 or any(c not in '0123456789abcdef' for c in rid):
+                    raise ValueError('CONTROL_RESPONSE_ID')
+                key = rpc.prefix + ':request:' + rid
+                stored = redis.get(key)
+                original = json.loads(stored)['envelope']['body']
+                rpc.verified_result(canonical(payload['response']), original)
+                redis.eval(RESPOND, 2, key, key + ':response', stored,
+                           canonical(payload['response']).decode(), rid)
+                return {'response_saved': True}
+        try:
+            return await asyncio.to_thread(perform)
+        except Exception:
+            return JSONResponse({'error': 'BATCH_CONTROL_OUTCOME_UNKNOWN_QUERY_ONLY'}, status_code=409)
+
 ENQUEUE = """
 local old=redis.call('GET',KEYS[1])
 if old then
@@ -190,6 +278,39 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False,
                                                         idempotentHint=True, openWorldHint=False))
+    async def batch_host_status() -> dict:
+        """Discover the enrolled parent and verify the fresh batch worker's signed heartbeat."""
+        owner = principal()
+        rpc.check(owner, rpc.config['parent_id'])
+        def read_status():
+            with rpc.connection_factory() as redis:
+                raw = redis.get(rpc.prefix + ':heartbeat')
+            ready = False
+            observed = None
+            if raw:
+                signed = json.loads(raw)
+                body = signed['body']
+                rpc.verifier.verify(base64.b64decode(signed['signature'], validate=True), canonical(body))
+                ready = (body.get('domain') == 'fresh-deer-batch-heartbeat-v1'
+                    and body.get('generation') == rpc.config['generation']
+                    and body.get('parent_id') == rpc.config['parent_id']
+                    and 0 <= time.time() - body.get('observed_at', 0) <= 30)
+                observed = body.get('observed_at') if ready else None
+            return {'generation': rpc.config['generation'], 'parent_id': rpc.config['parent_id'],
+                    'expires_at': rpc.config['expires_at'], 'worker_heartbeat_verified': ready,
+                    'observed_at': observed, 'automatic_dispatch': False}
+        try:
+            result = await asyncio.to_thread(read_status)
+            if principal() != owner:
+                raise ToolError('BATCH_PRINCIPAL_CHANGED_QUERY_ONLY')
+            return result
+        except ToolError:
+            raise
+        except Exception:
+            raise ToolError('BATCH_HOST_STATUS_UNAVAILABLE') from None
+
+    @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False,
+                                                        idempotentHint=True, openWorldHint=False))
     async def batch_receipt(request: ReceiptQuery) -> dict:
         """Query one original submit/cancel key without enqueueing, repeating or extending it."""
         owner = principal()
@@ -204,33 +325,5 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
         except Exception:
             raise ToolError('BATCH_RECEIPT_UNAVAILABLE_QUERY_ONLY') from None
 
-    return {'enabled': True, 'tools': ['batch_task', 'batch_status', 'cancel_batch', 'batch_receipt']}
+    return {'enabled': True, 'tools': ['batch_task', 'batch_status', 'cancel_batch', 'batch_receipt', 'batch_host_status']}
 
-
-async def run_worker(host, redis, repository):
-    """One explicit worker; no replay, scheduler, agent driver or legacy event claim."""
-    queue = prefix(host.config) + ':queue'
-    with host.single_worker():
-        while host.check('read'):
-            item = await asyncio.to_thread(redis.blpop, queue, timeout=1)
-            if item is None:
-                continue
-            key = item[1].decode() if isinstance(item[1], bytes) else item[1]
-            expected_prefix = prefix(host.config) + ':request:'
-            if not key.startswith(expected_prefix) or len(key) != len(expected_prefix) + 64:
-                continue
-            stored = await asyncio.to_thread(redis.get, key)
-            try:
-                record = json.loads(stored)
-                body = host.verify_request(record['envelope'])
-                if key != expected_prefix + body['request_id']:
-                    continue
-                # A new generation uses a fresh signer. Existing attempts are
-                # never rerun even if a response was lost or the worker crashed.
-                response = await host.execute(record['envelope'], repository=repository)
-                await asyncio.to_thread(redis.eval, RESPOND, 2, key, key + ':response',
-                                        stored, canonical(response).decode(), body['request_id'])
-            except Exception:
-                # Preserve the immutable request/attempt and uncertainty. No
-                # fabricated success, ACK or automatic requeue on failure.
-                continue

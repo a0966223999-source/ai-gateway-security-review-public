@@ -25,6 +25,9 @@ They do not dispatch native agents, wake Works, grant further delegation or
 prove in-flight stop. Every response retains `automatic_dispatch=false` and
 `native_execution_verified=false`. There is no model/API charge in this path.
 
+`batch_host_status` discovers the enrolled parent and verifies the worker's signed
+heartbeat (not native execution).
+
 `batch_receipt` queries an original submit/cancel operation when a response is
 uncertain. It never enqueues. Requests and local mutation-attempt fences are
 retained without automatic expiry/replay. Same-key different payloads conflict.
@@ -41,14 +44,17 @@ retry occurs. Recovery of that state is a separate read-only reconciliation.
 3. Run `fresh_batch_host.py initialize --root <private persistent directory>
    --owner <derived owner> --ttl-seconds 3600`. Initialization refuses any
    existing directory. It creates real new keys, host config and attempt storage.
-4. Deliver the existing Redis connection to `redis.url` in that directory with
-   mode 0600. Do not place credentials or private keys in Git, reports or chats.
+4. Keep the existing Redis credentials in Vercel. The worker uses the existing
+   HTTPS service at `/internal/deer-batch/rpc`, authenticated by this host's
+   Ed25519 signatures, one-use nonces and bounded deadlines. No Redis credential
+   is exported to the Codespace. Do not place host keys in Git, reports or chats.
 5. Configure the existing MCP project with `XJ_FRESH_BATCH_HOST_CONFIG` equal to
    the non-secret host.json, `XJ_FRESH_BATCH_INGRESS_KEY` equal to ingress.key hex,
    and `XJ_FRESH_BATCH_HOST_ENABLED=true` for this generation. Keep private
    signing.key on the host. Do not enable both local and remote batch modes.
 6. Run `fresh_batch_worker.py --root <host> --gateway-backend <existing backend>
-   --database <existing Gateway sqlite path>` using the existing Python runtime.
+   --database <existing Gateway sqlite path>
+   --endpoint https://<existing MCP host>/internal/deer-batch/rpc` using the existing Python runtime.
 7. Verify actual OAuth tools/list, submit/receipt/status/cancel against the same
    new generation. A Preview build or local test is not that live verification.
 

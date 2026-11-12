@@ -5,6 +5,12 @@ import os
 from pathlib import Path
 import sqlite3
 import sys
+import base64
+import json
+import secrets
+import time
+from urllib.parse import urlsplit
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 
 async def serve(args):
@@ -17,18 +23,56 @@ async def serve(args):
             raise ValueError('EXISTING_GATEWAY_BATCH_SCHEMA_REQUIRED')
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     from deerflow.persistence.subagent_batches.sql import SubagentBatchRepository
-    from fresh_batch_host import FreshBatchHost, private_read
-    from fresh_batch_rpc import run_worker
-    from service_extension import original_redis_connection
+    from fresh_batch_host import FreshBatchHost, canonical
     host = FreshBatchHost(args.root)
-    # Secret delivery is separate from code/config. Never accept request URLs.
-    os.environ['XJ_PREVIEW_REDIS_URL'] = private_read(host.root / 'redis.url').decode()
-    os.environ['VERCEL_ENV'] = 'preview'
+    endpoint = urlsplit(args.endpoint)
+    if (endpoint.scheme != 'https' or not endpoint.hostname or not endpoint.hostname.endswith('.vercel.app')
+            or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment
+            or endpoint.path != '/internal/deer-batch/rpc'):
+        raise ValueError('PINNED_ORIGINAL_HTTPS_CONTROL_ENDPOINT_REQUIRED')
+    os.chdir(backend)
     engine = create_async_engine('sqlite+aiosqlite:///' + str(database), connect_args={'timeout': 5})
     repository = SubagentBatchRepository(async_sessionmaker(engine, expire_on_commit=False))
     try:
-        with original_redis_connection() as redis:
-            await run_worker(host, redis, repository)
+        class RejectRedirect(HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+        opener = build_opener(RejectRedirect())
+        def control(action, payload):
+            host.check('read')
+            body = dict(domain='fresh-deer-batch-control-v1', generation=host.config['generation'],
+                        action=action, nonce=secrets.token_hex(16), expires_at=time.time() + 30, payload=payload)
+            envelope = dict(body=body, signature=base64.b64encode(host.key.sign(canonical(body))).decode())
+            request = Request(args.endpoint, data=canonical(envelope), headers={'Content-Type': 'application/json'})
+            # urllib follows no alternative host here: reject redirects.
+            with opener.open(request, timeout=10) as response:
+                if response.url != args.endpoint:
+                    raise ValueError('CONTROL_REDIRECT_REJECTED')
+                result = json.loads(response.read(131073))
+            host.check('read')
+            return result
+        with host.single_worker():
+            last_heartbeat = 0
+            while host.check('read'):
+                if time.time() - last_heartbeat >= 10:
+                    heartbeat = dict(domain='fresh-deer-batch-heartbeat-v1', generation=host.config['generation'],
+                                     parent_id=host.config['parent_id'], observed_at=time.time())
+                    signed = dict(body=heartbeat, signature=base64.b64encode(host.key.sign(canonical(heartbeat))).decode())
+                    await asyncio.to_thread(control, 'heartbeat', signed)
+                    last_heartbeat = time.time()
+                result = await asyncio.to_thread(control, 'poll', {})
+                envelope = result.get('request')
+                if envelope is None:
+                    await asyncio.sleep(2)
+                    continue
+                try:
+                    response = await host.execute(envelope, repository=repository)
+                    await asyncio.to_thread(control, 'respond',
+                        {'request_id': response['body']['request_id'], 'response': response})
+                except Exception:
+                    # Keep the durable request/attempt. Never replay after an
+                    # unknown effect or pretend the original worker completed.
+                    print('BATCH_REQUEST_QUERY_ONLY', flush=True)
     finally:
         await engine.dispose()
 
@@ -38,6 +82,7 @@ def main():
     parser.add_argument('--root', required=True)
     parser.add_argument('--gateway-backend', required=True)
     parser.add_argument('--database', required=True)
+    parser.add_argument('--endpoint', required=True)
     asyncio.run(serve(parser.parse_args()))
 
 

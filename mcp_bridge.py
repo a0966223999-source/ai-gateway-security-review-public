@@ -77,8 +77,9 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
     oauth_meta = {'securitySchemes': [{'type': 'oauth2', 'scopes': ['synthetic:events']}]}
     # New, explicitly enrolled batch generations use the existing authenticated
     # service/Redis connection. They never adopt the legacy Source RPC signer.
-    from fresh_batch_rpc import install_fresh_batch_tools
+    from fresh_batch_rpc import install_fresh_batch_tools, install_fresh_batch_routes
     install_fresh_batch_tools(mcp, principal=principal, oauth_meta=oauth_meta)
+    install_fresh_batch_routes(api_app)
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(
         readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=True))
