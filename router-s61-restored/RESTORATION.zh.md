@@ -17,10 +17,8 @@
   TOOL_NOT_FOUND。模型 collaboration 不是Gateway可呼用的程式API。
 
 ## 原Codespace本輪觀察（終端畫面讀驗，非已下載原始log）
-- 原 Gateway run_bindings.py SHA256 eca3d6c6fa0a824a7374c4534218e3c9bd190b42c26affda1f56f5337d91d9ae。
-- source_holder_ports.py SHA256 93df2c1ee7a3023a1ea78d8d199f9ddd8f4512020c4e17dc0eee88572cf26cdf。
-- deployment_event_ports.py SHA256 a7deb5a2995398c5263263c6ee3a63647480ea0489aac3225ce34f577c3fb7f。
-- platform_source_host.py SHA256 4a24323dbb9cffcd62a19a9dc0509e4f30eb5d858e7d68bb38a781b8152337b3。
+- 原四檔 pins 已在宿主 /tmp/router-s61-live-audit.json 保存；
+  本備份未下載該原始JSON，不以手抄值冒原件。
 - app末尾已有 create_app(run_bindings=deployment_run_bindings(),
   source_runtime=default_platform_source_runtime(),redis_events=...)。
   與11/11舊現場不同：啟動呼叫已補，但未帶可信host／enable。
@@ -44,3 +42,17 @@ RESTORED_AND_STAGED，尚未正式上線，G0 UNKNOWN，Gate1 DENY。
 本資料夾僅恢復原無外部依賴的接入模組與稽核入口，不冒充完整DSH安裝；
 完整原S61 ZIP及553項原manifest另納入本輪備份。
 
+
+## 原宿主實際續辦結果
+- 以固定提交203bdddf608fcb9f30583db174d565db0610f0e8建立獨立worktree
+  /tmp/deer-router-s61-staging，未改原服務checkout。
+- 稽核腳本實際讀現用Gateway，回 startup_run_bindings=[deployment_run_bindings()]，
+  deployment_default_enabled=false、static_default_off=true、runtime_slot_verified=false。
+- 原宿主Node實際匯入 cold_idle.mjs 與 formal_driver_entry.mjs 成功，
+  只載入模組，無Source讀取、runtime啟動或派送。
+- 宿主原回執已保存到 evidence/router-s61-onhost-audit-20261112.json，
+  本地detached commit 3daf6e1；git push原分支HTTP403，未推送成功。
+  沒有刷新／擴充Git憑證或重試該拒絕。原回執仍在宿主，
+  本輪備份僅包含終端觀察摘要，不能稱原始JSON已取回。
+- 先前203bdddf版說明中run_bindings的手抄SHA有誤，該值不作pin；
+  以宿主機器生成JSON為準。本版移除手抄四檔SHA。

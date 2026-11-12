@@ -46,3 +46,4 @@
 
 改編依據為使用者保存的 `/作業/dr-eggbot.md`（615 bytes）與 https://github.com/elie222/botdirectory.ai/blob/main/bots/dr-eggbot.md 。這是本平台適配流程，不是宣稱還原另有但未取得的完整 DR Bot 執行程式。上游 MIT 授權及著作權聲明見同目錄 `dr-bot-LICENSE.txt`。
 
+
