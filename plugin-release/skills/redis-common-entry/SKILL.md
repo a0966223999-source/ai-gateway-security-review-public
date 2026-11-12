@@ -74,7 +74,7 @@ submit 只呼叫原 request 工具，不新增第二個傳輸或業務事件。q
 
 ### 查詢、取消及失回
 
-- 用 `batch_status` 帶原 batch ID、parent 與全新讀取 operation key 取得最新快照；`include_result: true` 查已保存結果。支援時 `include_plan: true` 查原目標與分頁子任務。
+- 用 `batch_status` 帶原 batch ID、parent 與全新讀取 operation key 取得最新快照；`include_result: true` 查已保存結果；要求項目頁或結果時同時帶 `item_offset: 0` 與 `item_limit: 25`，避免原 Holder 拒絕未指定分頁的請求。支援時 `include_plan: true` 查原目標與分頁子任務。
 - 建立或取消失回時，使用 `batch_receipt` 查同一 operation key 及原 operation_kind；不得換鍵重送 UNKNOWN。單次查詢的相同讀取鍵只恢復原快照。
 - 用 `cancel_batch` 取消未開始項目；取消完成須以獨立查詢讀回。此工具不等於停止已啟動的 Codex 程序。
 - 撤權、過期、帳號不符、宿主未綁定或簽章不符時停止相依操作，不切換帳號或沿用歷史 parent。

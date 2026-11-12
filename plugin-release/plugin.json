@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "dev-6af05e97756c8191affb9700b02418e7",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "合成 Redis 事件寫入、讀回與\n\nTTL 測試",
   "author": {
     "name": "App developer"
