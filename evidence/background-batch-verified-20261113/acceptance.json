@@ -1,0 +1,16 @@
+{
+  "status": "VERIFIED",
+  "batch_id": "native-batch-605006c8346943798f96895f3d46be59",
+  "execute_operation_key": "bg605-execute-20261113-1794510064",
+  "execute_request_id": "fb8a847942e219f76544bea1083b2bdd54fcffd47c1d1d563e9f92b489534ca7",
+  "read_operation_key": "codex-bg-confirm-1794510316849",
+  "read_request_id": "a60d9c2135e5a8ca4369727606412f148c28268ee3c8c4ab6dc54db5dc8bceff",
+  "answers": [
+    333,
+    803,
+    803
+  ],
+  "native_work_dispatch": false,
+  "router_dynamic_selection": "NOT_DEPLOYED",
+  "qa_identity": "not_independent_qa"
+}

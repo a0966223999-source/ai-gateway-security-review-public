@@ -9,7 +9,7 @@
 | 大任務拆小任務並保存 | batch_host_status → batch_task(goal/items) → batch_status(include_plan=true) | 已發布；由當前 Work 拆解，原 SQL 保存；普通登記不啟動 |
 | 查進度及已保存結果 | batch_status；失回查 batch_receipt | 已發布；每次新快照使用新讀鍵，結果指定分頁 |
 | 執行指定單項 Codex | batch_execute，模式 codex_once | 已發布且既有平台真跑／讀回通過；當次仍核宿主與原項目 |
-| 一次交辦1–3個獨立子項，宿主背景逐項完成 | batch_execute_batch，或 schema 接受時 batch_task(codex_batch_once) | 已部署、15項工程測試通過；整批平台真跑驗收尚待完成，不冒稱已通過 |
+| 一次交辦1–3個獨立子項，宿主背景逐項完成 | batch_execute_batch，或 schema 接受時 batch_task(codex_batch_once) | 已部署並完成三項平台真跑驗收；原整批CODEX_BATCH_FINISHED及三項原SQL succeeded/attempt=1已獨立查回，答案／nonce／結果摘要一致 |
 | 取消未開始子項 | cancel_batch；混合批次明傳 pending_only=true | 已發布並驗證保留已完成結果；不會停止執行中程序 |
 | 停止指定在途 Codex | batch_stop，或 schema 接受時 batch_task(stop_codex_once) | 已發布並驗證只停止指定受管程序與後代，保留同批其他項目 |
 | Router保存／讀取續點與CAS結果 | gateway_checkpoint_create/read/save/query/receipt/link_status/revoke | 共用接口及 client 已發布；必須有本次原合法link／Source；不授予原生派工 |
@@ -37,4 +37,9 @@
 - DR角色：[DR Bot流程](dr-bot.md)。
 
 發布這份入口說明，代表上述既有接口與用法可共用，不代表每個Work已完成自身接入或所有列項都已正式驗收。
+
+
+## 背景批次正式回件（2026-11-13）
+
+原batch native-batch-605006c8346943798f96895f3d46be59，原執行鍵bg605-execute-20261113-1794510064；同鍵batch_receipt(execute)查回request fb8a847942e219f76544bea1083b2bdd54fcffd47c1d1d563e9f92b489534ca7，CODEX_BATCH_FINISHED、三項observed_execution_verified／original_result_saved=true、retry_performed=false、unstarted_item_ids=[]。獨立batch_status原SQL讀回request a60d9c2135e5a8ca4369727606412f148c28268ee3c8c4ab6dc54db5dc8bceff：三項succeeded/attempt=1，答案333／803／803，nonce與原保存值一致。這是指定有界背景批次驗收；未驗收Router自動選路、原生Work provider、DAG或容器沙盒，也不代簽獨立QA。不得為展示此功能重跑已完成的本批次。
 

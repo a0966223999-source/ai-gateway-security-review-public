@@ -5,7 +5,7 @@ description: "接入 Work 通知自喚醒、自動續辦、保存續點與 trans
 
 # Redis 共同入口
 
-## Router／Deer 子系統共用入口（v1.0.14）
+## Router／Deer 子系統共用入口（v1.0.15）
 
 使用者要求使用平台子系統、Router現有能力、拆解／派工／查詢／停止，或讓其他Work共用時，先讀取 [平台共用能力與最短接入](references/platform-shared-capabilities.md)。按其中的實際工具與驗收範圍直接執行已授權操作，不要求使用者重新描述程式、逐Work重建宿主或另一套Deer。保持原OAuth帳號範圍；「共用已發布」不代表Router自動選路、原生Work派工、DAG、真沙盒或短期記憶自動注入已完整上線。
 
@@ -197,5 +197,6 @@ submit 只呼叫原 request 工具，不新增第二個傳輸或業務事件。q
 ## 指定批次背景執行（v1.0.13）
 
 使用者已授權執行指定批次，且希望提交後由原宿主背景逐項完成時，讀取 [有界 Codex 背景批次](references/codex-bounded-background.md)。新入口 batch_execute_batch 與 batch_task 的 codex_batch_once 只選原批次 1–3 項獨立待辦；上文 v1.0.7 的逐項 Work 協調仍可用。先按當次 schema 核對新模式是否已載入，未載入回 BATCH_BACKGROUND_TOOL_SCHEMA_NOT_AVAILABLE，不改傳輸或另造 HTTP client。普通登記仍 automatic_dispatch=false；此入口不代表 S61 Router 動態選路、原生 Work 派工、DAG 或真容器沙盒上線。
+
 
 
