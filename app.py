@@ -20,6 +20,18 @@ app = FastAPI(title="Synthetic Redis Preview", version="0.1.0",
               docs_url=None, redoc_url=None, openapi_url=None)
 
 
+@app.get('/api/deer-batch/health', include_in_schema=False)
+async def fresh_batch_entry_health():
+    """Non-secret installation status; no task, grant, identity or key values."""
+    server = globals().get('_mcp')
+    names = {tool.name for tool in await server.list_tools()} if server is not None else set()
+    return {'version': 'fresh-batch-entry-20261112',
+            'enabled': os.getenv('XJ_FRESH_BATCH_HOST_ENABLED') == 'true',
+            'configuration_present': bool(os.getenv('XJ_FRESH_BATCH_HOST_CONFIG')),
+            'ingress_configured': bool(os.getenv('XJ_FRESH_BATCH_INGRESS_KEY')),
+            'batch_tools_registered': all(name in names for name in ('batch_task', 'batch_status', 'cancel_batch'))}
+
+
 def authorize(credentials: HTTPAuthorizationCredentials | None = Depends(security)):
     if os.getenv("VERCEL_ENV") != "preview":
         raise HTTPException(404, "Not found")
