@@ -59,7 +59,22 @@ def exclusive_write(path, raw):
         os.close(fd)
 
 
-def initialize(root, *, owner, ttl_seconds=3600, now=None):
+def enrollment_active(config, now):
+    """Only explicit owner service enrollments have no calendar expiry."""
+    expiry = config.get('expires_at')
+    service = (config.get('lifecycle') == 'owner-platform-service-v1'
+               and config.get('authority') == 'owner-platform-service-enrollment')
+    if expiry is None:
+        return service and config['created_at'] <= now
+    return type(expiry) in (int, float) and config['created_at'] <= now < expiry
+
+
+def request_deadline(config, now, seconds):
+    expiry = config.get('expires_at')
+    return now + seconds if expiry is None else min(expiry, now + seconds)
+
+
+def initialize(root, *, owner, ttl_seconds=3600, now=None, platform_service=False, enable_codex=False):
     """Trusted CLI only: enroll a NEW parent, not an old Work or old grant.
 
     Caller must obtain owner from the existing verified OAuth deployment
@@ -67,7 +82,9 @@ def initialize(root, *, owner, ttl_seconds=3600, now=None):
     """
     if (not isinstance(owner, str) or len(owner) != 70 or not owner.startswith('oauth:')
             or any(c not in '0123456789abcdef' for c in owner[6:])
-            or type(ttl_seconds) is not int or not 60 <= ttl_seconds <= 86400):
+            or type(ttl_seconds) is not int or not 60 <= ttl_seconds <= 86400
+            or type(platform_service) is not bool or type(enable_codex) is not bool
+            or (enable_codex and not platform_service)):
         raise HostDenied('FRESH_ENROLLMENT_SCOPE_REQUIRED')
     root = Path(root)
     root.parent.resolve(strict=True)
@@ -79,9 +96,13 @@ def initialize(root, *, owner, ttl_seconds=3600, now=None):
     created = time.time() if now is None else now
     config = dict(schema='fresh-deer-batch-host-v1', generation=secrets.token_hex(16),
                   owner=owner, parent_id='deer-parent-' + secrets.token_hex(16),
-                  created_at=created, expires_at=created + ttl_seconds,
+                  created_at=created, expires_at=None if platform_service else created + ttl_seconds,
                   public_key=public, actions=['submit', 'read', 'cancel'],
                   automatic_dispatch=False, authority='new-owner-enrollment')
+    if platform_service:
+        config.update(lifecycle='owner-platform-service-v1', authority='owner-platform-service-enrollment')
+    if enable_codex:
+        config['actions'].append('execute')
     exclusive_write(root / 'signing.key', key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption()))
     exclusive_write(root / 'ingress.key', secrets.token_bytes(32))
     exclusive_write(root / 'host.json', canonical(config))
@@ -111,7 +132,7 @@ class FreshBatchHost:
                 or (self.root / 'STOP').exists() or (self.root / 'STOP').is_symlink()
                 or digest(json.loads(private_read(self.root / 'host.json'))) != self.pin
                 or private_read(self.root / 'config.sha256').decode() != self.pin
-                or not self.config['created_at'] <= self.clock() < self.config['expires_at']
+                or not enrollment_active(self.config, self.clock())
                 or action not in self.config['actions']):
             raise HostDenied('FRESH_HOST_REVOKED_EXPIRED_OR_CHANGED')
         return True
@@ -143,7 +164,7 @@ class FreshBatchHost:
         self.check(action)
         if (any(body[k] != self.config[k] for k in ('generation', 'owner', 'parent_id'))
                 or type(body['expires_at']) not in (int, float)
-                or not self.clock() < body['expires_at'] <= min(self.config['expires_at'], self.clock() + 120)
+                or not self.clock() < body['expires_at'] <= request_deadline(self.config, self.clock(), 120)
                 or not isinstance(body['operation_key'], str) or not 1 <= len(body['operation_key']) <= 128
                 or body['request_id'] != digest([body['generation'], body['owner'], action, body['operation_key']])
                 or not isinstance(body['payload'], dict)):
@@ -206,6 +227,16 @@ class FreshBatchHost:
         from batch_mcp_entry import Submit, Status, Cancel, _public_result
         body = self.verify_request(envelope)
         action = body['action']
+        if action == 'execute':
+            from platform_codex_executor import Execute, execute_item
+            request = Execute.model_validate(dict(body['payload'], parent_id=body['parent_id'],
+                                                  operation_key=body['operation_key']))
+            self.reserve(body)
+            result = await execute_item(self, repository, request)
+            response = dict(generation=self.config['generation'], request_id=body['request_id'],
+                            request_sha256=digest(body), result=result, automatic_dispatch=False,
+                            native_execution_verified=False)
+            return dict(body=response, signature=base64.b64encode(self.key.sign(canonical(response))).decode())
         model = {'submit': Submit, 'read': Status, 'cancel': Cancel}[action]
         request = model.model_validate(dict(body['payload'], parent_id=body['parent_id'],
                                            operation_key=body['operation_key']))
@@ -274,9 +305,12 @@ def main():
     parser.add_argument('--root', required=True)
     parser.add_argument('--owner')
     parser.add_argument('--ttl-seconds', type=int, default=3600)
+    parser.add_argument('--platform-service', action='store_true')
+    parser.add_argument('--enable-codex', action='store_true')
     args = parser.parse_args()
     if args.action == 'initialize':
-        result = initialize(args.root, owner=args.owner, ttl_seconds=args.ttl_seconds)
+        result = initialize(args.root, owner=args.owner, ttl_seconds=args.ttl_seconds,
+                            platform_service=args.platform_service, enable_codex=args.enable_codex)
     elif args.action == 'stop':
         root = Path(args.root).resolve(strict=True)
         try:

@@ -18,7 +18,7 @@ from mcp.types import ToolAnnotations
 from typing import Literal
 
 from batch_mcp_entry import Submit, Status, Cancel, RequestBase, planning_response
-from fresh_batch_host import canonical, digest
+from fresh_batch_host import canonical, digest, enrollment_active, request_deadline
 
 
 def install_fresh_batch_routes(app, *, env=os.environ, connection_factory=None):
@@ -152,7 +152,7 @@ class BatchRPC:
 
     def check(self, owner, parent):
         if (owner != self.config['owner'] or parent != self.config['parent_id']
-                or not self.config['created_at'] <= time.time() < self.config['expires_at']):
+                or not enrollment_active(self.config, time.time())):
             raise ToolError('FRESH_BATCH_OWNER_PARENT_OR_EXPIRY_DENIED')
 
     def verified_result(self, raw, body):
@@ -184,12 +184,12 @@ class BatchRPC:
 
     def call(self, *, owner, parent, action, operation_key, payload):
         self.check(owner, parent)
-        if action not in ('submit', 'read', 'cancel'):
+        if action not in self.config['actions'] or action not in ('submit', 'read', 'cancel', 'execute'):
             raise ValueError('BATCH_ACTION_INVALID')
         body = dict(generation=self.config['generation'], owner=owner, parent_id=parent,
                     action=action, operation_key=operation_key, payload=payload,
                     request_id=request_id(self.config, action, operation_key),
-                    expires_at=min(self.config['expires_at'], time.time() + 60))
+                    expires_at=request_deadline(self.config, time.time(), 60))
         mac = hmac.new(self.key, canonical(body), 'sha256').hexdigest()
         record = dict(payload_digest=digest([owner, parent, action, operation_key, payload]),
                       envelope={'body': body, 'mac': mac})
@@ -220,7 +220,7 @@ class BatchRPC:
 
 
 class ReceiptQuery(RequestBase):
-    operation_kind: Literal['submit', 'cancel'] = 'submit'
+    operation_kind: Literal['submit', 'cancel', 'execute'] = 'submit'
 
 
 def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, connection_factory=None):
@@ -285,6 +285,21 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
         """Cancel unstarted items through the original Holder. No native stop is claimed."""
         return await invoke('cancel', request)
 
+    if 'execute' in rpc.config['actions']:
+        from platform_codex_executor import Execute
+
+        @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
+                                                            idempotentHint=True, openWorldHint=True))
+        async def batch_execute(request: Execute) -> dict:
+            """Explicitly execute ONE saved pending item with the host's Codex CLI.
+
+            Never automatic. The original Holder reserves once before launch.
+            Unknown response: query batch_receipt(operation_kind=execute) with
+            the SAME key, then batch_status(include_result=true,item_offset=0).
+            No retry, no native Work spawn, no claim of container isolation.
+            """
+            return await invoke('execute', request)
+
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False,
                                                         idempotentHint=True, openWorldHint=False))
     async def batch_host_status() -> dict:
@@ -307,6 +322,8 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
                 observed = body.get('observed_at') if ready else None
             return {'generation': rpc.config['generation'], 'parent_id': rpc.config['parent_id'],
                     'expires_at': rpc.config['expires_at'], 'worker_heartbeat_verified': ready,
+                    'lifecycle': rpc.config.get('lifecycle', 'bounded-test'),
+                    'execution_available': 'execute' in rpc.config['actions'],
                     'observed_at': observed, 'automatic_dispatch': False}
         try:
             result = await asyncio.to_thread(read_status)

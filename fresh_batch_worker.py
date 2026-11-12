@@ -9,6 +9,7 @@ import base64
 import json
 import secrets
 import time
+import signal
 from urllib.parse import urlsplit
 from urllib.request import Request, HTTPRedirectHandler, build_opener
 
@@ -66,7 +67,26 @@ async def serve(args):
                     await asyncio.sleep(2)
                     continue
                 try:
-                    response = await host.execute(envelope, repository=repository)
+                    execution = asyncio.create_task(host.execute(envelope, repository=repository))
+                    try:
+                        while not execution.done():
+                            await asyncio.wait({execution}, timeout=8)
+                            if time.time() - last_heartbeat >= 10:
+                                heartbeat = dict(domain='fresh-deer-batch-heartbeat-v1',
+                                    generation=host.config['generation'], parent_id=host.config['parent_id'],
+                                    observed_at=time.time())
+                                signed = dict(body=heartbeat, signature=base64.b64encode(
+                                    host.key.sign(canonical(heartbeat))).decode())
+                                await asyncio.to_thread(control, 'heartbeat', signed)
+                                last_heartbeat = time.time()
+                        response = await execution
+                    finally:
+                        if not execution.done():
+                            execution.cancel()
+                            try:
+                                await execution
+                            except asyncio.CancelledError:
+                                pass
                     await asyncio.to_thread(control, 'respond',
                         {'request_id': response['body']['request_id'], 'response': response})
                 except Exception:
@@ -83,7 +103,14 @@ def main():
     parser.add_argument('--gateway-backend', required=True)
     parser.add_argument('--database', required=True)
     parser.add_argument('--endpoint', required=True)
-    asyncio.run(serve(parser.parse_args()))
+    args = parser.parse_args()
+    async def run():
+        task = asyncio.create_task(serve(args))
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, task.cancel)
+        await task
+    asyncio.run(run())
 
 
 if __name__ == '__main__':
