@@ -22,7 +22,11 @@ from generation_host_config import host_generation_config
 from cycle_envelope import CycleAwareEventCatalog
 
 
-def install(api_app, write_event, read_event, event_model):
+def install(api_app, write_event, read_event, event_model, *, batch_scope_resolver=None):
+    # Only trusted startup can supply the original batch authority. Environment
+    # flags, mailbox payloads and model-provided IDs cannot create this capability.
+    if batch_scope_resolver is not None and not callable(batch_scope_resolver):
+        raise ValueError('BATCH_SCOPE_RESOLVER_REQUIRED')
     verifier = Auth0Verifier()
     hostname = os.environ['VERCEL_URL']
     if not hostname.endswith('.vercel.app') or '/' in hostname:
@@ -122,10 +126,25 @@ def install(api_app, write_event, read_event, event_model):
             raise InboxError('delivery_missing')
         return await events.deliver(inbox, delivery_id)
 
+    batch_mounted = False
+
+    async def authenticated_batch_scope(ctx, parent_id, operation_key, action):
+        owner = principal()
+        scope = await batch_scope_resolver(ctx, parent_id, operation_key, action)
+        if principal() != owner:
+            raise PermissionError('BATCH_PRINCIPAL_CHANGED')
+        return scope
+
     previous = api_app.router.lifespan_context
     @asynccontextmanager
     async def lifespan(app):
+        nonlocal batch_mounted
         async with previous(app):
+            if batch_scope_resolver is not None and not batch_mounted:
+                from batch_mcp_entry import mount_batch_tools
+                await mount_batch_tools(mcp, resolve_scope=authenticated_batch_scope,
+                                        oauth_meta=oauth_meta)
+                batch_mounted = True
             async with mcp.session_manager.run():
                 yield
     api_app.router.lifespan_context = lifespan
