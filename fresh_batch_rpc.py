@@ -21,6 +21,7 @@ from batch_mcp_entry import Submit, Status, RequestBase, planning_response
 from platform_pending_cancel import PendingCancel as Cancel
 from fresh_batch_host import canonical, digest, enrollment_active, request_deadline
 from platform_codex_executor import Execute
+from platform_codex_stop import Stop
 
 
 def install_fresh_batch_routes(app, *, env=os.environ, connection_factory=None):
@@ -252,11 +253,13 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
                                                         idempotentHint=True, openWorldHint=True))
-    async def batch_task(request: Submit | Execute) -> dict:
+    async def batch_task(request: Submit | Execute | Stop) -> dict:
         """Save a goal and child tasks, or explicitly execute ONE saved item.
 
         To execute: execution_mode=codex_once, batch_id, item_id, parent_id,
         operation_key. No new items or prompt accepted in execute mode.
+        To stop one owned running item: execution_mode=stop_codex_once with
+        batch_id, item_id, parent_id and a fresh operation_key. No PID accepted.
         Execution is explicit and requires operator-enabled host capability.
         Query UNKNOWN with batch_receipt(operation_kind=execute), same key.
 
@@ -267,8 +270,9 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
         Items must be independent. Ordinary goal/items requests only store pending work.
         Unknown commit outcomes: retain the same key and query batch_receipt.
         """
-        if isinstance(request, Execute):
+        if isinstance(request, (Execute,Stop)):
             return await invoke('execute', request)
+
         if request.items is None:
             owner = principal()
             rpc.check(owner, request.parent_id)
@@ -277,6 +281,17 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
                 raise ToolError('BATCH_PRINCIPAL_CHANGED_QUERY_ONLY')
             return result
         return await invoke('submit', request)
+
+    if 'execute' in rpc.config['actions']:
+        @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True,
+                                                            idempotentHint=True, openWorldHint=True))
+        async def batch_stop(request: Stop) -> dict:
+            """Stop one original owned live Codex group; never the whole host.
+
+            Query an unknown stop with batch_receipt(operation_kind=execute)
+            and the exact original stop key. Do not resend with a new key.
+            """
+            return await invoke('execute', request)
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False,
                                                         idempotentHint=True, openWorldHint=True))

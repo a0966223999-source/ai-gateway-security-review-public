@@ -54,45 +54,44 @@ async def serve(args):
             return result
         with host.single_worker():
             last_heartbeat = 0
-            while host.check('read'):
-                if time.time() - last_heartbeat >= 10:
-                    heartbeat = dict(domain='fresh-deer-batch-heartbeat-v1', generation=host.config['generation'],
-                                     parent_id=host.config['parent_id'], observed_at=time.time())
-                    signed = dict(body=heartbeat, signature=base64.b64encode(host.key.sign(canonical(heartbeat))).decode())
-                    await asyncio.to_thread(control, 'heartbeat', signed)
-                    last_heartbeat = time.time()
-                result = await asyncio.to_thread(control, 'poll', {})
-                envelope = result.get('request')
-                if envelope is None:
-                    await asyncio.sleep(2)
-                    continue
+            active = set()
+
+            async def handle(envelope):
                 try:
-                    execution = asyncio.create_task(host.execute(envelope, repository=repository))
-                    try:
-                        while not execution.done():
-                            await asyncio.wait({execution}, timeout=8)
-                            if time.time() - last_heartbeat >= 10:
-                                heartbeat = dict(domain='fresh-deer-batch-heartbeat-v1',
-                                    generation=host.config['generation'], parent_id=host.config['parent_id'],
-                                    observed_at=time.time())
-                                signed = dict(body=heartbeat, signature=base64.b64encode(
-                                    host.key.sign(canonical(heartbeat))).decode())
-                                await asyncio.to_thread(control, 'heartbeat', signed)
-                                last_heartbeat = time.time()
-                        response = await execution
-                    finally:
-                        if not execution.done():
-                            execution.cancel()
-                            try:
-                                await execution
-                            except asyncio.CancelledError:
-                                pass
+                    response = await host.execute(envelope, repository=repository)
                     await asyncio.to_thread(control, 'respond',
                         {'request_id': response['body']['request_id'], 'response': response})
                 except Exception:
                     # Keep the durable request/attempt. Never replay after an
                     # unknown effect or pretend the original worker completed.
                     print('BATCH_REQUEST_QUERY_ONLY', flush=True)
+
+            try:
+                while host.check('read'):
+                    if time.time() - last_heartbeat >= 10:
+                        heartbeat = dict(domain='fresh-deer-batch-heartbeat-v1', generation=host.config['generation'],
+                                         parent_id=host.config['parent_id'], observed_at=time.time())
+                        signed = dict(body=heartbeat, signature=base64.b64encode(host.key.sign(canonical(heartbeat))).decode())
+                        await asyncio.to_thread(control, 'heartbeat', signed)
+                        last_heartbeat = time.time()
+                    # Keep the single original consumer and bound request concurrency.
+                    # Execution slots remain separately capped at two, before SQL reserve.
+                    active = {task for task in active if not task.done()}
+                    if len(active) >= 8:
+                        await asyncio.wait(active, timeout=.25, return_when=asyncio.FIRST_COMPLETED)
+                        continue
+                    result = await asyncio.to_thread(control, 'poll', {})
+                    envelope = result.get('request')
+                    if envelope is None:
+                        await asyncio.sleep(.25 if active else 2)
+                        continue
+                    active.add(asyncio.create_task(handle(envelope)))
+            finally:
+                # Revocation, signal or transport failure cancels every owned task.
+                # Each executor terminates its own retained Popen group; no replay.
+                for task in active:
+                    task.cancel()
+                await asyncio.gather(*active, return_exceptions=True)
     finally:
         await engine.dispose()
 

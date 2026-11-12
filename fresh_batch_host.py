@@ -230,10 +230,15 @@ class FreshBatchHost:
         action = body['action']
         if action == 'execute':
             from platform_codex_executor import Execute, execute_item
-            request = Execute.model_validate(dict(body['payload'], parent_id=body['parent_id'],
+            from platform_codex_stop import Stop, stop_item
+            payload = body['payload']
+            model = Stop if payload.get('execution_mode') == 'stop_codex_once' else Execute
+            request = model.model_validate(dict(payload, parent_id=body['parent_id'],
                                                   operation_key=body['operation_key']))
             self.reserve(body)
-            result = await execute_item(self, repository, request)
+            result = await (stop_item(self,repository,request) if isinstance(request,Stop)
+                            else execute_item(self, repository, request))
+            self.check('execute')
             response = dict(generation=self.config['generation'], request_id=body['request_id'],
                             request_sha256=digest(body), result=result, automatic_dispatch=False,
                             native_execution_verified=False)

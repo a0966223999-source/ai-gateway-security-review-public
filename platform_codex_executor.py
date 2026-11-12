@@ -19,6 +19,7 @@ from typing import Annotated, Literal
 from pydantic import Field
 from batch_mcp_entry import RequestBase, Text
 from fresh_batch_host import canonical, exclusive_write, HostDenied
+from platform_codex_stop import ActiveRun, registry, terminate_owned_group, save_stopped_item
 
 
 class Execute(RequestBase):
@@ -30,6 +31,11 @@ class Execute(RequestBase):
 
 def sha(raw):
     return hashlib.sha256(raw).hexdigest()
+
+
+def file_sha(path):
+    with path.open('rb') as stream:
+        return hashlib.file_digest(stream,'sha256').hexdigest()
 
 
 def successful_output(raw):
@@ -50,6 +56,19 @@ def successful_output(raw):
 
 
 async def execute_item(host, repository, request):
+    # Reserve a process-local slot before the first await. Original SQL capacity
+    # and durable once fences still apply independently to each batch/item.
+    count = getattr(host, '_codex_execution_count', 0)
+    if count >= 2:
+        raise HostDenied('CODEX_HOST_CAPACITY_BUSY_QUERY_ONLY')
+    host._codex_execution_count = count + 1
+    try:
+        return await _execute_item(host, repository, request)
+    finally:
+        host._codex_execution_count -= 1
+
+
+async def _execute_item(host, repository, request):
     # Operator-owned pin, not executable lookup supplied by the GPT tool.
     host.check('execute')
     executable = shutil.which('codex')
@@ -97,17 +116,39 @@ async def execute_item(host, repository, request):
            '--ephemeral', '--sandbox', 'read-only', '--json', '-C', str(work), '-']
     exclusive_write(run / 'invocation.json', canonical(dict(argv=cmd, started_at=time.time())))
     proc = None
+    active = None
+    outcome = {'status':'STOP_OUTCOME_UNKNOWN_QUERY_ONLY', 'batch_id':request.batch_id,
+               'item_id':request.item_id}
     stopped = None
     try:
         with open(run / 'events.jsonl', 'xb') as out, open(run / 'stderr.log', 'xb') as err:
             os.chmod(run / 'events.jsonl', 0o600)
             os.chmod(run / 'stderr.log', 0o600)
             proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=out, stderr=err, start_new_session=True)
+            active = ActiveRun(proc=proc, intent=intent, binding=binding)
+            registry(host)[(request.batch_id,request.item_id)] = active
             proc.stdin.write(prompt.encode())
             proc.stdin.close()
             deadline = time.monotonic() + request.timeout_seconds
             while proc.poll() is None:
                 host.check('execute')
+                if active.stop.is_set():
+                    observed = await terminate_owned_group(proc)
+                    if observed['signals_sent']:
+                        out.flush()
+                        err.flush()
+                        evidence = dict(observed, batch_id=request.batch_id, item_id=request.item_id,
+                            intent_id=intent, stop_operation_key=active.stop_operation_key,
+                            execution_operation_key=request.operation_key,
+                            events_sha256=file_sha(run/'events.jsonl'),
+                            stderr_sha256=file_sha(run/'stderr.log'))
+                        exclusive_write(run/'stop-evidence.json', canonical(evidence))
+                        await save_stopped_item(host, repository, request, active, evidence)
+                        outcome = dict(evidence, status='STOPPED', original_terminal_state_saved=True,
+                                       observed_execution_verified=True, stopped_by_this_request=True)
+                        exclusive_write(run/'stop-receipt.json', canonical(outcome))
+                        return outcome
+                    break  # Completion won the race; finish through the normal result path.
                 if time.monotonic() >= deadline:
                     stopped = 'CODEX_TIMEOUT_QUERY_ONLY'
                     raise HostDenied(stopped)
@@ -139,14 +180,16 @@ async def execute_item(host, repository, request):
             exit_code=proc.returncode, original_result_saved=True, observed_execution_verified=True,
             events_sha256=sha(raw), result_sha256=sha(report.encode()))
         exclusive_write(run / 'receipt.json', canonical(receipt))
+        outcome = receipt
         return receipt
     finally:
         # Every exceptional path, including STOP, task cancellation and lost authority,
         # ends its owned process group. Never leaves a child running after revocation.
-        if proc is not None and proc.poll() is None:
-            os.killpg(proc.pid, signal.SIGTERM)
-            try:
-                await asyncio.to_thread(proc.wait, timeout=3)
-            except subprocess.TimeoutExpired:
-                os.killpg(proc.pid, signal.SIGKILL)
-                await asyncio.to_thread(proc.wait)
+        try:
+            if proc is not None:
+                await terminate_owned_group(proc)
+        finally:
+            if active is not None:
+                registry(host).pop((request.batch_id,request.item_id),None)
+                if not active.done.done():
+                    active.done.set_result(outcome)
