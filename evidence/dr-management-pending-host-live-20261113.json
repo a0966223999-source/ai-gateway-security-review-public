@@ -1,0 +1,23 @@
+{
+  "status": "ORIGINAL_MANAGEMENT_CONSUMER_STAGED_PENDING_CONSENT",
+  "source_commit": "411272e8ab6e86f53b919c8dcc9f81db54ed5958",
+  "manager_pid": 65845,
+  "gateway_pid": 56604,
+  "operation_key": "dr-consent-20261113-01",
+  "pending_selector_is_authority": false,
+  "management_grant_issued_by_this_script": false,
+  "host_config_pin_unchanged": true,
+  "generation_unchanged": true,
+  "identity_link_used_as_authority": false,
+  "idle_sql_counts": {"cancelled": 17, "succeeded": 7},
+  "started_at": 1794502020.2753012,
+  "fresh_signed_heartbeat": {"verified": true, "observed_at": 1794502051.8802524},
+  "model_executed": false,
+  "mcp_deployment": "dpl_6qGG8Ed6bZag6sXfgNiXcXB1mLag",
+  "mcp_deployment_state": "READY",
+  "original_mcp_alias_assigned": true,
+  "mcp_original_host_config_changed": false,
+  "mcp_added_plain_flag": "XJ_AGENT_MANAGEMENT_ENABLED=true",
+  "management_acceptance": "PENDING_INTERACTIVE_CONSENT_AND_NATIVE_TOOL_DISCOVERY",
+  "independent_qa": "NOT_RUN"
+}
