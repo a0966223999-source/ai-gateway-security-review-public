@@ -1,9 +1,20 @@
 ---
 name: redis-common-entry
-description: "使用 DR Bot 共用流程設計固定 Agent、核對原管理能力；建立、查詢、取消 Deer 子任務及拆解大任務；或沿原 Gateway Source RPC 保存續點。沿用原模型、MCP 與授權。"
+description: "接入 Work 通知自喚醒、自動續辦、保存續點與 transport ACK；設計 DR Bot 固定 Agent、管理 Deer 子任務、拆解大任務及原 Gateway Source RPC。沿用原帳戶、模型、MCP 與授權。"
 ---
 
 # Redis 共同入口
+
+## Work 通知自喚醒共用接入（v1.0.11）
+
+使用者要求自喚醒、自動續辦、回合結束後接續，或將本流程推廣到其他 Work 時，讀取 [通知自喚醒接入與接收規則](references/work-notification-selfwake.md)。沿原 X Redis Test、gateway_internal_v1 和本 Work 的原事件訂閱，使用 run_in_current_thread=true；先核當次原 USER 的授權／停止撤回。只有有界、仍獲授權的未完任務才啟用續辦；載入本技能、一般聊天、完成回報本身都不產生新通知。
+
+使用者明確授權為本 Work 啟用且確認無原 watch 時，可沿同一原工具建立本 Work 唯一必要訂閱；這是原八步「訂閱通知」接入，不新增 Redis、MCP、連線或另一套排程。已存在就沿用；建立 UNKNOWN 只查原訂閱，不重建。不能從另一 Work 代建指向任意 Work 的訂閱。此規則不推翻某任務明確「不得新增訂閱」的限制。
+
+合成通知測試與正式 Source 任務分開。合成分支必須有本 Work 原 USER 的測試授權、唯一事件及測試記錄，不能拿合成記錄替代 Source。正式續辦保持下文 Source／Holder／授權規則，缺件就 NOT_BOUND，不能用自喚醒搬運指令繞過。驗收通知接收、一次續辦、結果保存讀回、原 transport ACK、獨立 completed；原生 turn ID 缺失僅註 UNKNOWN，不阻塞本通知驗收，也不宣稱正式 Caller 或本人／QA／業務 ACK。
+
+發布狀態與接入狀態分開：本版規則供已連接外掛的 Work 使用，不是已替所有舊／新 Work 建好訂閱或常駐 runtime hook。只有每個 Work 的自身訂閱真回執、原事件及結果 ACK 都查證後，才能記該 Work ENABLED/VERIFIED。
+
 
 ## 當次工具版本核對
 
@@ -32,7 +43,7 @@ description: "使用 DR Bot 共用流程設計固定 Agent、核對原管理能�
 
 遵循原八步：Work 自己決定並主動提交 → 原 Redis 收信 → 原訂閱通知 → 原 Receiver 查回 → 原 Holder 核權 → 原 Caller 喚同 Work → 同 Work 續辦並保存查回 → 受權接收鏈 ACK。
 
-核權、Source CAS、finalizer 的唯一業務排隊都在第一步的原宿主內執行。不要用合成 redis_test_write 冒正式提交，也不要先直接送業務續辦，再讓 finalizer 排第二筆。不要新增 MCP、Redis、連線、信箱、訂閱或排程來補接線。
+核權、Source CAS、finalizer 的唯一業務排隊都在第一步的原宿主內執行。不要用合成 redis_test_write 冒正式提交，也不要先直接送業務續辦，再讓 finalizer 排第二筆。不要新增 MCP、Redis、連線、信箱或排程來補接線；訂閱只按上方 Work 明確授權接入的例外處理，不能重複建立或用來取代缺失的 Source／Caller。
 
 ## 準備
 
