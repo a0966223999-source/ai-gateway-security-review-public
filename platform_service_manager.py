@@ -1,7 +1,8 @@
 """Supervise the original batch worker while the original Codespace is awake.
 
 No request replay: popped UNKNOWN requests and original attempt fences stay put.
-Three process restarts maximum. Does not prevent Codespace suspension.
+Three unexpected process restarts maximum. Explicit SIGTERM maintenance does
+not spend or reset that budget. Does not prevent Codespace suspension.
 """
 import argparse
 import fcntl
@@ -45,7 +46,8 @@ def main():
     exclusive_write(host.root / ('supervisor-' + str(os.getpid()) + '.json'), canonical(dict(
         pid=os.getpid(), generation=host.config['generation'], argv=cmd, started_at=time.time())))
     try:
-        for attempt in range(4):
+        failures = 0
+        while True:
             host.check('read')
             if stopping:
                 return
@@ -64,12 +66,18 @@ def main():
                     except subprocess.TimeoutExpired:
                         proc.kill()
                         proc.wait()
-            if proc.returncode == 0:
+            if proc.returncode in (0, 128 + signal.SIGINT):
                 return
             host.check('read')
-            if attempt < 3:
-                time.sleep(2 ** attempt)
-        raise RuntimeError('WORKER_RESTART_LIMIT_QUERY_ONLY')
+            if proc.returncode == 128 + signal.SIGTERM:
+                # Only the real worker's OS signal handler emits this AFTER
+                # cancellation cleanup. Retain the original failure budget.
+                time.sleep(1)
+                continue
+            failures += 1
+            if failures > 3:
+                raise RuntimeError('WORKER_RESTART_LIMIT_QUERY_ONLY')
+            time.sleep(2 ** (failures - 1))
     finally:
         os.close(fd)
 

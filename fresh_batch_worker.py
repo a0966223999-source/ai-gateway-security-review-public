@@ -113,13 +113,8 @@ def main():
     parser.add_argument('--agent-management-grant-id')
     parser.add_argument('--gateway-pid', type=int)
     args = parser.parse_args()
-    async def run():
-        task = asyncio.create_task(serve(args))
-        loop = asyncio.get_running_loop()
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            loop.add_signal_handler(sig, task.cancel)
-        await task
-    asyncio.run(run())
+    from worker_signal_lifecycle import run_until_signalled
+    raise SystemExit(asyncio.run(run_until_signalled(serve, args)))
 
 
 if __name__ == '__main__':
