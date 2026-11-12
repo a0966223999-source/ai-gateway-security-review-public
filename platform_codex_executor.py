@@ -55,7 +55,7 @@ def successful_output(raw):
     return starts[0], report
 
 
-async def execute_item(host, repository, request):
+async def execute_item(host, repository, request, *, fixed_agent_lease=None):
     # Reserve a process-local slot before the first await. Original SQL capacity
     # and durable once fences still apply independently to each batch/item.
     count = getattr(host, '_codex_execution_count', 0)
@@ -63,12 +63,12 @@ async def execute_item(host, repository, request):
         raise HostDenied('CODEX_HOST_CAPACITY_BUSY_QUERY_ONLY')
     host._codex_execution_count = count + 1
     try:
-        return await _execute_item(host, repository, request)
+        return await _execute_item(host, repository, request, fixed_agent_lease=fixed_agent_lease)
     finally:
         host._codex_execution_count -= 1
 
 
-async def _execute_item(host, repository, request):
+async def _execute_item(host, repository, request, *, fixed_agent_lease=None):
     # Operator-owned pin, not executable lookup supplied by the GPT tool.
     host.check('execute')
     executable = shutil.which('codex')
@@ -94,6 +94,20 @@ async def _execute_item(host, repository, request):
         if item is None or item.batch_id != request.batch_id or item.status != 'pending':
             raise HostDenied('CODEX_PENDING_ITEM_REQUIRED')
         prompt = item.prompt
+        role = json.loads(canonical(row.execution_spec.get('fixed_agent_runtime')))
+    from deer_fixed_runtime_host import OriginalFixedAgentLease
+    if role is not None:
+        if type(fixed_agent_lease) is not OriginalFixedAgentLease:
+            raise HostDenied('FIXED_RUNTIME_LEASE_REQUIRED')
+        await fixed_agent_lease.validate_saved(role, prompt)
+    elif fixed_agent_lease is not None:
+        raise HostDenied('FIXED_RUNTIME_ROLE_REQUIRED')
+
+    async def check_runtime():
+        if fixed_agent_lease is not None:
+            await fixed_agent_lease.check()
+
+    await check_runtime()
     if not isinstance(prompt, str) or not 0 < len(prompt.encode()) <= 48000:
         raise HostDenied('CODEX_PROMPT_SIZE')
     run = host.root / ('codex-' + secrets.token_hex(16))
@@ -106,12 +120,14 @@ async def _execute_item(host, repository, request):
         item_id=request.item_id, operation_key=request.operation_key, intent_id=intent,
         prompt_sha256=sha(prompt.encode()), timeout_seconds=request.timeout_seconds)))
     host.check('execute')
+    await check_runtime()
     reserved = await repository.reserve_native_attempt(request.batch_id, request.item_id,
         user_id=owner, binding=binding, intent_id=intent, now=now())
     exclusive_write(run / 'reservation.json', canonical(reserved))
     if reserved.get('sendAllowed') is not True:
         raise HostDenied('CODEX_ATTEMPT_QUERY_ONLY')
     host.check('execute')
+    await check_runtime()
     cmd = [executable, 'exec', '--ignore-user-config', '--skip-git-repo-check',
            '--ephemeral', '--sandbox', 'read-only', '--json', '-C', str(work), '-']
     exclusive_write(run / 'invocation.json', canonical(dict(argv=cmd, started_at=time.time())))
@@ -138,6 +154,7 @@ async def _execute_item(host, repository, request):
             deadline = time.monotonic() + request.timeout_seconds
             while proc.poll() is None:
                 host.check('execute')
+                await check_runtime()
                 track_owned_descendants(proc,active.tracked)
                 if active.stop.is_set():
                     observed = await terminate_owned_group(proc,active.tracked)
@@ -175,9 +192,11 @@ async def _execute_item(host, repository, request):
         ack = canonical(dict(event=start, intent_id=intent, batch_id=request.batch_id, item_id=request.item_id))
         exclusive_write(run / 'ack.json', ack)
         host.check('execute')
+        await check_runtime()
         await repository.record_native_ack(request.batch_id, request.item_id, user_id=owner,
             binding=binding, intent_id=intent, child_canonical=child, evidence_sha256=sha(ack), now=now())
         host.check('execute')
+        await check_runtime()
         saved = await repository.finalize_item(request.item_id, lease_owner=owner, succeeded=True,
             result=report, result_preview=report[:1000], result_truncated=False, error=None,
             stop_reason='completed', token_usage=None, model_name='codex-cli-default', completed_at=now(),

@@ -21,6 +21,7 @@ def main():
     for name in ('root', 'gateway-backend', 'database', 'endpoint'):
         parser.add_argument('--' + name, required=True)
     parser.add_argument('--agent-management-grant-id')
+    parser.add_argument('--agent-runtime-grant-id')
     parser.add_argument('--gateway-pid', type=int)
     args = parser.parse_args()
     host = FreshBatchHost(args.root)
@@ -43,6 +44,12 @@ def main():
         host.check('read')
         cmd.extend(['--agent-management-grant-id', args.agent_management_grant_id,
                     '--gateway-pid', str(args.gateway_pid)])
+    if args.agent_runtime_grant_id is not None:
+        if args.gateway_pid is None:
+            raise ValueError('ORIGINAL_RUNTIME_GATEWAY_PID_REQUIRED')
+        cmd.extend(['--agent-runtime-grant-id', args.agent_runtime_grant_id])
+        if '--gateway-pid' not in cmd:
+            cmd.extend(['--gateway-pid', str(args.gateway_pid)])
     exclusive_write(host.root / ('supervisor-' + str(os.getpid()) + '.json'), canonical(dict(
         pid=os.getpid(), generation=host.config['generation'], argv=cmd, started_at=time.time())))
     try:

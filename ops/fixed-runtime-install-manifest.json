@@ -1,0 +1,108 @@
+{
+  "gateway_pid": 27863,
+  "gateway_start": "251773",
+  "manager_pid": 27957,
+  "manager_start": "252284",
+  "app_sha256": "ba3aa6dc53e0dbdeae0090e26d1101643cec548eeebc064a1e7d36962cea0aa4",
+  "auth_sha256": "9619b8b8fe31b47c4500ca6892b764ff396fc5680d3c268f9e1a37d52df3b859",
+  "files": [
+    {
+      "root": "service",
+      "target": "deer_runtime_consent.py",
+      "source": "deer_runtime_consent.py",
+      "before_sha256": null,
+      "after_sha256": "a7f126ac86f1833694456e68cefe5c71e85f3a6cf25ede3bf41dc7ac28464cf6"
+    },
+    {
+      "root": "backend",
+      "target": "deer_runtime_consent.py",
+      "source": "deer_runtime_consent.py",
+      "before_sha256": null,
+      "after_sha256": "a7f126ac86f1833694456e68cefe5c71e85f3a6cf25ede3bf41dc7ac28464cf6"
+    },
+    {
+      "root": "service",
+      "target": "deer_fixed_runtime_rpc.py",
+      "source": "deer_fixed_runtime_rpc.py",
+      "before_sha256": null,
+      "after_sha256": "341e09be1debed7a4b72db13273b95baa6718c4917431a0422a1f0b0b7d2fbf2"
+    },
+    {
+      "root": "backend",
+      "target": "deer_fixed_runtime_rpc.py",
+      "source": "deer_fixed_runtime_rpc.py",
+      "before_sha256": null,
+      "after_sha256": "341e09be1debed7a4b72db13273b95baa6718c4917431a0422a1f0b0b7d2fbf2"
+    },
+    {
+      "root": "service",
+      "target": "deer_fixed_runtime_host.py",
+      "source": "deer_fixed_runtime_host.py",
+      "before_sha256": null,
+      "after_sha256": "808bf34422ef71f87a528fefc7700e5b2add15108d76feeb61a68745770cef40"
+    },
+    {
+      "root": "backend",
+      "target": "deer_fixed_runtime_host.py",
+      "source": "deer_fixed_runtime_host.py",
+      "before_sha256": null,
+      "after_sha256": "808bf34422ef71f87a528fefc7700e5b2add15108d76feeb61a68745770cef40"
+    },
+    {
+      "root": "service",
+      "target": "deer_management_host.py",
+      "source": "deer_management_host.py",
+      "before_sha256": "75fc2f6249819098dc3dde882dcb51da15069adf30b5d14dd43dd6d07056d60b",
+      "after_sha256": "7d02dc8f5acb8a98e08e2b61cbfb47c54af140c91d76f8962ea7820b2f47173b"
+    },
+    {
+      "root": "service",
+      "target": "fresh_batch_host.py",
+      "source": "fresh_batch_host.py",
+      "before_sha256": "41e70b317e467244908248c0f8ba10db3662db9ca3b25144111c60c79a19acac",
+      "after_sha256": "2c63cd80feced1377e7e70d9e0cd2569711f63c8141e8306f8414f890cf4cba3"
+    },
+    {
+      "root": "service",
+      "target": "fresh_batch_worker.py",
+      "source": "fresh_batch_worker.py",
+      "before_sha256": "706d1f20b95757c10fe0e6487686d89e212d0b3faef608ab3f0017f69fa05178",
+      "after_sha256": "b4d9ac1854b0ab789594b4facef84fc0eba984e28a22e9961cfb8fe036f0069b"
+    },
+    {
+      "root": "service",
+      "target": "platform_service_manager.py",
+      "source": "platform_service_manager.py",
+      "before_sha256": "87b9c4fba049c2e79928cb4691988c1d97821a4118c4aff1e87e1991cdc4793f",
+      "after_sha256": "9c4df832a7bddc0bb8dc70cd0aac53ff707ec7d387b20225c497702d794c287f"
+    },
+    {
+      "root": "service",
+      "target": "platform_codex_executor.py",
+      "source": "platform_codex_executor.py",
+      "before_sha256": "ed7e00fd4f78fa54cdb2b05dfd0296c9b573cb5d5dbb1172147537ef77dec122",
+      "after_sha256": "824e229166e5940bd6ac6e422ad50487ae3a355ff98d2e5c3ea78672ca98918f"
+    },
+    {
+      "root": "backend",
+      "target": "gateway_runtime_consent.py",
+      "source": "gateway_runtime_consent.py",
+      "before_sha256": null,
+      "after_sha256": "8be7997a2633408e0f16e1aee6b661bdd63225a47aa6cae29510a841e4d26b9f"
+    },
+    {
+      "root": "backend",
+      "target": "agent_runtime_consent.html",
+      "source": "agent_runtime_consent.html",
+      "before_sha256": null,
+      "after_sha256": "e65033a4d70344298001c98919a2d8be6cbbb1f28e3f289acc782e597cd0ff63"
+    },
+    {
+      "root": "backend",
+      "target": "agent_management_consent.html",
+      "source": "agent_management_consent.html",
+      "before_sha256": "c67ba33e9b98e05340788b950c6e0009de677b72e852a05191c5ee7edbb9f78f",
+      "after_sha256": "15e5073dff7d44d3f2e90e10666c066bb6989c45b1793a69586bdf29dae1552a"
+    }
+  ]
+}

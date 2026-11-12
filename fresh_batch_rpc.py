@@ -20,6 +20,7 @@ from typing import Literal
 from batch_mcp_entry import Submit, Status, RequestBase, planning_response
 from platform_pending_cancel import PendingCancel as Cancel
 from fresh_batch_host import canonical, digest, enrollment_active, request_deadline
+from platform_codex_batch import ExecuteBatch
 from platform_codex_executor import Execute
 from platform_codex_stop import Stop
 
@@ -241,6 +242,9 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
                    ingress_key=bytes.fromhex(env['XJ_FRESH_BATCH_INGRESS_KEY']),
                    connection_factory=connection_factory)
 
+    from deer_fixed_runtime_rpc import install_fixed_runtime_tools
+    install_fixed_runtime_tools(mcp, rpc=rpc, principal=principal, oauth_meta=oauth_meta,
+        enabled=env.get('XJ_FIXED_AGENT_RUNTIME_ENABLED') == 'true')
     # A separate, explicit management gate over this same signed transport.
     # The host still requires original interactive consent and live user policy.
     from deer_management_rpc import install_management_rpc_tools
@@ -263,10 +267,12 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
                                                         idempotentHint=True, openWorldHint=True))
-    async def batch_task(request: Submit | Execute | Stop) -> dict:
+    async def batch_task(request: Submit | Execute | Stop | ExecuteBatch) -> dict:
         """Save a goal and child tasks, or explicitly execute ONE saved item.
 
-        To execute: execution_mode=codex_once, batch_id, item_id, parent_id,
+        For bounded background execution: execution_mode=codex_batch_once, batch_id,
+        item_ids (1..3 independent saved pending items), parent_id and operation_key.
+        To execute one: execution_mode=codex_once, batch_id, item_id, parent_id,
         operation_key. No new items or prompt accepted in execute mode.
         To stop one owned running item: execution_mode=stop_codex_once with
         batch_id, item_id, parent_id and a fresh operation_key. No PID accepted.
@@ -280,7 +286,7 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
         Items must be independent. Ordinary goal/items requests only store pending work.
         Unknown commit outcomes: retain the same key and query batch_receipt.
         """
-        if isinstance(request, (Execute,Stop)):
+        if isinstance(request, (Execute, Stop, ExecuteBatch)):
             return await invoke('execute', request)
 
         if request.items is None:
@@ -300,6 +306,18 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
 
             Query an unknown stop with batch_receipt(operation_kind=execute)
             and the exact original stop key. Do not resend with a new key.
+            """
+            return await invoke('execute', request)
+
+    if 'execute' in rpc.config['actions']:
+        @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
+                                                            idempotentHint=True, openWorldHint=True))
+        async def batch_execute_batch(request: ExecuteBatch) -> dict:
+            """Run 1..3 saved independent pending items sequentially on the original worker.
+
+            Explicit batch only; no global scanning, retries, DAG or native Work route.
+            Query pending/unknown with batch_receipt(operation_kind=execute), same key.
+            Each completed result stays in original SQL; stop one with batch_stop.
             """
             return await invoke('execute', request)
 
@@ -384,4 +402,6 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
             raise ToolError('BATCH_RECEIPT_UNAVAILABLE_QUERY_ONLY') from None
 
     return {'enabled': True, 'tools': ['batch_task', 'batch_status', 'cancel_batch', 'batch_receipt', 'batch_host_status']}
+
+
 

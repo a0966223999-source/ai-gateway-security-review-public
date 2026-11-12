@@ -33,6 +33,13 @@ async def serve(args):
         from deer_management_host import original_gateway_management
         management = original_gateway_management(host, backend=backend,
             gateway_pid=args.gateway_pid, grant_id=args.agent_management_grant_id)
+    runtime_service = None
+    if args.agent_runtime_grant_id is not None:
+        if args.gateway_pid is None or not {'read','submit','execute'} <= set(host.config['actions']):
+            raise ValueError('ORIGINAL_RUNTIME_GATEWAY_AND_ENROLLMENT_REQUIRED')
+        from deer_management_host import original_gateway_fixed_runtime
+        runtime_service = original_gateway_fixed_runtime(host, backend=backend,
+            gateway_pid=args.gateway_pid, grant_id=args.agent_runtime_grant_id)
     endpoint = urlsplit(args.endpoint)
     if (endpoint.scheme != 'https' or not endpoint.hostname or not endpoint.hostname.endswith('.vercel.app')
             or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment
@@ -70,7 +77,7 @@ async def serve(args):
                         response = await asyncio.to_thread(forward_checkpoint, host, envelope)
                     else:
                         response = await host.execute(envelope, repository=repository,
-                                                      agent_management=management)
+                                                      agent_management=management, agent_runtime=runtime_service)
                     await asyncio.to_thread(control, 'respond',
                         {'request_id': response['body']['request_id'], 'response': response})
                 except Exception:
@@ -115,6 +122,7 @@ def main():
     parser.add_argument('--database', required=True)
     parser.add_argument('--endpoint', required=True)
     parser.add_argument('--agent-management-grant-id')
+    parser.add_argument('--agent-runtime-grant-id')
     parser.add_argument('--gateway-pid', type=int)
     args = parser.parse_args()
     from worker_signal_lifecycle import run_until_signalled

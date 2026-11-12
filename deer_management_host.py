@@ -139,7 +139,7 @@ def project_management_user(database, record):
     return SimpleNamespace(**dict(row))
 
 
-def original_gateway_management(host, *, backend, gateway_pid, grant_id):
+def original_gateway_ports(host, *, backend, gateway_pid):
     """Trusted worker startup, bound to the CURRENT original Gateway process.
 
     No credentials are retained. Only original config locations/pins are read
@@ -191,6 +191,22 @@ def original_gateway_management(host, *, backend, gateway_pid, grant_id):
         return {"threads:write", "runs:create"} <= set(
             await resolve_route_permissions(user, is_internal=False))
 
+    return runtime, account, get_agent_store(), live_policy, current
+
+
+def original_gateway_management(host, *, backend, gateway_pid, grant_id):
+    runtime, account, store, live_policy, current = original_gateway_ports(
+        host, backend=backend, gateway_pid=gateway_pid)
     return ManagementDefinitionService(consent_store=ManagementConsentStore(runtime.root,
-        account=account, current=current), grant_id=grant_id, agent_store=get_agent_store(),
+        account=account, current=current), grant_id=grant_id, agent_store=store,
+        live_policy=live_policy, current=current)
+
+
+def original_gateway_fixed_runtime(host, *, backend, gateway_pid, grant_id):
+    from deer_runtime_consent import RuntimeConsentStore
+    from deer_fixed_runtime_host import FixedAgentRuntimeService
+    runtime, account, store, live_policy, current = original_gateway_ports(
+        host, backend=backend, gateway_pid=gateway_pid)
+    return FixedAgentRuntimeService(consent_store=RuntimeConsentStore(runtime.root,
+        account=account, current=current), grant_id=grant_id, agent_store=store,
         live_policy=live_policy, current=current)

@@ -189,18 +189,19 @@ class FreshBatchHost:
         return dict(taskRef=c['parent_id'], version='1', operationRef=c['generation'],
                     ownerRef=c['owner'], sourceRevision='1', sourceDigest=self.pin)
 
-    def compose(self, repository, *, decomposition=None):
+    def compose(self, repository, *, decomposition=None, fixed_agent=None):
         """Instantiate the ORIGINAL Holder and bind the ORIGINAL tool triple."""
         from deerflow.subagents.batch_runtime import HolderBoundBatchSubmitter
         from deerflow.tools.builtins.batch_task_tool import bind_batch_tools, BatchTaskItem
         c = self.config
         holder = HolderBoundBatchSubmitter(repository=repository, binding=self.binding('read'),
             thread_id=c['parent_id'], run_id=c['generation'], check_current=self.binding)
-        if decomposition is not None:
+        if decomposition is not None or fixed_agent is not None:
             from dataclasses import replace
             from copy import deepcopy
             original_holder = holder
             frozen_plan = json.loads(canonical(decomposition))
+            frozen_role = json.loads(canonical(fixed_agent))
             class PlanSubmitter:
                 def __getattr__(self, name):
                     return getattr(original_holder, name)
@@ -210,7 +211,8 @@ class FreshBatchHost:
                     # together with its original child items in the same SQL batch.
                     enriched = replace(request, execution_spec={
                         **deepcopy(request.execution_spec),
-                        'task_decomposition': deepcopy(frozen_plan),
+                        **({'task_decomposition': deepcopy(frozen_plan)} if frozen_plan is not None else {}),
+                        **({'fixed_agent_runtime': deepcopy(frozen_role)} if frozen_role is not None else {}),
                     })
                     return await original_holder.submit(enriched)
             holder = PlanSubmitter()
@@ -223,11 +225,26 @@ class FreshBatchHost:
                                           'configurable': {'thread_id': c['parent_id']}})
         return runtime, bind_batch_tools(submitter_provider=provider), BatchTaskItem
 
-    async def execute(self, envelope, *, repository, agent_management=None):
+    async def execute(self, envelope, *, repository, agent_management=None, agent_runtime=None):
         from batch_mcp_entry import Submit, Status, _public_result
         from platform_pending_cancel import PendingCancel as Cancel, cancel_pending_items
         body = self.verify_request(envelope)
         action = body['action']
+        if body['payload'].get('execution_mode') == 'original-deer-fixed-runtime-v1':
+            from deer_fixed_runtime_host import FixedAgentRuntimeService
+            from deer_agent_management import AgentManagementDenied
+            if type(agent_runtime) is not FixedAgentRuntimeService:
+                raise HostDenied('ORIGINAL_FIXED_RUNTIME_NOT_BOUND')
+            try:
+                result = await agent_runtime.execute(body, host=self, repository=repository)
+            except AgentManagementDenied as error:
+                result = {'kind': 'original-deer-fixed-runtime-v1',
+                          'status': 'DENIED_OR_UNKNOWN_QUERY_ONLY', 'reason': str(error)}
+            self.check(action)
+            response = dict(generation=self.config['generation'], request_id=body['request_id'],
+                            request_sha256=digest(body), result=result, automatic_dispatch=False,
+                            native_execution_verified=False)
+            return dict(body=response, signature=base64.b64encode(self.key.sign(canonical(response))).decode())
         if body['payload'].get('execution_mode') == 'original-deer-agent-management-v1':
             if agent_management is None:
                 raise HostDenied('ORIGINAL_AGENT_MANAGEMENT_NOT_BOUND')
@@ -250,12 +267,18 @@ class FreshBatchHost:
             from platform_codex_executor import Execute, execute_item
             from platform_codex_stop import Stop, stop_item
             payload = body['payload']
-            model = Stop if payload.get('execution_mode') == 'stop_codex_once' else Execute
+            from platform_codex_batch import ExecuteBatch, execute_batch
+            model = {'stop_codex_once': Stop, 'codex_batch_once': ExecuteBatch}.get(
+                payload.get('execution_mode'), Execute)
             request = model.model_validate(dict(payload, parent_id=body['parent_id'],
                                                   operation_key=body['operation_key']))
             self.reserve(body)
-            result = await (stop_item(self,repository,request) if isinstance(request,Stop)
-                            else execute_item(self, repository, request))
+            if isinstance(request, Stop):
+                result = await stop_item(self, repository, request)
+            elif isinstance(request, ExecuteBatch):
+                result = await execute_batch(self, repository, request)
+            else:
+                result = await execute_item(self, repository, request)
             self.check('execute')
             response = dict(generation=self.config['generation'], request_id=body['request_id'],
                             request_sha256=digest(body), result=result, automatic_dispatch=False,
@@ -358,3 +381,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+

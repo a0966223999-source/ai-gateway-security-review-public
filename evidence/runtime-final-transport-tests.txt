@@ -1,0 +1,109 @@
+/workspace/scratch/edebd832b1d2/gateway-live/backend/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+test_changed_pinned_configuration_denies (test_fresh_batch_host.FreshHostTests.test_changed_pinned_configuration_denies) ... ok
+test_expiry_and_clock_before_enrollment_deny (test_fresh_batch_host.FreshHostTests.test_expiry_and_clock_before_enrollment_deny) ... ok
+test_fresh_private_generation_does_not_overwrite_old_state (test_fresh_batch_host.FreshHostTests.test_fresh_private_generation_does_not_overwrite_old_state) ... ok
+test_invalid_mac_and_replayed_expired_request_deny (test_fresh_batch_host.FreshHostTests.test_invalid_mac_and_replayed_expired_request_deny) ... ok
+test_restart_preserves_durable_attempt_no_replay (test_fresh_batch_host.FreshHostTests.test_restart_preserves_durable_attempt_no_replay) ... ok
+test_second_worker_cannot_acquire_live_lock (test_fresh_batch_host.FreshHostTests.test_second_worker_cannot_acquire_live_lock) ... ok
+test_signed_reply_requires_exact_generation_request_and_signer (test_fresh_batch_host.FreshHostTests.test_signed_reply_requires_exact_generation_request_and_signer) ... ok
+test_stop_blocks_existing_instance_and_restart (test_fresh_batch_host.FreshHostTests.test_stop_blocks_existing_instance_and_restart) ... ok
+test_transport_namespace_does_not_change_legacy_inbox_document (test_fresh_batch_host.FreshHostTests.test_transport_namespace_does_not_change_legacy_inbox_document) ... ok
+test_unknown_owner_parent_and_generation_never_reserve (test_fresh_batch_host.FreshHostTests.test_unknown_owner_parent_and_generation_never_reserve) ... ok
+test_unsafe_private_file_and_symlink_deny (test_fresh_batch_host.FreshHostTests.test_unsafe_private_file_and_symlink_deny) ... ok
+test_altered_signature_and_other_generation_denied (test_fresh_batch_control.ControlTests.test_altered_signature_and_other_generation_denied) ... ok
+test_default_off_has_no_host_control_route (test_fresh_batch_control.ControlTests.test_default_off_has_no_host_control_route) ... ok
+test_expired_control_and_extra_fields_rejected (test_fresh_batch_control.ControlTests.test_expired_control_and_extra_fields_rejected) ... ok
+test_signed_poll_is_once_only (test_fresh_batch_control.ControlTests.test_signed_poll_is_once_only) ... ok
+test_unauthenticated_control_never_reaches_redis (test_fresh_batch_control.ControlTests.test_unauthenticated_control_never_reaches_redis) ... ok
+test_cas_fields_pass_unchanged (test_platform_checkpoint_rpc.Tests.test_cas_fields_pass_unchanged) ... ok
+test_changed_principal_refuses_result (test_platform_checkpoint_rpc.Tests.test_changed_principal_refuses_result) ... ok
+test_create_uses_original_owner_and_parent_not_model_fields (test_platform_checkpoint_rpc.Tests.test_create_uses_original_owner_and_parent_not_model_fields) ... ok
+test_existing_receipt_is_history_only_without_checkpoint_disclosure_or_enqueue (test_platform_checkpoint_rpc.Tests.test_existing_receipt_is_history_only_without_checkpoint_disclosure_or_enqueue) ... ok
+test_identity_injection_rejected_before_transport (test_platform_checkpoint_rpc.Tests.test_identity_injection_rejected_before_transport) ... ok
+test_pending_is_not_success_and_foreign_reply_denied (test_platform_checkpoint_rpc.Tests.test_pending_is_not_success_and_foreign_reply_denied) ... ok
+test_query_is_read_only_and_preserves_original_source_operation (test_platform_checkpoint_rpc.Tests.test_query_is_read_only_and_preserves_original_source_operation) ... ok
+test_receipt_queries_only_original_key_never_enqueues (test_platform_checkpoint_rpc.Tests.test_receipt_queries_only_original_key_never_enqueues) ... ok
+test_seven_tools_and_no_identity_credentials_or_route_in_schema (test_platform_checkpoint_rpc.Tests.test_seven_tools_and_no_identity_credentials_or_route_in_schema) ... ok
+test_denial_is_preserved_without_response_body_leak_or_retry (test_platform_checkpoint_forward.Tests.test_denial_is_preserved_without_response_body_leak_or_retry) ... ok
+test_duplicate_is_query_only_without_second_http (test_platform_checkpoint_forward.Tests.test_duplicate_is_query_only_without_second_http) ... ok
+test_forged_mac_never_forwards (test_platform_checkpoint_forward.Tests.test_forged_mac_never_forwards) ... ok
+test_preserves_exact_mac_envelope_and_uses_fixed_loopback_without_cookie (test_platform_checkpoint_forward.Tests.test_preserves_exact_mac_envelope_and_uses_fixed_loopback_without_cookie) ... ok
+test_timeout_is_unknown_and_attempt_is_retained (test_platform_checkpoint_forward.Tests.test_timeout_is_unknown_and_attempt_is_retained) ... ok
+test_caller_cannot_supply_executable_path_or_unbounded_timeout (test_platform_service.PlatformServiceTests.test_caller_cannot_supply_executable_path_or_unbounded_timeout) ... ok
+test_complete_cli_result_and_rejected_incomplete_events (test_platform_service.PlatformServiceTests.test_complete_cli_result_and_rejected_incomplete_events) ... ok
+test_executor_not_enabled_in_legacy_mode (test_platform_service.PlatformServiceTests.test_executor_not_enabled_in_legacy_mode) ... ok
+test_null_expiry_is_not_an_implicit_extension_of_test_enrollment (test_platform_service.PlatformServiceTests.test_null_expiry_is_not_an_implicit_extension_of_test_enrollment) ... ok
+test_service_requests_still_expire_and_durable_attempts_never_replay (test_platform_service.PlatformServiceTests.test_service_requests_still_expire_and_durable_attempts_never_replay) ... ok
+test_service_restart_preserves_generation_and_stop_revokes (test_platform_service.PlatformServiceTests.test_service_restart_preserves_generation_and_stop_revokes) ... ok
+test_stop_one_group_with_term_ignoring_child_preserves_sibling_and_once_fence (test_platform_codex_stop.OriginalStopTests.test_stop_one_group_with_term_ignoring_child_preserves_sibling_and_once_fence) ... [11/13/26 02:16:29] WARNING  Executing <Task pending         base_events.py:1994
+                             name='Task-97'                                     
+                             coro=<OriginalStopTests.asyncSe                    
+                             tUp() running at                                   
+                             /workspace/scratch/12555d48d790                    
+                             /dr-agent-management/integratio                    
+                             n/tests/test_platform_codex_sto                    
+                             p.py:33> wait_for=<Future                          
+                             pending cb=[Task.task_wakeup()]                    
+                             created at                                         
+                             /opt/codex/runtimes/codex-prima                    
+                             ry-runtime/dependencies/python/                    
+                             lib/python3.12/asyncio/base_eve                    
+                             nts.py:448>                                        
+                             cb=[_run_until_complete_cb() at                    
+                             /opt/codex/runtimes/codex-prima                    
+                             ry-runtime/dependencies/python/                    
+                             lib/python3.12/asyncio/base_eve                    
+                             nts.py:181] created at                             
+                             /opt/codex/runtimes/codex-prima                    
+                             ry-runtime/dependencies/python/                    
+                             lib/python3.12/asyncio/runners.                    
+                             py:100> took 0.410 seconds                         
+[11/13/26 02:16:31] WARNING  Executing <Task pending         base_events.py:1994
+                             name='Task-97'                                     
+                             coro=<OriginalStopTests.asyncSe                    
+                             tUp() running at                                   
+                             /workspace/scratch/12555d48d790                    
+                             /dr-agent-management/integratio                    
+                             n/tests/test_platform_codex_sto                    
+                             p.py:33> wait_for=<Future                          
+                             pending cb=[Task.task_wakeup()]                    
+                             created at                                         
+                             /opt/codex/runtimes/codex-prima                    
+                             ry-runtime/dependencies/python/                    
+                             lib/python3.12/asyncio/base_eve                    
+                             nts.py:448>                                        
+                             cb=[_run_until_complete_cb() at                    
+                             /opt/codex/runtimes/codex-prima                    
+                             ry-runtime/dependencies/python/                    
+                             lib/python3.12/asyncio/base_eve                    
+                             nts.py:181] created at                             
+                             /opt/codex/runtimes/codex-prima                    
+                             ry-runtime/dependencies/python/                    
+                             lib/python3.12/asyncio/runners.                    
+                             py:100> took 1.649 seconds                         
+ok
+test_stop_works_while_child_never_reads_large_stdin (test_platform_codex_stop.OriginalStopTests.test_stop_works_while_child_never_reads_large_stdin) ... ok
+test_unknown_attempt_has_no_process_to_recover_or_signal (test_platform_codex_stop.OriginalStopTests.test_unknown_attempt_has_no_process_to_recover_or_signal) ... ok
+test_wrong_item_stop_never_signals_active_target (test_platform_codex_stop.OriginalStopTests.test_wrong_item_stop_never_signals_active_target) ... ok
+test_pid_command_or_path_cannot_be_supplied (test_platform_codex_stop.StopSchemaTests.test_pid_command_or_path_cannot_be_supplied) ... ok
+test_all_children_run_sequentially_and_audit_is_saved (test_platform_codex_batch.CoordinatorTests.test_all_children_run_sequentially_and_audit_is_saved) ... ok
+test_cancellation_before_next_item_is_rechecked (test_platform_codex_batch.CoordinatorTests.test_cancellation_before_next_item_is_rechecked) ... ok
+test_concurrent_coordinator_does_not_duplicate_dispatch (test_platform_codex_batch.CoordinatorTests.test_concurrent_coordinator_does_not_duplicate_dispatch) ... ok
+test_preflight_rejection_starts_nothing (test_platform_codex_batch.CoordinatorTests.test_preflight_rejection_starts_nothing) ... ok
+test_revoked_host_starts_nothing (test_platform_codex_batch.CoordinatorTests.test_revoked_host_starts_nothing) ... ok
+test_stopped_child_halts_remaining_items (test_platform_codex_batch.CoordinatorTests.test_stopped_child_halts_remaining_items) ... ok
+test_unknown_first_item_never_launches_remaining_or_retries (test_platform_codex_batch.CoordinatorTests.test_unknown_first_item_never_launches_remaining_or_retries) ... ok
+test_worker_cancellation_does_not_start_next_item (test_platform_codex_batch.CoordinatorTests.test_worker_cancellation_does_not_start_next_item) ... ok
+test_child_keys_are_stable_scoped_and_bounded (test_platform_codex_batch.SchemaTests.test_child_keys_are_stable_scoped_and_bounded) ... ok
+test_rejects_commands_authority_new_prompts_and_other_profiles (test_platform_codex_batch.SchemaTests.test_rejects_commands_authority_new_prompts_and_other_profiles) ... ok
+test_rejects_empty_duplicate_oversize_and_non_strict_timeouts (test_platform_codex_batch.SchemaTests.test_rejects_empty_duplicate_oversize_and_non_strict_timeouts) ... ok
+test_new_tool_and_union_preserve_single_item_schema (test_platform_codex_batch_rpc.RegistrationTests.test_new_tool_and_union_preserve_single_item_schema) ... ok
+test_foreign_item_preflight_has_zero_process_and_zero_attempt (test_platform_codex_batch_sql.OriginalBatchTests.test_foreign_item_preflight_has_zero_process_and_zero_attempt) ... ok
+test_signed_batch_saves_original_sql_and_replay_never_reruns (test_platform_codex_batch_sql.OriginalBatchTests.test_signed_batch_saves_original_sql_and_replay_never_reruns) ... ok
+test_stop_current_child_keeps_remaining_unstarted (test_platform_codex_batch_sql.OriginalBatchTests.test_stop_current_child_keeps_remaining_unstarted) ... ok
+
+----------------------------------------------------------------------
+Ran 56 tests in 14.036s
+
+OK
