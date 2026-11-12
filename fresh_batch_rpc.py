@@ -188,8 +188,12 @@ class BatchRPC:
             return self.verified_result(raw, body) if raw else {
                 'request_id': rid, 'status': 'PENDING_OR_UNKNOWN_QUERY_SAME_KEY', 'automatic_dispatch': False}
 
-    def call(self, *, owner, parent, action, operation_key, payload):
+    def call(self, *, owner, parent, action, operation_key, payload, response_timeout=3):
         self.check(owner, parent)
+        if (isinstance(response_timeout, bool)
+                or not isinstance(response_timeout, (int, float))
+                or not 0 < response_timeout <= 15):
+            raise ValueError('BATCH_RESPONSE_WAIT_INVALID')
         if action not in self.config['actions'] or action not in ('submit', 'read', 'cancel', 'execute'):
             raise ValueError('BATCH_ACTION_INVALID')
         body = dict(generation=self.config['generation'], owner=owner, parent_id=parent,
@@ -216,11 +220,18 @@ class BatchRPC:
                 response = redis.get(key + ':response')
                 if response:
                     return self.verified_result(response, original)
-                notice = subscription.get_message(ignore_subscribe_messages=True, timeout=3)
-                if notice and notice.get('type') == 'message':
+                deadline = time.monotonic() + response_timeout
+                while time.monotonic() < deadline:
+                    # Notices are hints only. Verify the stored signed response,
+                    # including after a timeout or an unrelated notice.
+                    subscription.get_message(ignore_subscribe_messages=True,
+                                             timeout=max(0, deadline - time.monotonic()))
                     response = redis.get(key + ':response')
                     if response:
                         return self.verified_result(response, original)
+                response = redis.get(key + ':response')
+                if response:
+                    return self.verified_result(response, original)
         return {'request_id': body['request_id'], 'status': 'PENDING_OR_UNKNOWN_QUERY_SAME_KEY',
                 'automatic_dispatch': False, 'native_execution_verified': False}
 

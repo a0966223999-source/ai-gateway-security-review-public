@@ -108,6 +108,7 @@ def install_management_rpc_tools(mcp, *, rpc, principal, oauth_meta, enabled=Fal
             result = await asyncio.to_thread(rpc.call, owner=owner,
                 parent=rpc.config["parent_id"], action=action,
                 operation_key=wire_key,
+                response_timeout=12 if request.kind == "read" else 3,
                 payload={**request.model_dump(exclude={"operation_key"}, exclude_unset=True),
                          "execution_mode": MODE, "management_operation_key": request.operation_key})
             if principal() != owner:
