@@ -46,16 +46,16 @@ class OriginalStopTests(unittest.IsolatedAsyncioTestCase):
 
     def cli(self):
         stub = self.root/'synthetic-cli'
-        child_code = ('import signal,time;from pathlib import Path;'
+        child_code = ('import os,signal,time;from pathlib import Path;'
             'signal.signal(signal.SIGTERM,signal.SIG_IGN);'
-            f'Path({str(self.root/"child-ready")!r}).write_text("ready");time.sleep(60)')
+            f'Path({str(self.root/"child-ready")!r}).write_text(str(os.getpid()));time.sleep(60)')
         stub.write_text('#!'+sys.executable+'\nimport json,os,sys,time,subprocess\nfrom pathlib import Path\n'
             'p=sys.stdin.read()\n'
             f'root=Path({str(self.root)!r})\n'
             'target="stop-target" in p\n'
             '(root/("target-started" if target else "sibling-started")).write_text(str(os.getpid()))\n'
             'print(json.dumps({"type":"thread.started","thread_id":"fixture-target" if target else "fixture-sibling"}),flush=True)\n'
-            f'if target: subprocess.Popen([sys.executable,"-c",{child_code!r}]);time.sleep(60)\n'
+            f'if target: subprocess.Popen([sys.executable,"-c",{child_code!r}],start_new_session=True);time.sleep(60)\n'
             'else:\n time.sleep(6)\n print(json.dumps({"type":"item.completed","item":{"type":"agent_message","text":"synthetic sibling completed"}}),flush=True)\n print(json.dumps({"type":"turn.completed"}),flush=True)\n')
         stub.chmod(0o700)
         return stub
@@ -75,11 +75,13 @@ class OriginalStopTests(unittest.IsolatedAsyncioTestCase):
             try:
                 await self.wait_for_start(sibling=True)
                 target_pid = int((self.root/'target-started').read_text())
+                detached_pid = int((self.root/'child-ready').read_text())
                 stopped = (await self.host.execute(env,repository=self.repo))['body']['result']
                 self.assertEqual(stopped['status'],'STOPPED')
                 self.assertEqual(stopped['signals_sent'],['SIGTERM','SIGKILL'])
                 self.assertTrue(stopped['original_terminal_state_saved'])
                 self.assertEqual(live_group_members(target_pid),[])
+                self.assertEqual(live_group_members(detached_pid),[])
                 self.assertEqual((await first)['body']['result'],stopped)
                 with self.assertRaisesRegex(HostDenied,'ATTEMPTED_QUERY_ONLY'):
                     await self.host.execute(env,repository=self.repo)
