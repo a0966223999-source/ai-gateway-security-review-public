@@ -6,7 +6,7 @@
 <ul><li>仅列出、读取和建立：<strong>qa-dr-mcp-20261112</strong></li><li>有效期：10 分钟，可提前撤回</li><li>工具、技能、派工权限均为空；不会调用模型或执行任务</li></ul>
 <p>本次只验证共用管理入口。已有续办授权和之前的测试批准不会自动转成这份授权。</p>
 <label>原会话编号<input id="thread" autocomplete="off" maxlength="64" placeholder="沿用你的原 Deer 会话"></label>
-<small>使用原 Gateway 登录状态；本页不会索取或显示密码、令牌。登录失效时，请先使用原登录页。</small>
+<small>使用原 Gateway 登录状态；本页不会索取或显示密码、令牌。登录失效时，请先<a href="/api/v1/auth/continuation-link">使用原登录页</a>，再返回本页。</small>
 <p><button id="approve" class="primary">同意以上范围，开启 10 分钟</button><button id="query">查回本次授权</button><button id="revoke" disabled>撤回本次授权</button></p>
 <pre id="result" role="status" aria-live="polite">尚未授权。</pre></main>
 <script>

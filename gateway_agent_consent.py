@@ -38,7 +38,8 @@ def install_gateway_management_consent(app, *, enabled=False):
         from fastapi.responses import HTMLResponse
         from app.gateway.csrf_middleware import (
             CSRF_COOKIE_NAME, generate_csrf_token, auth_csrf_cookie_settings)
-        response = HTMLResponse(Path(__file__).with_name("agent_management_consent.html").read_text(),
+        page = await asyncio.to_thread(Path(__file__).with_name("agent_management_consent.html").read_text)
+        response = HTMLResponse(page,
             headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer",
                      "X-Content-Type-Options": "nosniff",
                      "Content-Security-Policy": "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"})
