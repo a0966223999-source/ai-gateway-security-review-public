@@ -1,0 +1,13 @@
+# 原宿主單一角色驗收結果
+
+使用者明確批准同一原帳號、最長600秒、只建立與讀回 qa-dr-readback-20261112。實測退出碼0；原FileAgentStore建立成功，另一個全新Python程序重新解析原配置與原Store，讀回同名、同soul SHA及三個空能力清單；原持久回執CONFIRMED，測試範圍已關閉。角色定義保留供核對，未執行模型、工具或委派。
+
+執行程式commit：76688251aa41c1b100732a19c96de3ce85e50856。四模組SHA與隔離來源一致。隔離unittest 42項通過。本次不是具名獨立QA。
+
+第一次嘗試在constructor讀/proc時發現原Gateway程序已消失，退出1，尚未發scope或建立角色；隨後唯讀查到同一路徑的新Gateway程序，且原Source沒有operator-trial或attempt紀錄。重新前置PASS後才執行一次效果。
+
+原checkpoint link當時已過期，只用作歷史帳號關聯；live admin、token_version、thread owner、原pin與原policy另行核對。管理權來自這次明確的宿主操作批准。未升格checkpoint link、不宣稱本Work已取得登入session、不開全域管理API。
+
+MCP正式管理工具仍未裝配：原帳號management consent issuer、受保護session transport和agent_management_resolver仍待接通；固定Agent的原子修改與停止仍NOT_BOUND。不能把這次宿主Store驗收當作所有接入Agent已能操作。原候選文件與早期驗證卡的37項、未建角色與PROPOSED_NOT_GRANTED為先前階段，現在以本結果、更新後validation與enablement review為準。
+
+原服務原碼未覆寫，未部署候選、未重啟服務、未改D2或Gate1。
