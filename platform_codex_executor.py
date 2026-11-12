@@ -117,6 +117,7 @@ async def _execute_item(host, repository, request):
     exclusive_write(run / 'invocation.json', canonical(dict(argv=cmd, started_at=time.time())))
     proc = None
     active = None
+    feeding = None
     outcome = {'status':'STOP_OUTCOME_UNKNOWN_QUERY_ONLY', 'batch_id':request.batch_id,
                'item_id':request.item_id}
     stopped = None
@@ -127,8 +128,12 @@ async def _execute_item(host, repository, request):
             proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=out, stderr=err, start_new_session=True)
             active = ActiveRun(proc=proc, intent=intent, binding=binding)
             registry(host)[(request.batch_id,request.item_id)] = active
-            proc.stdin.write(prompt.encode())
-            proc.stdin.close()
+            def feed():
+                try:
+                    proc.stdin.write(prompt.encode())
+                finally:
+                    proc.stdin.close()
+            feeding = asyncio.create_task(asyncio.to_thread(feed))
             deadline = time.monotonic() + request.timeout_seconds
             while proc.poll() is None:
                 host.check('execute')
@@ -158,6 +163,7 @@ async def _execute_item(host, repository, request):
                 await asyncio.sleep(0.25)
         if proc.returncode != 0:
             raise HostDenied('CODEX_EXIT_FAILURE_QUERY_ONLY')
+        await feeding
         raw = (run / 'events.jsonl').read_bytes()
         if len(raw) > 1048576:
             raise HostDenied('CODEX_OUTPUT_LIMIT_QUERY_ONLY')
@@ -189,6 +195,8 @@ async def _execute_item(host, repository, request):
             if proc is not None:
                 await terminate_owned_group(proc)
         finally:
+            if feeding is not None:
+                await asyncio.gather(feeding,return_exceptions=True)
             if active is not None:
                 registry(host).pop((request.batch_id,request.item_id),None)
                 if not active.done.done():
