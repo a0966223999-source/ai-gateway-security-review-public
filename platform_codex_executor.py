@@ -19,7 +19,7 @@ from typing import Annotated, Literal
 from pydantic import Field
 from batch_mcp_entry import RequestBase, Text
 from fresh_batch_host import canonical, exclusive_write, HostDenied
-from platform_codex_stop import ActiveRun, registry, terminate_owned_group, save_stopped_item
+from platform_codex_stop import ActiveRun, registry, terminate_owned_group, save_stopped_item, track_owned_descendants
 
 
 class Execute(RequestBase):
@@ -117,6 +117,7 @@ async def _execute_item(host, repository, request):
     exclusive_write(run / 'invocation.json', canonical(dict(argv=cmd, started_at=time.time())))
     proc = None
     active = None
+    feeding = None
     outcome = {'status':'STOP_OUTCOME_UNKNOWN_QUERY_ONLY', 'batch_id':request.batch_id,
                'item_id':request.item_id}
     stopped = None
@@ -126,18 +127,25 @@ async def _execute_item(host, repository, request):
             os.chmod(run / 'stderr.log', 0o600)
             proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=out, stderr=err, start_new_session=True)
             active = ActiveRun(proc=proc, intent=intent, binding=binding)
+            track_owned_descendants(proc,active.tracked)
             registry(host)[(request.batch_id,request.item_id)] = active
-            proc.stdin.write(prompt.encode())
-            proc.stdin.close()
+            def feed():
+                try:
+                    proc.stdin.write(prompt.encode())
+                finally:
+                    proc.stdin.close()
+            feeding = asyncio.create_task(asyncio.to_thread(feed))
             deadline = time.monotonic() + request.timeout_seconds
             while proc.poll() is None:
                 host.check('execute')
+                track_owned_descendants(proc,active.tracked)
                 if active.stop.is_set():
-                    observed = await terminate_owned_group(proc)
+                    observed = await terminate_owned_group(proc,active.tracked)
                     if observed['signals_sent']:
                         out.flush()
                         err.flush()
                         evidence = dict(observed, batch_id=request.batch_id, item_id=request.item_id,
+                            stopped_at=time.time(),
                             intent_id=intent, stop_operation_key=active.stop_operation_key,
                             execution_operation_key=request.operation_key,
                             events_sha256=file_sha(run/'events.jsonl'),
@@ -158,6 +166,7 @@ async def _execute_item(host, repository, request):
                 await asyncio.sleep(0.25)
         if proc.returncode != 0:
             raise HostDenied('CODEX_EXIT_FAILURE_QUERY_ONLY')
+        await feeding
         raw = (run / 'events.jsonl').read_bytes()
         if len(raw) > 1048576:
             raise HostDenied('CODEX_OUTPUT_LIMIT_QUERY_ONLY')
@@ -187,8 +196,10 @@ async def _execute_item(host, repository, request):
         # ends its owned process group. Never leaves a child running after revocation.
         try:
             if proc is not None:
-                await terminate_owned_group(proc)
+                await terminate_owned_group(proc,active.tracked if active is not None else None)
         finally:
+            if feeding is not None:
+                await asyncio.gather(feeding,return_exceptions=True)
             if active is not None:
                 registry(host).pop((request.batch_id,request.item_id),None)
                 if not active.done.done():

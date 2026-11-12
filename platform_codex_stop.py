@@ -27,6 +27,7 @@ class ActiveRun:
     stop: asyncio.Event = field(default_factory=asyncio.Event)
     done: asyncio.Future = field(default_factory=lambda: asyncio.get_running_loop().create_future())
     stop_operation_key: str | None = None
+    tracked: dict = field(default_factory=dict)
 
 
 def registry(host):
@@ -50,26 +51,72 @@ def live_group_members(group):
     return members
 
 
-async def terminate_owned_group(proc):
+def track_owned_descendants(proc, tracked):
+    snapshots = {}
+    for path in Path('/proc').iterdir():
+        if not path.name.isdigit():continue
+        try:
+            fields = (path/'stat').read_text().rsplit(') ',1)[1].split()
+            snapshots[int(path.name)] = (int(fields[1]),fields[19],fields[0])
+        except (OSError,ValueError,IndexError):continue
+    if proc.pid in snapshots and proc.pid not in tracked and proc.returncode is None:
+        tracked[proc.pid] = snapshots[proc.pid][1]
+    changed = True
+    while changed:
+        changed = False
+        for pid,(parent,start,state) in snapshots.items():
+            if (pid not in tracked and parent in tracked and parent in snapshots
+                    and snapshots[parent][1] == tracked[parent]):
+                tracked[pid] = start
+                changed = True
+    return [pid for pid,start in tracked.items() if pid in snapshots
+            and snapshots[pid][1] == start and snapshots[pid][2] not in ('Z','X')]
+
+
+def signal_tracked(tracked, sig):
+    count = 0
+    for pid,start in list(tracked.items()):
+        fd = None
+        try:
+            # pidfd pins this observed process instance; a reused PID is never a target.
+            fd = os.pidfd_open(pid)
+            fields = Path('/proc',str(pid),'stat').read_text().rsplit(') ',1)[1].split()
+            if fields[19] == start and fields[0] not in ('Z','X'):
+                signal.pidfd_send_signal(fd,sig)
+                count += 1
+        except (ProcessLookupError,FileNotFoundError):pass
+        finally:
+            if fd is not None:os.close(fd)
+    return count
+
+
+async def terminate_owned_group(proc, tracked=None):
     """Use the retained Popen group, never a caller-supplied PID or recovered PID."""
     sent = []
+    tracked = {} if tracked is None else tracked
     for sig in (signal.SIGTERM, signal.SIGKILL):
-        if proc.poll() is not None and not live_group_members(proc.pid):
+        alive = track_owned_descendants(proc,tracked)
+        if proc.poll() is not None and not live_group_members(proc.pid) and not alive:
             break
+        signalled = False
         try:
             os.killpg(proc.pid, sig)
-            sent.append(sig.name)
+            signalled = True
         except ProcessLookupError:
             pass
+        signalled = signal_tracked(tracked,sig) > 0 or signalled
+        if signalled:sent.append(sig.name)
         deadline = time.monotonic() + 3
         while time.monotonic() < deadline:
-            if proc.poll() is not None and not live_group_members(proc.pid):
+            alive = track_owned_descendants(proc,tracked)
+            if proc.poll() is not None and not live_group_members(proc.pid) and not alive:
                 break
             await asyncio.sleep(.05)
-    if proc.poll() is None or live_group_members(proc.pid):
+    if proc.poll() is None or live_group_members(proc.pid) or track_owned_descendants(proc,tracked):
         raise HostDenied('CODEX_PROCESS_GROUP_STOP_NOT_VERIFIED_QUERY_ONLY')
     proc.wait()
-    return {'process_group_stopped': True, 'signals_sent': sent, 'exit_code': proc.returncode}
+    return {'process_group_stopped': True, 'observed_descendants_stopped':True,
+            'tracked_process_count':len(tracked), 'signals_sent': sent, 'exit_code': proc.returncode}
 
 
 async def save_stopped_item(host, repository, request, active, evidence):

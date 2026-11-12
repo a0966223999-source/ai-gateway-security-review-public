@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DR Bot · 角色管理授权</title>
+<style>body{font:16px/1.7 system-ui,sans-serif;background:#f2f5f8;color:#152739;margin:0;padding:30px 16px}main{max-width:620px;margin:auto;background:white;border:1px solid #dce3eb;border-radius:16px;padding:24px}h1{font-size:24px}label{display:block;margin:16px 0}input{display:block;width:100%;box-sizing:border-box;padding:10px;border:1px solid #8a9aac;border-radius:7px;font:inherit}button{padding:10px 16px;margin:8px 8px 8px 0;border-radius:7px;border:1px solid #52718e;font:inherit;cursor:pointer}button.primary{background:#14587d;color:white}button:disabled{opacity:.5;cursor:wait}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eef3f7;padding:12px;border-radius:8px}small{color:#465e73}</style>
+<main><h1>DR Bot · 角色管理授权</h1><p>授权同一平台账号下已连接的 Agent，共用指定角色的管理能力。</p>
+<ul><li>仅列出、读取和建立：<strong>qa-dr-mcp-20261112</strong></li><li>有效期：10 分钟，可提前撤回</li><li>工具、技能、派工权限均为空；不会调用模型或执行任务</li></ul>
+<p>本次只验证共用管理入口。已有续办授权和之前的测试批准不会自动转成这份授权。</p>
+<label>原会话编号<input id="thread" autocomplete="off" maxlength="64" placeholder="沿用你的原 Deer 会话"></label>
+<small>使用原 Gateway 登录状态；本页不会索取或显示密码、令牌。登录失效时，请先使用原登录页。</small>
+<p><button id="approve" class="primary">同意以上范围，开启 10 分钟</button><button id="query">查回本次授权</button><button id="revoke" disabled>撤回本次授权</button></p>
+<pre id="result" role="status" aria-live="polite">尚未授权。</pre></main>
+<script>
+(() => {
+  const byId = id => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  const thread = params.get('thread_id') || '';
+  if (/^[A-Za-z0-9_-]{1,64}$/.test(thread)) byId('thread').value = thread;
+  // Stable within this page; reload recovers only when its exact operation key
+  // is explicitly retained in the URL. No automatic POST or retry occurs.
+  const offeredKey = params.get('operation_key');
+  const operation = offeredKey && /^[A-Za-z0-9_.:-]{1,128}$/.test(offeredKey)
+    ? offeredKey : 'dr-management-consent-' + crypto.randomUUID();
+  let grant = null, attempted = false;
+  const result = value => { byId('result').textContent = JSON.stringify(value, null, 2); };
+  const base = () => {
+    const id = byId('thread').value.trim();
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) throw new Error('请确认原会话编号。');
+    return '/api/threads/' + encodeURIComponent(id) + '/agent-management-consents';
+  };
+  async function request(url, method, body) {
+    const csrf = document.cookie.split(';').map(x => x.trim()).find(x => x.startsWith('csrf_token='));
+    const headers = {'Accept': 'application/json'};
+    if (method !== 'GET') {
+      if (!csrf) throw new Error('原 CSRF 状态缺失，请通过原 Gateway 登录后重新打开本页。');
+      headers['X-CSRF-Token'] = decodeURIComponent(csrf.slice('csrf_token='.length));
+    }
+    if (body) headers['Content-Type'] = 'application/json';
+    const response = await fetch(url, {method, headers, credentials: 'same-origin',
+      redirect: 'error', ...(body ? {body: JSON.stringify(body)} : {})});
+    const value = await response.json();
+    result({operation_key: operation, http_status: response.status, ...value});
+    if (response.ok && value.grant_id) {
+      grant = value.grant_id;
+      byId('revoke').disabled = !!value.revoked;
+    }
+    if (!response.ok) throw new Error('请求未通过；保留本次操作编号，仅查回，不重复授权。');
+  }
+  byId('approve').onclick = async () => {
+    if (attempted) return;
+    try {
+      const url = base();
+      const recovery = new URL(location.href);
+      recovery.searchParams.set('thread_id', byId('thread').value.trim());
+      recovery.searchParams.set('operation_key', operation);
+      history.replaceState(null, '', recovery);
+      attempted = true;
+      byId('approve').disabled = true;
+      byId('thread').readOnly = true;
+      await request(url, 'POST', {operation_key: operation, names: ['qa-dr-mcp-20261112'],
+        actions: ['list', 'read', 'create'], ttl_seconds: 600,
+        confirmation: 'named-definitions-only-no-models-tools-or-delegation'});
+    } catch (error) { result({operation_key: operation, message: error.message, next: '查回本次授权'}); }
+  };
+  byId('query').onclick = async () => {
+    try { await request(base() + '/by-operation/' + encodeURIComponent(operation), 'GET'); }
+    catch (error) { result({operation_key: operation, message: error.message}); }
+  };
+  byId('revoke').onclick = async () => {
+    if (!grant) return;
+    try { await request(base() + '/' + encodeURIComponent(grant), 'DELETE'); }
+    catch (error) { result({operation_key: operation, message: error.message}); }
+  };
+})();
+</script></html>

@@ -34,10 +34,12 @@ def install_fresh_batch_routes(app, *, env=os.environ, connection_factory=None):
         return
     from fastapi import Request
     from starlette.responses import JSONResponse
-    from service_extension import original_redis_connection
+    if connection_factory is None:
+        from service_extension import original_redis_connection
+        connection_factory = original_redis_connection
     config = json.loads(env['XJ_FRESH_BATCH_HOST_CONFIG'])
     rpc = BatchRPC(config=config, ingress_key=bytes.fromhex(env['XJ_FRESH_BATCH_INGRESS_KEY']),
-                   connection_factory=connection_factory or original_redis_connection)
+                   connection_factory=connection_factory)
 
     @app.post('/internal/deer-batch/rpc')
     async def fresh_control(request: Request):
@@ -187,7 +189,7 @@ class BatchRPC:
 
     def call(self, *, owner, parent, action, operation_key, payload):
         self.check(owner, parent)
-        if action not in self.config['actions'] or action not in ('submit', 'read', 'cancel', 'execute'):
+        if action not in self.config['actions'] or action not in ('submit', 'read', 'cancel', 'execute', 'agent'):
             raise ValueError('BATCH_ACTION_INVALID')
         body = dict(generation=self.config['generation'], owner=owner, parent_id=parent,
                     action=action, operation_key=operation_key, payload=payload,
@@ -232,10 +234,18 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
         return {'enabled': False, 'tools': []}
     if env.get('XJ_FRESH_BATCH_HOST_ENABLED') != 'true':
         return {'enabled': False, 'tools': []}
-    from service_extension import original_redis_connection
+    if connection_factory is None:
+        from service_extension import original_redis_connection
+        connection_factory = original_redis_connection
     rpc = BatchRPC(config=json.loads(raw),
                    ingress_key=bytes.fromhex(env['XJ_FRESH_BATCH_INGRESS_KEY']),
-                   connection_factory=connection_factory or original_redis_connection)
+                   connection_factory=connection_factory)
+
+    # A separate, explicit management gate over this same signed transport.
+    # The host still requires original interactive consent and live user policy.
+    from deer_management_rpc import install_management_rpc_tools
+    install_management_rpc_tools(mcp, rpc=rpc, principal=principal,
+        oauth_meta=oauth_meta, enabled=env.get('XJ_AGENT_MANAGEMENT_ENABLED') == 'true')
 
     async def invoke(action, request):
         owner = principal()

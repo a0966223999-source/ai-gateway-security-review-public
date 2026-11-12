@@ -19,6 +19,8 @@ def main():
     parser = argparse.ArgumentParser()
     for name in ('root', 'gateway-backend', 'database', 'endpoint'):
         parser.add_argument('--' + name, required=True)
+    parser.add_argument('--agent-management-grant-id')
+    parser.add_argument('--gateway-pid', type=int)
     args = parser.parse_args()
     host = FreshBatchHost(args.root)
     if host.config.get('lifecycle') != 'owner-platform-service-v1':
@@ -34,6 +36,12 @@ def main():
     cmd = [sys.executable, str(Path(__file__).with_name('fresh_batch_worker.py')),
            '--root', args.root, '--gateway-backend', args.gateway_backend,
            '--database', args.database, '--endpoint', args.endpoint]
+    if args.agent_management_grant_id is not None:
+        if args.gateway_pid is None:
+            raise ValueError('ORIGINAL_MANAGEMENT_GATEWAY_PID_REQUIRED')
+        host.check('agent')
+        cmd.extend(['--agent-management-grant-id', args.agent_management_grant_id,
+                    '--gateway-pid', str(args.gateway_pid)])
     exclusive_write(host.root / ('supervisor-' + str(os.getpid()) + '.json'), canonical(dict(
         pid=os.getpid(), generation=host.config['generation'], argv=cmd, started_at=time.time())))
     try:

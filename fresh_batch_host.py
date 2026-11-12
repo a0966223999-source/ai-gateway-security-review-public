@@ -223,11 +223,28 @@ class FreshBatchHost:
                                           'configurable': {'thread_id': c['parent_id']}})
         return runtime, bind_batch_tools(submitter_provider=provider), BatchTaskItem
 
-    async def execute(self, envelope, *, repository):
+    async def execute(self, envelope, *, repository, agent_management=None):
         from batch_mcp_entry import Submit, Status, _public_result
         from platform_pending_cancel import PendingCancel as Cancel, cancel_pending_items
         body = self.verify_request(envelope)
         action = body['action']
+        if action == 'agent':
+            if agent_management is None:
+                raise HostDenied('ORIGINAL_AGENT_MANAGEMENT_NOT_BOUND')
+            from deer_management_host import ManagementDefinitionService
+            from deer_agent_management import AgentManagementDenied
+            if type(agent_management) is not ManagementDefinitionService:
+                raise HostDenied('ORIGINAL_AGENT_MANAGEMENT_CAPABILITY_REQUIRED')
+            try:
+                result = await agent_management.execute(body)
+            except AgentManagementDenied as error:
+                result = {'status': 'DENIED_OR_UNKNOWN_QUERY_ONLY', 'reason': str(error),
+                          'execution_started': False}
+            self.check('agent')
+            response = dict(generation=self.config['generation'], request_id=body['request_id'],
+                            request_sha256=digest(body), result=result, automatic_dispatch=False,
+                            native_execution_verified=False)
+            return dict(body=response, signature=base64.b64encode(self.key.sign(canonical(response))).decode())
         if action == 'execute':
             from platform_codex_executor import Execute, execute_item
             from platform_codex_stop import Stop, stop_item
