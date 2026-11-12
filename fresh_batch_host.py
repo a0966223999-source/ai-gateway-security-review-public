@@ -228,7 +228,7 @@ class FreshBatchHost:
         from platform_pending_cancel import PendingCancel as Cancel, cancel_pending_items
         body = self.verify_request(envelope)
         action = body['action']
-        if action == 'agent':
+        if body['payload'].get('execution_mode') == 'original-deer-agent-management-v1':
             if agent_management is None:
                 raise HostDenied('ORIGINAL_AGENT_MANAGEMENT_NOT_BOUND')
             from deer_management_host import ManagementDefinitionService
@@ -241,7 +241,7 @@ class FreshBatchHost:
             except AgentManagementDenied as error:
                 result = {'kind': MODE, 'status': 'DENIED_OR_UNKNOWN_QUERY_ONLY', 'reason': str(error),
                           'execution_started': False}
-            self.check('agent')
+            self.check(action)
             response = dict(generation=self.config['generation'], request_id=body['request_id'],
                             request_sha256=digest(body), result=result, automatic_dispatch=False,
                             native_execution_verified=False)

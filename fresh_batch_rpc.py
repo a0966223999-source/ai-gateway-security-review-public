@@ -189,7 +189,7 @@ class BatchRPC:
 
     def call(self, *, owner, parent, action, operation_key, payload):
         self.check(owner, parent)
-        if action not in self.config['actions'] or action not in ('submit', 'read', 'cancel', 'execute', 'agent'):
+        if action not in self.config['actions'] or action not in ('submit', 'read', 'cancel', 'execute'):
             raise ValueError('BATCH_ACTION_INVALID')
         body = dict(generation=self.config['generation'], owner=owner, parent_id=parent,
                     action=action, operation_key=operation_key, payload=payload,

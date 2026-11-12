@@ -16,7 +16,7 @@ from types import SimpleNamespace
 from deer_agent_management import AgentManagementDenied, _canonical
 from deer_management_consent import ManagementConsentStore
 from deer_management_journal import OriginalManagementJournal
-from deer_management_rpc import ManagementRequest, create_payload, MODE
+from deer_management_rpc import ManagementRequest, create_payload, MODE, transport_action, transport_key
 
 
 class ManagementDefinitionService:
@@ -32,8 +32,14 @@ class ManagementDefinitionService:
         # The ORIGINAL host already verified the exact signed ingress. This
         # method is only injected into that host, never called from public JSON.
         body = json.loads(_canonical(body))
-        request = ManagementRequest.model_validate(dict(body["payload"],
-                    operation_key=body["operation_key"])).scoped()
+        payload = dict(body["payload"])
+        if payload.pop("execution_mode", None) != MODE:
+            raise AgentManagementDenied("MANAGEMENT_TRANSPORT_MODE_REQUIRED")
+        operation_key = payload.pop("management_operation_key", None)
+        request = ManagementRequest.model_validate(dict(payload, operation_key=operation_key)).scoped()
+        if (body["action"] != transport_action(request.kind)
+                or body["operation_key"] != transport_key(request.kind, request.operation_key)):
+            raise AgentManagementDenied("MANAGEMENT_TRANSPORT_BINDING_MISMATCH")
         if len(_canonical(body)) > 65536:
             raise AgentManagementDenied("MANAGEMENT_REQUEST_TOO_LARGE")
         record = await asyncio.to_thread(self.consents.active, self.grant_id,
@@ -174,7 +180,7 @@ def original_gateway_management(host, *, backend, gateway_pid, grant_id):
 
     def current():
         try:
-            return (host.check("agent") is True and account.current() is True
+            return (host.check("read") is True and account.current() is True
                     and (proc / "stat").read_text().split()[21] == process_identity
                     and Path(os.readlink(proc / "cwd")).resolve() == backend)
         except (OSError, ValueError):

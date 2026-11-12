@@ -28,7 +28,7 @@ async def serve(args):
     host = FreshBatchHost(args.root)
     management = None
     if args.agent_management_grant_id is not None:
-        if args.gateway_pid is None or 'agent' not in host.config['actions']:
+        if args.gateway_pid is None or not {'read', 'execute'} <= set(host.config['actions']):
             raise ValueError('ORIGINAL_MANAGEMENT_GATEWAY_AND_ENROLLMENT_REQUIRED')
         from deer_management_host import original_gateway_management
         management = original_gateway_management(host, backend=backend,

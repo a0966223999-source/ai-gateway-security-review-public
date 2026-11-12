@@ -24,7 +24,7 @@ from deerflow.persistence.base import Base
 from deer_agent_management import AgentManagementDenied
 from deer_management_consent import ManagementConsentStore
 from deer_management_host import ManagementDefinitionService, project_management_user
-from deer_management_rpc import ManagementRequest, install_management_rpc_tools
+from deer_management_rpc import ManagementRequest, install_management_rpc_tools, MODE, transport_key, transport_action
 from fresh_batch_host import FreshBatchHost, initialize, canonical, digest
 
 
@@ -47,9 +47,8 @@ class ConsentServiceTests(unittest.IsolatedAsyncioTestCase):
         self.root.chmod(0o700)
         self.io = original_source_modules()
         from app.gateway.platform_account_link import PinnedMcpAccount
-        self.config = initialize(self.root / "host", owner="oauth:" + "a" * 64, platform_service=True)
-        # Explicit isolated configuration, NEVER a live enrollment mutation.
-        self.config["actions"].append("agent")
+        self.config = initialize(self.root / "host", owner="oauth:" + "a" * 64,
+                                 platform_service=True, enable_codex=True)
         path = self.root / "host/host.json"
         path.write_bytes(canonical(self.config))
         (self.root / "host/config.sha256").write_text(digest(self.config))
@@ -80,10 +79,13 @@ class ConsentServiceTests(unittest.IsolatedAsyncioTestCase):
             "actions": ["list", "read", "create"], "ttl_seconds": 600, **changes})
 
     def envelope(self, kind, key="create-1", **payload):
+        action = transport_action(kind)
+        wire_key = transport_key(kind, key)
         body = dict(generation=self.config["generation"], owner=self.config["owner"],
-            parent_id=self.config["parent_id"], action="agent", operation_key=key,
-            payload={"kind": kind, **payload},
-            request_id=digest([self.config["generation"], self.config["owner"], "agent", key]),
+            parent_id=self.config["parent_id"], action=action, operation_key=wire_key,
+            payload={"kind": kind, **payload, "execution_mode": MODE,
+                     "management_operation_key": key},
+            request_id=digest([self.config["generation"], self.config["owner"], action, wire_key]),
             expires_at=time.time() + 30)
         return {"body": body, "mac": hmac.new(self.host.ingress, canonical(body), "sha256").hexdigest()}
 
@@ -91,6 +93,7 @@ class ConsentServiceTests(unittest.IsolatedAsyncioTestCase):
         return await self.service.execute(self.envelope(kind, key, **payload)["body"])
 
     async def test_signed_original_host_create_independent_read_and_receipt(self):
+        original_pin = self.host.pin
         envelope = self.envelope("create", name="qa-dr-shared", soul="No execution.")
         response = await self.host.execute(envelope, repository=None, agent_management=self.service)
         self.host.key.public_key().verify(__import__('base64').b64decode(response["signature"]), canonical(response["body"]))
@@ -103,6 +106,26 @@ class ConsentServiceTests(unittest.IsolatedAsyncioTestCase):
             create_operation_key="create-1", payload_sha256=saved["payload_sha256"])
         self.assertEqual(receipt["status"], "CONFIRMED")
         self.assertFalse(self.agents.exists("qa-dr-shared", user_id="foreign"))
+        self.assertEqual(self.host.pin, original_pin)
+        self.assertNotIn("agent", self.host.config["actions"])
+
+    async def test_unissued_consent_returns_signed_denial_without_effect(self):
+        self.service.grant_id = "e" * 64
+        response = await self.host.execute(self.envelope("list"), repository=None,
+                                            agent_management=self.service)
+        self.assertEqual(response["body"]["result"]["reason"], "MANAGEMENT_CONSENT_NOT_ISSUED")
+        self.assertEqual(self.agents.list(user_id="fixture-owner"), [])
+
+    async def test_transport_kind_or_original_operation_key_cannot_be_swapped(self):
+        body = self.envelope("create", name="qa-dr-shared", soul="no")["body"]
+        body["action"] = "read"
+        with self.assertRaisesRegex(AgentManagementDenied, "TRANSPORT_BINDING_MISMATCH"):
+            await self.service.execute(body)
+        body = self.envelope("create", name="qa-dr-shared", soul="no")["body"]
+        body["payload"]["management_operation_key"] = "different-key"
+        with self.assertRaisesRegex(AgentManagementDenied, "TRANSPORT_BINDING_MISMATCH"):
+            await self.service.execute(body)
+        self.assertEqual(self.agents.list(user_id="fixture-owner"), [])
 
     async def test_duplicate_consent_never_extends_and_query_recovers(self):
         with self.assertRaisesRegex(AgentManagementDenied, "EXISTS_QUERY_ONLY"):
@@ -215,7 +238,8 @@ class ConsentServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('"grant_id"', schema)
         await mcp.call_tool("agent_manage", {"request": {"operation_key": "read-mcp", "kind": "list"}})
         self.assertEqual(calls[0]["owner"], self.config["owner"])
-        self.assertEqual(calls[0]["action"], "agent")
+        self.assertEqual(calls[0]["action"], "read")
+        self.assertEqual(calls[0]["operation_key"], transport_key("list", "read-mcp"))
 
     async def test_cached_management_receipt_never_discloses_role_or_reenqueues(self):
         from mcp.server.fastmcp import FastMCP

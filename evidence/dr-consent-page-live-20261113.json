@@ -1,0 +1,16 @@
+{
+  "status": "ORIGINAL_MANAGEMENT_CONSENT_PAGE_INSTALLED",
+  "source_commit": "84a0640e80ecae7e9c239783263a3a3cf46ad069",
+  "gateway_pid": 56604,
+  "worker_pid": 56805,
+  "health_http": 200,
+  "anonymous_me_http": 401,
+  "review_page_http": 200,
+  "idle_sql_counts": {"cancelled": 17, "succeeded": 7},
+  "jwt_unchanged": true,
+  "original_worker_code_unchanged": true,
+  "management_grant_issued": false,
+  "model_executed": false,
+  "pin_keys_and_config_unchanged": true,
+  "source": "Observed original Codespace installer receipt and browser page; not independent QA"
+}

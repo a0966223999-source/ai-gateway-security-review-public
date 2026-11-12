@@ -1,0 +1,19 @@
+test_denial_is_preserved_without_response_body_leak_or_retry (test_platform_checkpoint_forward.Tests.test_denial_is_preserved_without_response_body_leak_or_retry) ... ok
+test_duplicate_is_query_only_without_second_http (test_platform_checkpoint_forward.Tests.test_duplicate_is_query_only_without_second_http) ... ok
+test_forged_mac_never_forwards (test_platform_checkpoint_forward.Tests.test_forged_mac_never_forwards) ... ok
+test_preserves_exact_mac_envelope_and_uses_fixed_loopback_without_cookie (test_platform_checkpoint_forward.Tests.test_preserves_exact_mac_envelope_and_uses_fixed_loopback_without_cookie) ... ok
+test_timeout_is_unknown_and_attempt_is_retained (test_platform_checkpoint_forward.Tests.test_timeout_is_unknown_and_attempt_is_retained) ... ok
+test_cas_fields_pass_unchanged (test_platform_checkpoint_rpc.Tests.test_cas_fields_pass_unchanged) ... ok
+test_changed_principal_refuses_result (test_platform_checkpoint_rpc.Tests.test_changed_principal_refuses_result) ... ok
+test_create_uses_original_owner_and_parent_not_model_fields (test_platform_checkpoint_rpc.Tests.test_create_uses_original_owner_and_parent_not_model_fields) ... ok
+test_existing_receipt_is_history_only_without_checkpoint_disclosure_or_enqueue (test_platform_checkpoint_rpc.Tests.test_existing_receipt_is_history_only_without_checkpoint_disclosure_or_enqueue) ... ok
+test_identity_injection_rejected_before_transport (test_platform_checkpoint_rpc.Tests.test_identity_injection_rejected_before_transport) ... ok
+test_pending_is_not_success_and_foreign_reply_denied (test_platform_checkpoint_rpc.Tests.test_pending_is_not_success_and_foreign_reply_denied) ... ok
+test_query_is_read_only_and_preserves_original_source_operation (test_platform_checkpoint_rpc.Tests.test_query_is_read_only_and_preserves_original_source_operation) ... ok
+test_receipt_queries_only_original_key_never_enqueues (test_platform_checkpoint_rpc.Tests.test_receipt_queries_only_original_key_never_enqueues) ... ok
+test_seven_tools_and_no_identity_credentials_or_route_in_schema (test_platform_checkpoint_rpc.Tests.test_seven_tools_and_no_identity_credentials_or_route_in_schema) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.121s
+
+OK

@@ -138,7 +138,10 @@ class ManagementConsentStore:
                 "expired": not record["created_at"] <= self.clock() < record["expires_at"]}
 
     def active(self, grant_id, *, verified_owner):
-        record = self.read(grant_id, verified_owner=verified_owner)
+        try:
+            record = self.read(grant_id, verified_owner=verified_owner)
+        except FileNotFoundError:
+            raise AgentManagementDenied("MANAGEMENT_CONSENT_NOT_ISSUED") from None
         if record["revoked"] or record["expired"]:
             raise AgentManagementDenied("MANAGEMENT_CONSENT_REVOKED_OR_EXPIRED")
         return record

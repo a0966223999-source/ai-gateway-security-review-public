@@ -40,7 +40,7 @@ def main():
     if args.agent_management_grant_id is not None:
         if args.gateway_pid is None:
             raise ValueError('ORIGINAL_MANAGEMENT_GATEWAY_PID_REQUIRED')
-        host.check('agent')
+        host.check('read')
         cmd.extend(['--agent-management-grant-id', args.agent_management_grant_id,
                     '--gateway-pid', str(args.gateway_pid)])
     exclusive_write(host.root / ('supervisor-' + str(os.getpid()) + '.json'), canonical(dict(
