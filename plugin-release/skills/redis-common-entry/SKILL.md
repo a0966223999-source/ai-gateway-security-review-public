@@ -5,6 +5,11 @@ description: "接入 Work 通知自喚醒、自動續辦、保存續點與 trans
 
 # Redis 共同入口
 
+## Router／Deer 子系統共用入口（v1.0.14）
+
+使用者要求使用平台子系統、Router現有能力、拆解／派工／查詢／停止，或讓其他Work共用時，先讀取 [平台共用能力與最短接入](references/platform-shared-capabilities.md)。按其中的實際工具與驗收範圍直接執行已授權操作，不要求使用者重新描述程式、逐Work重建宿主或另一套Deer。保持原OAuth帳號範圍；「共用已發布」不代表Router自動選路、原生Work派工、DAG、真沙盒或短期記憶自動注入已完整上線。
+
+
 ## Work 通知自喚醒共用接入（v1.0.11）
 
 使用者要求自喚醒、自動續辦、回合結束後接續，或將本流程推廣到其他 Work 時，讀取 [通知自喚醒接入與接收規則](references/work-notification-selfwake.md)。沿原 X Redis Test、gateway_internal_v1 和本 Work 的原事件訂閱，使用 run_in_current_thread=true；先核當次原 USER 的授權／停止撤回。只有有界、仍獲授權的未完任務才啟用續辦；載入本技能、一般聊天、完成回報本身都不產生新通知。
@@ -192,4 +197,5 @@ submit 只呼叫原 request 工具，不新增第二個傳輸或業務事件。q
 ## 指定批次背景執行（v1.0.13）
 
 使用者已授權執行指定批次，且希望提交後由原宿主背景逐項完成時，讀取 [有界 Codex 背景批次](references/codex-bounded-background.md)。新入口 batch_execute_batch 與 batch_task 的 codex_batch_once 只選原批次 1–3 項獨立待辦；上文 v1.0.7 的逐項 Work 協調仍可用。先按當次 schema 核對新模式是否已載入，未載入回 BATCH_BACKGROUND_TOOL_SCHEMA_NOT_AVAILABLE，不改傳輸或另造 HTTP client。普通登記仍 automatic_dispatch=false；此入口不代表 S61 Router 動態選路、原生 Work 派工、DAG 或真容器沙盒上線。
+
 

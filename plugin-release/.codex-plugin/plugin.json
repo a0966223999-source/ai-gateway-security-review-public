@@ -15,7 +15,7 @@
     }
   },
   "name": "dev-6af05e97756c8191affb9700b02418e7",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "合成 Redis 事件寫入、讀回與\n\nTTL 測試",
   "author": {
     "name": "App developer"
