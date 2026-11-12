@@ -65,6 +65,7 @@ class OriginalAgentBinding:
     invoke: Callable[[str, str, dict | None], Awaitable[dict]]
     invoke_once: Callable[[str, str, str, Callable], Awaitable[dict]] | None = None
     authority_scope: str = ""
+    query_operation: Callable[[str, str, str], Awaitable[dict]] | None = None
 
 
 class DeerAgentManagement:
@@ -162,7 +163,26 @@ class DeerAgentManagement:
 
         # UNKNOWN exceptions propagate. Never retry, query another key, or
         # mistake a name-exists 409 for this request's successful creation.
-        return await binding.invoke_once("create", key, payload_digest, perform)
+        result = await binding.invoke_once("create", key, payload_digest, perform)
+        return {**result, "operation_key": key, "payload_sha256": payload_digest}
+
+    async def create_receipt(self, context, name, operation_key, payload_sha256):
+        """Query the same owner/grant/key without repeating any create effect."""
+        name = _name(name)
+        if (not isinstance(operation_key, str)
+                or re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", operation_key) is None
+                or not isinstance(payload_sha256, str)
+                or re.fullmatch(r"[a-f0-9]{64}", payload_sha256) is None):
+            raise AgentManagementDenied("MANAGEMENT_RECEIPT_ARGUMENT_INVALID")
+        binding = await self._binding(context, "read", {"name": name})
+        if not callable(binding.query_operation):
+            raise AgentManagementDenied("ORIGINAL_MANAGEMENT_QUERY_NOT_BOUND")
+        result = await binding.query_operation("create", operation_key, payload_sha256)
+        if result.get("status") == "CONFIRMED":
+            agent = result.get("result", {}).get("agent", {})
+            if agent.get("name") != name:
+                raise AgentManagementDenied("MANAGEMENT_RECEIPT_NAME_MISMATCH")
+        return result
 
     async def update_agent(self, context: object, request: dict) -> dict:
         # Original AgentStore.update is an upsert without an expected-version
@@ -202,8 +222,13 @@ def install_agent_management_tools(mcp, *, resolve_binding=None,
         """Create an original fixed Agent definition; does not run a model."""
         return await service.create_agent(ctx, request)
 
+    async def agent_receipt(name: str, operation_key: str, payload_sha256: str,
+                            ctx: Context) -> dict:
+        """Query an original create receipt; never repeats the write."""
+        return await service.create_receipt(ctx, name, operation_key, payload_sha256)
+
     # FastMCP inspects annotations. Resolve the local Context before registering.
-    for function in (agent_list, agent_read, agent_create):
+    for function in (agent_list, agent_read, agent_create, agent_receipt):
         function.__annotations__["ctx"] = Context
         mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(
             readOnlyHint=function is not agent_create, destructiveHint=False,

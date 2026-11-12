@@ -4,8 +4,8 @@
 
 ## 實際改動
 
-- `deer_agent_management.py`：可選的原 MCP 轉接器，僅提供 `agent_list`、`agent_read`、`agent_create`。它不建模型客戶端、不使用 Grok API、不保存登入憑證、不建立另一個名冊或服務。
-- `mcp_bridge.install(..., agent_management_resolver=None)`：原 MCP 的可信啟動注入點。預設不掛載；只有宿主提供 resolver 才沿原 `principal()` 與原 OAuth metadata 掛載三工具。沒有變更既有 OAuth scope。
+- `deer_agent_management.py`：可選的原 MCP 轉接器，僅提供 `agent_list`、`agent_read`、`agent_create`、`agent_receipt`。它不建模型客戶端、不使用 Grok API、不保存登入憑證、不建立另一個名冊或服務。
+- `mcp_bridge.install(..., agent_management_resolver=None)`：原 MCP 的可信啟動注入點。預設不掛載；只有宿主提供 resolver 才沿原 `principal()` 與原 OAuth metadata 掛載四工具。沒有變更既有 OAuth scope。
 - 使用原 Gateway `/api/agents` 與 `/api/agents/{name}`。原 API 的登入、CSRF、管理開關及 owner scope 全部由原 session transport 保持，不在本模組模擬或繞過。
 - 建立預設 `tool_groups=[]`、`skills=[]`、`allowed_subagents=[]`，不以 null 隱式繼承全部工具或委派能力。明確請求的能力仍須原管理授權核准；設計卡不授權。
 - 固定 Agent 修改：原 Store.update 是沒有版本條件的 upsert，本候選明確回 `ORIGINAL_AGENT_CAS_NOT_BOUND`，不以讀取雜湊後再 PUT 假裝原子 CAS。
@@ -13,9 +13,9 @@
 
 ## 驗證
 
-20 項 unittest 通過、exit 0：原 Deer 路由與真實臨時 SQLite 建立→獨立讀回→名冊、跨使用者隔離、原 API disabled 403、原名衝突409、缺可信管理綁定／防重拒絕、checkpoint-only拒絕、原 MCP owner不符拒絕、撤權／變更owner在效果前重核、失回不重送、輸入／路徑邊界、呼叫者跨await修改不影響授權內容、SDK tools/list與Context注入、錯誤回件不升格，以及不以PUT／DELETE冒修改／停止。
+37 項 unittest 通過、exit 0：原 Deer 路由與真實臨時 SQLite 建立→獨立讀回→名冊、跨使用者隔離、原 API disabled 403、原名衝突409、缺可信管理綁定／防重拒絕、checkpoint-only拒絕、原 MCP owner不符拒絕、撤權／變更owner在效果前重核、失回不重送、輸入／路徑邊界、呼叫者跨await修改不影響授權內容、SDK tools/list與Context注入、錯誤回件不升格，以及不以PUT／DELETE冒修改／停止。
 
-使用原備份後端的路由、SqlAgentStore、AgentRow與現有虛擬環境，測試只建立臨時SQLite。測試的帳號授權、session transport、once fence是**明示測具**；once fixture是記憶體實作，不是正式持久防重證明。未啟動模型、正式Agent、Redis派工或新服務；不是具名獨立QA。完整 `make test` / `make test-blocking-io` 未執行，現有測試環境沒有 pytest。
+使用原備份後端的路由、SqlAgentStore、AgentRow與現有虛擬環境，測試只建立臨時SQLite。測試的帳號授權、session transport、once fence是**明示測具**；原有部分once fixture仍為記憶體測具；新增Journal測試使用原Source I/O及真實私有暫存目錄，驗重新開啟、同鍵衝突、競爭、保存失敗、STOP、symlink、root替換，以及與原路由/SQLite的整合。正式宿主持久防重尚未安裝。未啟動模型、正式Agent、Redis派工或新服務；不是具名獨立QA。完整 `make test` / `make test-blocking-io` 未執行，現有測試環境沒有 pytest。
 
 ## 啟用前必須補齊的原接線
 
@@ -31,3 +31,14 @@
 本次原Codespace UI可開啟，但終端可見其他工作正在操作；沒有安裝本候選、沒有更改管理開關、session、policy、host pin、runtimeDB、D2或Gate1。磁碟低空間提醒已觀察，未prune或搬移資料。
 
 新候選分支基於 `feat/deer-item-stop-20261112` 的 `e034b4d965b6d6f6f55c027ce6b16991438d2a72`。該版 `mcp_bridge.py` 與先前e8e1070c原檔相同；原所有停工差額保留。回退僅移除本次可選啟動參數與新模組；未啟用前無正式資料效果。未合併、不重啟、不部署。
+
+
+## 本輪真實差額
+
+原Codespace獨立Terminal 8唯讀核實：原agents.py SHA256 `64614da569c9a30297adf4de22511abb4263dbc2bf548e0118c3c25d695fbfc2`，與隔離測試來源相同；原config.yaml database.backend=sqlite，agents_api與agent_storage均未顯式配置（原類別預設管理API disabled、file名冊）。原Source目錄存在，當次有一筆未過期／未撤回的account-link，scope僅platform-checkpoint-only。這證明已有帳號綁定紀錄，不證管理授權或本Work持有該登入session。未讀取或匯出cookie、密碼、私鑰、token或完整user紀錄。
+
+新增`deer_management_journal.py`沿同一原Source私有目錄保存create-only attempt/receipt，復用原private_directory/read_at/publish/encode的mode/owner/link/fsync檢查。constructor不建目錄或資料庫。attempt fsync成功後才能呼叫原效果，崩潰/失回/receipt保存失敗均保留UNKNOWN且不重播；`agent_receipt`獨立查同owner/grant/key與payloadDigest。這是程式與隔離實證，不是正式部署回執。
+
+新增`deer_management_test_scope.py`只縮窄一個已存在的真管理binding：最長600秒、唯一角色`qa-dr-readback-20261112`、只list/read/create、三種capability list全空、名冊結果只返回該角色。它拒絕checkpoint-only binding，不能自行發管理grant。
+
+enablement-review.json是PROPOSED_NOT_GRANTED的施工審閱卡，不是授權。正式管理issuer/原保護連線仍未接好，不開既有全域管理API、不冒用checkpoint link。不應把使用者的一般「開始」或本檔的scope文字當原系統已發管理grant。未變更目前外掛版本、原MCP alias、原服務部署或Gate1。

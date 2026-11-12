@@ -4,6 +4,8 @@ These checks do NOT authenticate a real account or establish a durable fence.
 """
 
 import asyncio
+import importlib.util
+import os
 from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -234,7 +236,7 @@ class OriginalRouterTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(install_agent_management_tools(mcp, resolve_binding=lambda ctx: self.binding,
                                                       principal=lambda: self.owner))
         tools = await mcp.list_tools()
-        self.assertEqual(sorted(tool.name for tool in tools), ["agent_create", "agent_list", "agent_read"])
+        self.assertEqual(sorted(tool.name for tool in tools), ["agent_create", "agent_list", "agent_read", "agent_receipt"])
         for tool in tools:
             self.assertNotIn("ctx", tool.inputSchema.get("properties", {}))
         with self.assertRaisesRegex(AgentManagementDenied, "ALREADY_MOUNTED"):
@@ -277,6 +279,42 @@ class OriginalRouterTests(unittest.IsolatedAsyncioTestCase):
         self.binding = replace(self.binding, invoke=original_invoke)
         readback = await self.service.read_agent(None, "qa-dr-fixed")
         self.assertEqual(readback["name"], "qa-dr-fixed")
+
+    async def test_receipt_query_never_calls_create_transport(self):
+        async def query(action, key, digest):
+            return {"status": "ATTEMPTED_UNKNOWN_QUERY_ONLY", "operation_id": "fixture-id"}
+        self.binding = replace(self.binding, query_operation=query)
+        result = await self.service.create_receipt(None, "qa-dr-fixed", "op1", "a" * 64)
+        self.assertEqual(result["status"], "ATTEMPTED_UNKNOWN_QUERY_ONLY")
+        self.assertEqual(self.calls, [])
+
+    async def test_original_router_with_real_source_journal_survives_reopen(self):
+        from deer_management_journal import OriginalManagementJournal
+        spec = importlib.util.spec_from_file_location("original_source_io_for_router_test",
+                                                    os.environ["DR_ORIGINAL_SOURCE_IO"])
+        source_io = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(source_io)
+        root = Path(self.temp.name) / "original-source-root"
+        root.mkdir(mode=0o700)
+        async def authorize():
+            return self.allowed
+        def journal():
+            return OriginalManagementJournal(root, binding={"mcp_owner": self.owner,
+                "gateway_user_id": self.user, "grant_id": "fixture-live-grant"},
+                current=lambda: True, authorize=authorize, source_io=source_io)
+        first_journal = journal()
+        self.binding = replace(self.binding, invoke_once=first_journal,
+                               query_operation=first_journal.query)
+        created = await self.service.create_agent(None, self.request())
+        restored = journal()
+        self.binding = replace(self.binding, invoke_once=restored, query_operation=restored.query)
+        recovered = await self.service.create_receipt(None, "qa-dr-fixed",
+            created["operation_key"], created["payload_sha256"])
+        self.assertEqual(recovered["status"], "CONFIRMED")
+        self.assertEqual(recovered["result"]["agent"]["name"], "qa-dr-fixed")
+        await self.service.create_agent(None, self.request())
+        self.assertEqual(self.calls.count(("POST", "/api/agents")), 1)
+        self.assertEqual((await self.service.read_agent(None, "qa-dr-fixed"))["name"], "qa-dr-fixed")
 
 
 if __name__ == "__main__":
