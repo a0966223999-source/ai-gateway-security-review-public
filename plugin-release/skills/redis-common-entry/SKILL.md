@@ -5,6 +5,18 @@ description: "透過原平台建立、查詢、取消 Deer 子任務及拆解大
 
 # Redis 共同入口
 
+## 大任務拆解：平台共用工作流程
+
+使用者說「把大任務拆成小任務」「拆解並保存」「把這件事分成工作包」時，直接走以下既有平台流程。不要求使用者自行拆解、提供 API 名稱或逐個 Work 綁定宿主。適用範圍為同一已授權帳號、已連接原外掛的 Work；每次仍先核當次宿主與原帳號權限。
+
+1. 用 `batch_host_status` 發現有效宿主，沿下方「每次開始先發現宿主」核當代心跳與 lifecycle。
+2. **由當前 GPT／Work 當回合完成拆解**，不是把大目標當成已執行，也不是另叫模型服務。保留使用者原大目標作為 `goal`，為每個獨立子任務產生穩定唯一 `key`、可直接交辦且自包含的 `prompt`、可查核的 `acceptance_criteria`。依賴鏈要合在同一工作包或先只登記當前可獨立完成的批次，不能冒稱已有 DAG 排程。
+3. 使用全新 `operation_key`，呼叫原 `batch_task`，在同一 request 提交 `parent_id`、`goal`、`title`、`subagent_type: "general-purpose"` 與 `items`。原 Holder 把目標快照與子任務一次保存到原 Deer SQL，不另建目標庫。僅送 goal 的規劃契約尚未保存；若先取得它，再以相同 goal／parent／operation_key 加 items 提交一次。
+4. 寫入失回時保留同鍵，僅用 `batch_receipt` 查原筆。取得 batch ID 後，以新讀鍵 `batch_status` 帶 `include_plan: true`、`item_offset: 0`、`item_limit: 25` 查回；逐項核原 goal、子項 key／prompt／驗收標準一致。多於25項時以新讀鍵分頁核對。每批最多100個獨立子項，且整個請求仍受64KiB限制。
+5. 回覆使用者大目標、拆解清單與原 batch ID，清楚回報「已保存、尚未執行」。使用者只要求拆解／發布時，不呼叫 Codex 執行。只有另有明確執行授權時，才沿下方原單項執行流程，並保留每項獨立回執。
+6. 測試批次在查回後沿原 cancel_batch 取消，再用新讀鍵確認每項 cancelled／attempt=0，保留原目標快照。不要刪除原歷史或用新任務冒舊任務的續辦。
+
+
 使用本技能隨附的 `scripts/functions_producer_v2.mjs` 作為原正式 RPC 的共用 client。它是供 Work 主動呼叫的程式入口，不是常駐 worker、模型前置 hook 或自喚醒成功證明。不要因載入本技能就發事件、登記任務、建立或續訂訂閱。
 
 ## 固定原鏈
@@ -102,4 +114,5 @@ submit 只呼叫原 request 工具，不新增第二個傳輸或業務事件。q
 5. 目前宿主使用既有 Codex CLI 登入、ephemeral/read-only 設定、空工作目錄與最長90秒的單項執行。這不是 AIO 容器沙盒；不能宣稱檔案寫入、任意長時間執行、全平台沙盒或24小時可用。Codespace 停止／休眠時宿主也不能接單。cancel_batch 只取消未開始項目；宿主 STOP／撤回會使受管 Codex 程序停止。
 
 不得把歷史單次成功冒成本 Work 或新 Work 驗收。沒有實際執行能力時回 EXECUTION_NOT_BOUND；工具缺失回 TOOL_NOT_FOUND，不拼裝另一個 HTTP client、服務或模擬回執。接受標準與獨立 QA 判定另外保存，不以 CLI 正常完成代簽 QA。
+
 

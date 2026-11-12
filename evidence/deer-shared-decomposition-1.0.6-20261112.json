@@ -1,0 +1,94 @@
+{
+  "schema": "deer-shared-decomposition-release-v1",
+  "date": "2026-11-12",
+  "version": "1.0.6",
+  "release_id": "pluginrel_6af5b327819481918468c4f9239bd60d",
+  "scope": "same-authorized-account connected Work",
+  "runtime_code_unchanged": "2cabd8501ed8cce4ec9d45597fc884a72fb4a004",
+  "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+  "operation_key": "platform-shared-decomposition-1794486980145",
+  "batch_id": "native-batch-2ef7bd04d29d4d1592cc29ef31d1190a",
+  "goal_and_children_match": true,
+  "children_cancelled": true,
+  "automatic_dispatch": false,
+  "native_execution_started": false,
+  "request": {
+    "parent_id": "deer-parent-c6d05126d042ad6da9eb089b34a40c16",
+    "operation_key": "platform-shared-decomposition-1794486980145",
+    "title": "平台共用大任務拆解驗收",
+    "goal": "驗收共用入口：把簡單待辦功能規劃拆成需求、介面契約、驗收清單三份獨立工作包。此為只登記測試，不實作、不派工。",
+    "subagent_type": "general-purpose"
+  },
+  "submitted_items": [
+    {
+      "key": "requirements",
+      "prompt": "只登記的測試工作包，不執行。為最小待辦功能擬需求模板，功能範圍固定為新增、完成、刪除待辦；模板含使用者目標、三項功能及不涵蓋事項，不依賴其他子項產出。",
+      "acceptance_criteria": [
+        "列出新增、完成、刪除三項功能。",
+        "列出不涵蓋事項，不實際開發。"
+      ]
+    },
+    {
+      "key": "interface-contract",
+      "prompt": "只登記的測試工作包，不執行。為最小待辦功能擬介面契約模板，固定欄位為 id、title、completed，操作固定為新增、完成、刪除；列出輸入與輸出格式，不依賴其他子項產出。",
+      "acceptance_criteria": [
+        "列出三個固定欄位與三種操作的輸入輸出。",
+        "只交規格模板，不調用外部服務。"
+      ]
+    },
+    {
+      "key": "acceptance-checklist",
+      "prompt": "只登記的測試工作包，不執行。為新增、完成、刪除待辦三個固定功能擬驗收清單模板，包含成功情境、空白標題與不存在的 id；不依賴其他子項產出。",
+      "acceptance_criteria": [
+        "每種操作都有驗收條目。",
+        "包含空白標題與不存在 id 的失敗情境。"
+      ]
+    }
+  ],
+  "raw_planning_reply": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"status\": \"AWAITING_CURRENT_GPT_DECOMPOSITION\",\n  \"goal\": \"驗收共用入口：把簡單待辦功能規劃拆成需求、介面契約、驗收清單三份獨立工作包。此為只登記測試，不實作、不派工。\",\n  \"goal_sha256\": \"7249a8b0b17109b163a346f6e6175cb155d223d32a47cbd594c1dae7bdfd6281\",\n  \"parent_id\": \"deer-parent-c6d05126d042ad6da9eb089b34a40c16\",\n  \"operation_key\": \"platform-shared-decomposition-1794486980145\",\n  \"saved\": false,\n  \"automatic_dispatch\": false,\n  \"planner\": \"current_gpt_work\",\n  \"next_action\": \"In this same GPT turn, decompose the goal into 1..100 self-contained, independent child tasks with stable unique keys, clear prompts and acceptance_criteria. Do not execute them. Call batch_task once with the identical goal, parent_id and operation_key plus those items. This preparation did not enqueue a submission. Keep each dependency chain together in one item; this independent batch is not a dependency scheduler. Then use batch_status with include_plan=true and item_offset=0 to verify the original saved goal and children. Unknown commit outcomes must be recovered with batch_receipt using the same key.\"\n}"
+      }
+    ],
+    "structuredContent": null,
+    "isError": false
+  },
+  "raw_submit_receipt": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"42ececb2d34652d4dacae20c4c0cdb0b27ef319bbf410dc160dee04c2090500b\",\n  \"request_sha256\": \"6a3e5736585949ca2032d39364bd90062b8e3c8e3b3abd2cd9240efb1a4bdd48\",\n  \"result\": {\n    \"decomposition\": {\n      \"automatic_dispatch\": false,\n      \"goal\": \"驗收共用入口：把簡單待辦功能規劃拆成需求、介面契約、驗收清單三份獨立工作包。此為只登記測試，不實作、不派工。\",\n      \"goal_sha256\": \"7249a8b0b17109b163a346f6e6175cb155d223d32a47cbd594c1dae7bdfd6281\",\n      \"item_keys\": [\n        \"requirements\",\n        \"interface-contract\",\n        \"acceptance-checklist\"\n      ],\n      \"parent_id\": \"deer-parent-c6d05126d042ad6da9eb089b34a40c16\",\n      \"planner\": \"current_gpt_work\",\n      \"schema\": \"deer-task-decomposition-v1\"\n    },\n    \"messages\": [\n      {\n        \"content\": \"Batch native-batch-2ef7bd04d29d4d1592cc29ef31d1190a recorded with 3 items. It is pending authorized holder dispatch; this call did not launch native tasks. Use batch_status for stored state only. Do not duplicate these items or change their submission key.\",\n        \"name\": \"batch_task\",\n        \"status\": \"success\"\n      }\n    ]\n  }\n}"
+      }
+    ],
+    "structuredContent": null,
+    "isError": false
+  },
+  "raw_plan_read": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"ab71b7ae26bd66090a2c84091ea9d6e866b3f52b659efcf02240a97e8e8605e0\",\n  \"request_sha256\": \"8d52d632b258dd7585006e941f77e74a4ca1449306f65e5fe9bed4e69334a13e\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"列出新增、完成、刪除三項功能。\\\",\\\"列出不涵蓋事項，不實際開發。\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T12:36:26.657344+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-5071ceec03614f45b9875a74004c3541\\\",\\\"item_key\\\":\\\"requirements\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T12:36:26.657344+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"列出三個固定欄位與三種操作的輸入輸出。\\\",\\\"只交規格模板，不調用外部服務。\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T12:36:26.657344+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-f45dc508539f4be8889c2e22e7e66bea\\\",\\\"item_key\\\":\\\"interface-contract\\\",\\\"model_name\\\":null,\\\"position\\\":1,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T12:36:26.657344+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"每種操作都有驗收條目。\\\",\\\"包含空白標題與不存在 id 的失敗情境。\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\\\",\\\"completed_at\\\":null,\\\"created_at\\\":\\\"2026-11-12T12:36:26.657344+00:00\\\",\\\"error\\\":null,\\\"id\\\":\\\"batch-item-3ec32804528c4531bdf10a6268fa4e0f\\\",\\\"item_key\\\":\\\"acceptance-checklist\\\",\\\"model_name\\\":null,\\\"position\\\":2,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"pending\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T12:36:26.657344+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":3}\",\n    \"decomposition\": {\n      \"automatic_dispatch\": false,\n      \"batch_id\": \"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\",\n      \"children\": [\n        {\n          \"acceptance_criteria\": [\n            \"列出新增、完成、刪除三項功能。\",\n            \"列出不涵蓋事項，不實際開發。\"\n          ],\n          \"acceptance_verdict\": null,\n          \"attempt\": 0,\n          \"batch_id\": \"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\",\n          \"completed_at\": null,\n          \"created_at\": \"2026-11-12T12:36:26.657344+00:00\",\n          \"error\": null,\n          \"id\": \"batch-item-5071ceec03614f45b9875a74004c3541\",\n          \"item_key\": \"requirements\",\n          \"model_name\": null,\n          \"position\": 0,\n          \"prompt\": \"只登記的測試工作包，不執行。為最小待辦功能擬需求模板，功能範圍固定為新增、完成、刪除待辦；模板含使用者目標、三項功能及不涵蓋事項，不依賴其他子項產出。\",\n          \"result_preview\": null,\n          \"result_truncated\": false,\n          \"started_at\": null,\n          \"status\": \"pending\",\n          \"stop_reason\": null,\n          \"token_usage\": null,\n          \"updated_at\": \"2026-11-12T12:36:26.657344+00:00\"\n        },\n        {\n          \"acceptance_criteria\": [\n            \"列出三個固定欄位與三種操作的輸入輸出。\",\n            \"只交規格模板，不調用外部服務。\"\n          ],\n          \"acceptance_verdict\": null,\n          \"attempt\": 0,\n          \"batch_id\": \"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\",\n          \"completed_at\": null,\n          \"created_at\": \"2026-11-12T12:36:26.657344+00:00\",\n          \"error\": null,\n          \"id\": \"batch-item-f45dc508539f4be8889c2e22e7e66bea\",\n          \"item_key\": \"interface-contract\",\n          \"model_name\": null,\n          \"position\": 1,\n          \"prompt\": \"只登記的測試工作包，不執行。為最小待辦功能擬介面契約模板，固定欄位為 id、title、completed，操作固定為新增、完成、刪除；列出輸入與輸出格式，不依賴其他子項產出。\",\n          \"result_preview\": null,\n          \"result_truncated\": false,\n          \"started_at\": null,\n          \"status\": \"pending\",\n          \"stop_reason\": null,\n          \"token_usage\": null,\n          \"updated_at\": \"2026-11-12T12:36:26.657344+00:00\"\n        },\n        {\n          \"acceptance_criteria\": [\n            \"每種操作都有驗收條目。\",\n            \"包含空白標題與不存在 id 的失敗情境。\"\n          ],\n          \"acceptance_verdict\": null,\n          \"attempt\": 0,\n          \"batch_id\": \"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\",\n          \"completed_at\": null,\n          \"created_at\": \"2026-11-12T12:36:26.657344+00:00\",\n          \"error\": null,\n          \"id\": \"batch-item-3ec32804528c4531bdf10a6268fa4e0f\",\n          \"item_key\": \"acceptance-checklist\",\n          \"model_name\": null,\n          \"position\": 2,\n          \"prompt\": \"只登記的測試工作包，不執行。為新增、完成、刪除待辦三個固定功能擬驗收清單模板，包含成功情境、空白標題與不存在的 id；不依賴其他子項產出。\",\n          \"result_preview\": null,\n          \"result_truncated\": false,\n          \"started_at\": null,\n          \"status\": \"pending\",\n          \"stop_reason\": null,\n          \"token_usage\": null,\n          \"updated_at\": \"2026-11-12T12:36:26.657344+00:00\"\n        }\n      ],\n      \"goal\": \"驗收共用入口：把簡單待辦功能規劃拆成需求、介面契約、驗收清單三份獨立工作包。此為只登記測試，不實作、不派工。\",\n      \"goal_sha256\": \"7249a8b0b17109b163a346f6e6175cb155d223d32a47cbd594c1dae7bdfd6281\",\n      \"item_keys\": [\n        \"requirements\",\n        \"interface-contract\",\n        \"acceptance-checklist\"\n      ],\n      \"limit\": 25,\n      \"offset\": 0,\n      \"parent_id\": \"deer-parent-c6d05126d042ad6da9eb089b34a40c16\",\n      \"planner\": \"current_gpt_work\",\n      \"schema\": \"deer-task-decomposition-v1\"\n    }\n  }\n}"
+      }
+    ],
+    "structuredContent": null,
+    "isError": false
+  },
+  "raw_final_cancelled_plan_read": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"automatic_dispatch\": false,\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"native_execution_verified\": false,\n  \"request_id\": \"2fd861ebad1c710993a11fdd2724d0f5db399a8238e4c866749b5ccb3f81df18\",\n  \"request_sha256\": \"75330d24812fabac29a98d62a7d73aff66ac0a3ed073d4393ae211a264ba6607\",\n  \"result\": {\n    \"content\": \"{\\\"automatic_dispatch\\\":false,\\\"batch_id\\\":\\\"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\\\",\\\"execution_mode\\\":\\\"native_holder\\\",\\\"items\\\":[{\\\"acceptance_criteria\\\":[\\\"列出新增、完成、刪除三項功能。\\\",\\\"列出不涵蓋事項，不實際開發。\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\\\",\\\"completed_at\\\":\\\"2026-11-12T12:37:55.692217+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T12:36:26.657344+00:00\\\",\\\"error\\\":\\\"Cancelled before any native dispatch attempt\\\",\\\"id\\\":\\\"batch-item-5071ceec03614f45b9875a74004c3541\\\",\\\"item_key\\\":\\\"requirements\\\",\\\"model_name\\\":null,\\\"position\\\":0,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"cancelled\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T12:37:55.692217+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"列出三個固定欄位與三種操作的輸入輸出。\\\",\\\"只交規格模板，不調用外部服務。\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\\\",\\\"completed_at\\\":\\\"2026-11-12T12:37:55.692217+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T12:36:26.657344+00:00\\\",\\\"error\\\":\\\"Cancelled before any native dispatch attempt\\\",\\\"id\\\":\\\"batch-item-f45dc508539f4be8889c2e22e7e66bea\\\",\\\"item_key\\\":\\\"interface-contract\\\",\\\"model_name\\\":null,\\\"position\\\":1,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"cancelled\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T12:37:55.692217+00:00\\\"},{\\\"acceptance_criteria\\\":[\\\"每種操作都有驗收條目。\\\",\\\"包含空白標題與不存在 id 的失敗情境。\\\"],\\\"acceptance_verdict\\\":null,\\\"attempt\\\":0,\\\"batch_id\\\":\\\"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\\\",\\\"completed_at\\\":\\\"2026-11-12T12:37:55.692217+00:00\\\",\\\"created_at\\\":\\\"2026-11-12T12:36:26.657344+00:00\\\",\\\"error\\\":\\\"Cancelled before any native dispatch attempt\\\",\\\"id\\\":\\\"batch-item-3ec32804528c4531bdf10a6268fa4e0f\\\",\\\"item_key\\\":\\\"acceptance-checklist\\\",\\\"model_name\\\":null,\\\"position\\\":2,\\\"result_preview\\\":null,\\\"result_truncated\\\":false,\\\"started_at\\\":null,\\\"status\\\":\\\"cancelled\\\",\\\"stop_reason\\\":null,\\\"token_usage\\\":null,\\\"updated_at\\\":\\\"2026-11-12T12:37:55.692217+00:00\\\"}],\\\"limit\\\":25,\\\"native_live_status_verified\\\":false,\\\"offset\\\":0,\\\"returned\\\":3}\",\n    \"decomposition\": {\n      \"automatic_dispatch\": false,\n      \"batch_id\": \"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\",\n      \"children\": [\n        {\n          \"acceptance_criteria\": [\n            \"列出新增、完成、刪除三項功能。\",\n            \"列出不涵蓋事項，不實際開發。\"\n          ],\n          \"acceptance_verdict\": null,\n          \"attempt\": 0,\n          \"batch_id\": \"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\",\n          \"completed_at\": \"2026-11-12T12:37:55.692217+00:00\",\n          \"created_at\": \"2026-11-12T12:36:26.657344+00:00\",\n          \"error\": \"Cancelled before any native dispatch attempt\",\n          \"id\": \"batch-item-5071ceec03614f45b9875a74004c3541\",\n          \"item_key\": \"requirements\",\n          \"model_name\": null,\n          \"position\": 0,\n          \"prompt\": \"只登記的測試工作包，不執行。為最小待辦功能擬需求模板，功能範圍固定為新增、完成、刪除待辦；模板含使用者目標、三項功能及不涵蓋事項，不依賴其他子項產出。\",\n          \"result_preview\": null,\n          \"result_truncated\": false,\n          \"started_at\": null,\n          \"status\": \"cancelled\",\n          \"stop_reason\": null,\n          \"token_usage\": null,\n          \"updated_at\": \"2026-11-12T12:37:55.692217+00:00\"\n        },\n        {\n          \"acceptance_criteria\": [\n            \"列出三個固定欄位與三種操作的輸入輸出。\",\n            \"只交規格模板，不調用外部服務。\"\n          ],\n          \"acceptance_verdict\": null,\n          \"attempt\": 0,\n          \"batch_id\": \"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\",\n          \"completed_at\": \"2026-11-12T12:37:55.692217+00:00\",\n          \"created_at\": \"2026-11-12T12:36:26.657344+00:00\",\n          \"error\": \"Cancelled before any native dispatch attempt\",\n          \"id\": \"batch-item-f45dc508539f4be8889c2e22e7e66bea\",\n          \"item_key\": \"interface-contract\",\n          \"model_name\": null,\n          \"position\": 1,\n          \"prompt\": \"只登記的測試工作包，不執行。為最小待辦功能擬介面契約模板，固定欄位為 id、title、completed，操作固定為新增、完成、刪除；列出輸入與輸出格式，不依賴其他子項產出。\",\n          \"result_preview\": null,\n          \"result_truncated\": false,\n          \"started_at\": null,\n          \"status\": \"cancelled\",\n          \"stop_reason\": null,\n          \"token_usage\": null,\n          \"updated_at\": \"2026-11-12T12:37:55.692217+00:00\"\n        },\n        {\n          \"acceptance_criteria\": [\n            \"每種操作都有驗收條目。\",\n            \"包含空白標題與不存在 id 的失敗情境。\"\n          ],\n          \"acceptance_verdict\": null,\n          \"attempt\": 0,\n          \"batch_id\": \"native-batch-2ef7bd04d29d4d1592cc29ef31d1190a\",\n          \"completed_at\": \"2026-11-12T12:37:55.692217+00:00\",\n          \"created_at\": \"2026-11-12T12:36:26.657344+00:00\",\n          \"error\": \"Cancelled before any native dispatch attempt\",\n          \"id\": \"batch-item-3ec32804528c4531bdf10a6268fa4e0f\",\n          \"item_key\": \"acceptance-checklist\",\n          \"model_name\": null,\n          \"position\": 2,\n          \"prompt\": \"只登記的測試工作包，不執行。為新增、完成、刪除待辦三個固定功能擬驗收清單模板，包含成功情境、空白標題與不存在的 id；不依賴其他子項產出。\",\n          \"result_preview\": null,\n          \"result_truncated\": false,\n          \"started_at\": null,\n          \"status\": \"cancelled\",\n          \"stop_reason\": null,\n          \"token_usage\": null,\n          \"updated_at\": \"2026-11-12T12:37:55.692217+00:00\"\n        }\n      ],\n      \"goal\": \"驗收共用入口：把簡單待辦功能規劃拆成需求、介面契約、驗收清單三份獨立工作包。此為只登記測試，不實作、不派工。\",\n      \"goal_sha256\": \"7249a8b0b17109b163a346f6e6175cb155d223d32a47cbd594c1dae7bdfd6281\",\n      \"item_keys\": [\n        \"requirements\",\n        \"interface-contract\",\n        \"acceptance-checklist\"\n      ],\n      \"limit\": 25,\n      \"offset\": 0,\n      \"parent_id\": \"deer-parent-c6d05126d042ad6da9eb089b34a40c16\",\n      \"planner\": \"current_gpt_work\",\n      \"schema\": \"deer-task-decomposition-v1\"\n    }\n  }\n}"
+      }
+    ],
+    "structuredContent": null,
+    "isError": false
+  },
+  "metadata_preserved": true,
+  "notes": [
+    "This GPT decomposed the task; no additional model service was called.",
+    "Original Holder stores goal and children in original Deer SQL. No second system.",
+    "Current owner service live goal/read/cancel acceptance; earlier fresh Work management/execution acceptance remains separate."
+  ]
+}
