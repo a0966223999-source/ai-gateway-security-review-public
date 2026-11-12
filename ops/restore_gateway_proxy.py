@@ -1,4 +1,4 @@
-"""Restore the original private forwarded origin with auth and CSRF retained."""
+"""Restore the existing original Codespaces login proxy setting; retain all original gates."""
 from pathlib import Path
 import json
 import os
@@ -14,15 +14,15 @@ ORIGIN='https://fantastic-space-system-vprp5995g5q43xgv4-8001.app.github.dev'
 def main():
     sys.path.insert(0,'/home/codespace/dr-consent-page-84a0640e/ops')
     from install_management_consent_page import process,stop,start,alive,idle,wait_health,status
-    previous=json.loads((R/'dr-management-resume-v1/receipt.json').read_text())
+    previous=json.loads((R/'dr-management-original-origin-v1/receipt.json').read_text())
     gateway=process(previous['gateway_pid'],'app.gateway.app:app')
     manager=process(previous['manager_pid'],str(S/'platform_service_manager.py'))
-    if gateway['env'].get('GATEWAY_CORS_ORIGINS',''):
+    if (gateway['env'].get('GATEWAY_CORS_ORIGINS') != ORIGIN or gateway['env'].get('GATEWAY_CODESPACE_AUTH_PROXY_ORIGIN')):
         raise RuntimeError('EXISTING_ORIGIN_CONFIG_QUERY_ONLY')
     counts=idle(B/'.deer-flow/data/deerflow.db')
     time.sleep(1)
     idle(B/'.deer-flow/data/deerflow.db')
-    evidence=R/'dr-management-original-origin-v1'
+    evidence=R/'dr-management-original-proxy-v1'
     evidence.mkdir(mode=0o700)
     (evidence/'executed-source.py').write_bytes(Path(__file__).read_bytes())
     new_gateway=None
@@ -38,7 +38,7 @@ def main():
             raise RuntimeError('ORIGINAL_GATEWAY_CHANGED_STOP')
         idle(B/'.deer-flow/data/deerflow.db')
         stop(gateway)
-        gateway['env']={**original_env,'GATEWAY_CORS_ORIGINS':ORIGIN}
+        gateway['env']={**original_env,'GATEWAY_CODESPACE_AUTH_PROXY_ORIGIN':'https://localhost:8001'}
         new_gateway=start(gateway,evidence/'gateway.log')
         wait_health()
         if status('/api/v1/auth/me')[0]!=401:
@@ -47,7 +47,7 @@ def main():
         time.sleep(2)
         if new_manager.poll() is not None:
             raise RuntimeError('ORIGINAL_MANAGER_START_FAILED')
-        receipt={'status':'ORIGINAL_PRIVATE_ORIGIN_RESTORED',
+        receipt={'status':'ORIGINAL_CODESPACE_LOGIN_PROXY_RESTORED',
             'gateway_pid':new_gateway.pid,'manager_pid':new_manager.pid,
             'origin':ORIGIN,'auth_and_csrf_retained':True,'idle_counts':counts,
             'management_consent_issued':False,'model_executed':False,

@@ -1,5 +1,0 @@
-redis==6.4.0
-mcp==1.29.0
-cryptography==50.0.2
-fakeredis[lua]==2.40.0
-lupa==2.8

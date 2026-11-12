@@ -1,8 +1,0 @@
-test_live_pending_or_unknown_state_prevents_reload (test_management_page_install_guards.InstallGuardsTests.test_live_pending_or_unknown_state_prevents_reload) ... ok
-test_reused_pid_identity_never_receives_signal (test_management_page_install_guards.InstallGuardsTests.test_reused_pid_identity_never_receives_signal) ... ok
-test_terminal_rows_are_idle_without_mutation (test_management_page_install_guards.InstallGuardsTests.test_terminal_rows_are_idle_without_mutation) ... ok
-
-----------------------------------------------------------------------
-Ran 3 tests in 0.010s
-
-OK
