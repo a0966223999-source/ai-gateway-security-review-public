@@ -1,0 +1,20 @@
+{
+  "original_sha256": "c642970debbd44275eaec251f1aee40cdbcc140bffa1accb6718b0d49c1a458c",
+  "candidate_sha256": "ccb42bb0e2ff1388d1b896f04a810ce27823e71b7c06c7ac99c44760e3ba9f32",
+  "checks": [
+    {
+      "name": "compile",
+      "exit_code": 0
+    },
+    {
+      "name": "boundary-tests",
+      "exit_code": 0
+    }
+  ],
+  "live_executor_modified": false,
+  "native_dispatch": 0,
+  "scope": "actual executor boundary with fixture SQL/authority/CLI; not full executor or formal S61 acceptance",
+  "observed_at": 1794554851.3289373,
+  "evidence_kind": "terminal-observation-summary",
+  "raw_logs": "original host native-adapter/boundary-tests.log; not downloaded"
+}
