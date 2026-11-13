@@ -1,0 +1,43 @@
+{
+  "commit": "db5a6cdda7cbbc4c92cc0d5217acd2881b0248ba",
+  "kind": "original-host-loader-entry-validation",
+  "observed_at": 1794543615.8022962,
+  "typecheck_exit": 0,
+  "build_exit": 0,
+  "tests": {
+    "passed": 3,
+    "failed": 0,
+    "real_cordis": true,
+    "runtime_services_supplied": false
+  },
+  "runtime_activation": false,
+  "native_dispatch": 0,
+  "formal_binding": "NOT_BOUND",
+  "remaining": [
+    "Owned original loader/Registry/Fiber and stateDir not located in bounded host scan",
+    "Current exact-task Source/Holder and native once/result provider remain required"
+  ],
+  "search_scope": {
+    "roots": [
+      "/home/codespace",
+      "/workspaces/ai-gateway-platform"
+    ],
+    "max_depth": 5,
+    "excluded": [
+      "node_modules",
+      ".git",
+      ".cache",
+      ".local",
+      ".vscode-remote",
+      "go",
+      ".npm",
+      ".pnpm-store"
+    ],
+    "cli": {
+      "dsh": null,
+      "cordis": null
+    },
+    "matching_paths": []
+  },
+  "note": "Connector signed heartbeat is verified for original parent/generation; automatic_dispatch=false. This is not a formal Router runtime or independent QA receipt."
+}
