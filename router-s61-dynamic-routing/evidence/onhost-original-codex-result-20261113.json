@@ -1,0 +1,38 @@
+{
+  "kind": "ORIGINAL_HOST_TERMINAL_OBSERVATION_SUMMARY",
+  "commit": "d4001f633d2b8bfabc75d49bffaf617aa0d1fbfa",
+  "observed_at": 1794553747.0960243,
+  "source_path": "/home/codespace/router-s61-execution-source-5798b3ca",
+  "checks": {
+    "typecheck_exit": 0,
+    "build_exit": 0,
+    "new_mapping_tests": {
+      "passed": 7,
+      "failed": 0
+    }
+  },
+  "scope": "Original production S61 Store with temporary SQLite. SQL/native receipt/raw ACK/account/Source callbacks are synthetic fixtures. No model, native dispatch, formal Runtime or independent QA.",
+  "changes": [
+    "Immutable full-seven-field assignment to original batch/item mapping in original S61 KV.",
+    "Cross-check saved SQL success/attempt1, original native receipt flags, result SHA, exact ACK bytes SHA, intent and child canonical.",
+    "Check Source and latest assignment before/after read and inside original Store commit.",
+    "Reject conflicting evidence or replacement assignment; pending/failed/cancelled stay query-only.",
+    "Evidence capture is not Engine completion, person ACK, acceptance or QA."
+  ],
+  "native_dispatch": 0,
+  "engine_completion": false,
+  "live_gateway_modified": false,
+  "raw_host_files": [
+    "RESULT-MAP-RECEIPT.json",
+    "result-map-typecheck.log",
+    "result-map-mapping-tests.log",
+    "result-map-build.log"
+  ],
+  "remaining": [
+    "Concrete original Codex launch/reservation adapter and signed/authorized native invocation.",
+    "Trusted original SQL/receipt/ACK reader must supply the observation projection; current tests do not bind it.",
+    "Owned S61 context, exact-task Source/Holder and Runtime lifecycle; preserve current DR/DAG/once semantics.",
+    "Original Engine start/delivered-input/result and Stop mapping with formal zero-dispatch/native acceptance."
+  ],
+  "note": "Terminal observation summary, not downloaded raw host log."
+}

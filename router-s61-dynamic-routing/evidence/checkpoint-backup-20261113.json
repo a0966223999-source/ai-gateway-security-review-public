@@ -1,0 +1,14 @@
+{
+  "library_file_id": "libfile_fde3_f-eb6b2c23da1c81919f704bfc783283f4_63f56809d47c8191807fbd28e09b16f4",
+  "version": 0,
+  "bytes": 3201860,
+  "sha256": "9be3396198cdb8760c9f0af745a4c5023d6fc905507a0484ec5040a8acedc216",
+  "commit": "8cb3d7167ee9ccd6040a6fdf49b8803712954f89",
+  "git_text_blobs_verified": 52,
+  "manifest_files": 57,
+  "crc": "PASS",
+  "clean_restore": "PASS",
+  "independent_library_download_sha_crc_manifest": "PASS",
+  "hub_comment": "https://github.com/a0966223999-source/ai-gateway-platform/issues/57#issuecomment-6846467694",
+  "note": "Checkpoint completed before subsequent result-map engineering. Later increments are stored separately and do not rewrite this version's evidence."
+}
