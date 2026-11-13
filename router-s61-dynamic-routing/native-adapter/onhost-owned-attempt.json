@@ -1,0 +1,16 @@
+{
+  "exit_code": 0,
+  "tests": 9,
+  "first_result": "8 PASS; 1 race-result shape error; original fixture log and before-image preserved",
+  "live_executor_modified": false,
+  "native_dispatch": 0,
+  "engine_completed": false,
+  "source_binding": "HELD_CALLBACKS_NOT_FORMALLY_ASSEMBLED",
+  "scope": "whole original execute_item/_execute_item functions; SQL, authority, Popen and stop callback are fixtures",
+  "observed_at": 1794556980.0196848,
+  "files": {
+    "owned_attempt.py": "7fa2c9af3334d484e83e1553f4c5acc2e1238d837ef1a80f30e30fddd39dafd3",
+    "test_owned_attempt.py": "e723d0c38a2e59d2a9db3432bcc61e4d7d30780d7160db5920b96a82ddaaafba"
+  },
+  "evidence_kind": "terminal-observation-summary; raw logs retained at original host"
+}
