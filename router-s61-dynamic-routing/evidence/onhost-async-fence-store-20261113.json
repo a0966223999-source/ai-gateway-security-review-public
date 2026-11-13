@@ -1,0 +1,49 @@
+{
+  "kind": "ORIGINAL_HOST_TERMINAL_OBSERVATION_SUMMARY",
+  "commit": "501c10b09975edc75d2af8eec857a96653dbceb2",
+  "observed_at": 1794552362.8956025,
+  "source_path": "/home/codespace/router-s61-execution-source-5798b3ca",
+  "checks": {
+    "typecheck_exit": 0,
+    "build_exit": 0,
+    "new_production_store_effects_tests": {
+      "passed": 4,
+      "failed": 0
+    },
+    "affected_sync_fence_regressions_local": {
+      "passed": 3,
+      "failed": 0
+    }
+  },
+  "scope": "Original production Store, Effects, Engine and temporary SQLite. Identity, Source and native reservation callbacks are synthetic. No formal Runtime or Codex execution.",
+  "changes": [
+    "External async native reservation port; original DSH sync port preserved.",
+    "Observation intent saved in original route KV before native await; unknown/crash re-entry invokes original recover only.",
+    "Sync claim cannot bypass a recorded async attempt.",
+    "Revalidate Source/policy/provider/Stop after native await; no send after revocation.",
+    "Original Store/Effects transaction rollback verified."
+  ],
+  "native_dispatch": 0,
+  "formal_runtime_activation": false,
+  "live_gateway_modified": false,
+  "raw_host_logs": [
+    "ASYNC-FENCE-RECEIPT.json",
+    "async-fence-typecheck.log",
+    "async-fence-production-store-tests.log",
+    "async-fence-build.log"
+  ],
+  "failure_history": [
+    {
+      "scope": "Local targeted regression launcher",
+      "exit": 1,
+      "reason": "Node strip-only mode rejects original TypeScript parameter properties; rerun with --experimental-transform-types passed 3 affected tests. Not a product failure."
+    }
+  ],
+  "remaining": [
+    "Concrete adapter from S61 assignment to original signed/authorized Codex batch/item binding.",
+    "Original reservation/launch boundary must not be treated as a native completion; preserve current Codex/DAG/DR semantics.",
+    "Original ACK and saved result mapping back to same S61 assignment; query-only recovery and Stop integration.",
+    "Owned S61 service context and exact-task Source/Holder binding in original startup; same-window G0 and formal acceptance remain NOT_RUN."
+  ],
+  "note": "This is a summary of observed terminal output, not downloaded raw host logs or independent QA."
+}
