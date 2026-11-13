@@ -82,3 +82,4 @@ async function applyRuntime(ctx: Context, config: DeploymentConfig, coldIdle?: R
 }
 export type { Deployment, DeploymentConfig } from './deployment.ts'
 export * from './core/index.ts'
+export { bindOriginalCodexResult } from './executor/original_codex_result.mjs'
