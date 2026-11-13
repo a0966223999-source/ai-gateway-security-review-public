@@ -44,7 +44,7 @@ export function createDynamicRoutingPlugin(dynamic: DynamicRoutingCapability,
   })
 }
 /** Register at the owned loader's original entry point, never beside an existing S61. */
-export function registerDynamicRoutingPlugin(ctx: Context, config: DeploymentConfig,
+export function registerDynamicRoutingPlugin(ctx: Context, config: Parameters<typeof Config>[0],
   dynamic: DynamicRoutingCapability, coldIdle?: RecoveryColdIdleCapability) {
   const plugin = createDynamicRoutingPlugin(dynamic, coldIdle)
   if (ctx.registry.has({ apply }) || [...ctx.registry.values()].some(runtime => runtime.name === name)) {
