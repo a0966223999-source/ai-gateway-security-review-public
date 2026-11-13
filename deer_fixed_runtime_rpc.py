@@ -85,7 +85,8 @@ def install_fixed_runtime_tools(mcp, *, rpc, principal, oauth_meta, enabled=Fals
         if prior.get('status')!='NOT_FOUND_QUERY_ONLY':
             return public_reply(prior,historical=True)
         reply=await asyncio.to_thread(rpc.call,owner=owner,parent=rpc.config['parent_id'],
-            action=action,operation_key=key,payload={
+            action=action,operation_key=key,
+            response_timeout=12 if request.kind in ('prepare','status','stop') else 3,payload={
                 **request.model_dump(exclude={'operation_key'},exclude_unset=True),
                 'execution_mode':MODE,'runtime_operation_key':request.operation_key})
         if principal()!=owner:
