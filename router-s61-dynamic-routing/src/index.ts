@@ -43,6 +43,16 @@ export function createDynamicRoutingPlugin(dynamic: DynamicRoutingCapability,
     },
   })
 }
+/** Register at the owned loader's original entry point, never beside an existing S61. */
+export function registerDynamicRoutingPlugin(ctx: Context, config: DeploymentConfig,
+  dynamic: DynamicRoutingCapability, coldIdle?: RecoveryColdIdleCapability) {
+  const plugin = createDynamicRoutingPlugin(dynamic, coldIdle)
+  if (ctx.registry.has({ apply }) || [...ctx.registry.values()].some(runtime => runtime.name === name)) {
+    throw new Error('DYNAMIC_RUNTIME_ORIGINAL_ENTRY_ALREADY_REGISTERED')
+  }
+  // Return the native Fiber/thenable: startup failures, restart and disposal retain Cordis ownership.
+  return ctx.plugin(plugin, config)
+}
 function validateDynamicRoutingCapability(dynamic: DynamicRoutingCapability,
   coldIdle?: RecoveryColdIdleCapability): void {
   if (!dynamic || !dynamic.originalProviderId || ['providers', 'readRequirements', 'checkCurrent'].some(
