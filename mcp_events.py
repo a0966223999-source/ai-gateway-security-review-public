@@ -318,19 +318,57 @@ class Events:
         return {'delivery_id': delivery_id, 'state': state, 'attempts': attempts, 'last_status': status}
 
     async def dispatch(self, inbox, event_id):
+        """Fan out one original event; no global backlog or background worker.
+
+        The original store caps subscriptions at ten. At most ten workers each
+        give one subscription its own ten-second delivery budget, so every
+        eligible subscription starts without waiting behind a slow callback.
+        """
         inbox = inbox.for_event(self.event_name)
-        deadline = time.monotonic() + 10
         deliveries = (await asyncio.to_thread(inbox.delivery_status))['items']
-        outcomes = []
-        for delivery in deliveries:
-            if delivery.get('event_name', EVENT_NAME) != self.event_name:
-                continue
-            if delivery['event_id'] != event_id or delivery['state'] in ('delivered', 'terminal'):
-                continue
-            if time.monotonic() >= deadline:
-                break
-            try:
-                outcomes.append(await self.deliver(inbox, delivery['delivery_id'], deadline))
-            except InboxError as error:
-                outcomes.append({'delivery_id': delivery['delivery_id'], 'error': str(error)})
+        selected = [d for d in deliveries
+                    if d.get('event_name', EVENT_NAME) == self.event_name
+                    and d.get('event_id') == event_id
+                    and d.get('state') not in ('delivered', 'terminal')]
+        if len(selected) > 10:
+            raise InboxError('dispatch_subscription_limit')
+        ids = [d.get('delivery_id') for d in selected]
+        if any(not isinstance(i, str) or not i for i in ids) or len(set(ids)) != len(ids):
+            raise InboxError('dispatch_delivery_set_invalid')
+        outcomes = [None] * len(selected)
+        work = iter(enumerate(selected))
+
+        async def worker():
+            for index, delivery in work:
+                # An uncertain previous effect must not be automatically replayed.
+                if (delivery.get('state') != 'pending'
+                        or type(delivery.get('attempts')) is not int
+                        or delivery['attempts'] != 0):
+                    outcomes[index] = {'delivery_id': delivery['delivery_id'],
+                                       'state': 'query_only',
+                                       'reason': 'prior_attempt_or_inflight'}
+                    continue
+                try:
+                    outcomes[index] = await self.deliver(
+                        inbox, delivery['delivery_id'], time.monotonic() + 10)
+                except InboxError as error:
+                    outcomes[index] = {'delivery_id': delivery['delivery_id'], 'error': str(error)}
+                except Exception:
+                    # Do not expose network/credential exception text or resend.
+                    outcomes[index] = {'delivery_id': delivery['delivery_id'],
+                                       'error': 'delivery_unknown_query_only'}
+
+        tasks = [asyncio.create_task(worker()) for _ in range(min(10, len(selected)))]
+        try:
+            # Caller owns and awaits every worker. Cancellation joins their
+            # original delivery_finish cleanup; nothing is left running.
+            async with asyncio.timeout(15):
+                await asyncio.gather(*tasks)
+        except BaseException:
+            for task in tasks:
+                if not task.done() and not task.cancelling():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
         return outcomes
+
