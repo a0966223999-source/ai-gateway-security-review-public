@@ -21,10 +21,12 @@ export interface QueueProvider {
   executor: Executor
   /** Original durable native once fence; UNKNOWN is query-only. */
   claimStart?(ticket: Ticket, assignment: Assignment): 'send' | 'query-only'
+  /** Async original SQL fence for external consumers; never called in Store.atomic. */
+  claimStartAsync?(ticket: Ticket, assignment: Assignment): Promise<'send' | 'query-only'>
   /** Query original attempt only; no automatic resend or new assignment. */
   recover?(ticket: Ticket, assignment: Assignment): void
   /** Required for every external executor before Runtime starts. */
-  attachLifecycle?(routing: ExecutorRouting): void
+  attachLifecycle?(routing: DynamicProviderRouting): void
   install?: ExternalConsumerLifecycle['install']
   shutdown?: ExternalConsumerLifecycle['shutdown']
   dispose?: ExternalConsumerLifecycle['dispose']
@@ -44,8 +46,11 @@ export interface DynamicRoutingCapability {
   readRequirements(ticket: Ticket, assignment: Assignment): RoutingRequirements
   checkCurrent(request: RoutingCheck): boolean
 }
+export interface DynamicProviderRouting extends ExecutorRouting {
+  claimStartAsync(ticket: Ticket, assignment: Assignment): Promise<'send' | 'query-only'>
+}
 export interface DynamicExecutor extends Executor {
-  lifecycle(providerId: string): ExecutorRouting
+  lifecycle(providerId: string): DynamicProviderRouting
   recover(): void
   preview(ticketId: string, assignmentId: string): Readonly<{
     providerId: string; providerRevision: string; policyVersion: string

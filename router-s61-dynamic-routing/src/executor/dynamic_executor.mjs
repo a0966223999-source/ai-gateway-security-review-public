@@ -47,7 +47,7 @@ export function bindDynamicExecutor({ store, providers, policy, readRequirements
     registry.set(provider.id, Object.freeze({ id: provider.id, revision: provider.revision,
       capabilities: Object.freeze([...provider.capabilities]), priority: provider.priority,
       available: provider.available, executor: provider.executor,
-      claimStart: provider.claimStart, recover: provider.recover }))
+      claimStart: provider.claimStart, claimStartAsync: provider.claimStartAsync, recover: provider.recover }))
   }
 
   function current(ticketId, assignmentId, action) {
@@ -89,7 +89,8 @@ export function bindDynamicExecutor({ store, providers, policy, readRequirements
         record.assignmentId !== view.assignment.id || record.identity !== identity(view) ||
         !text(record.providerId) || !text(record.providerRevision) || !text(record.policyVersion) ||
         !/^[a-f0-9]{64}$/.test(record.requirementsDigest) ||
-        (record.stopQueued !== undefined && typeof record.stopQueued !== 'boolean')) {
+        (record.stopQueued !== undefined && typeof record.stopQueued !== 'boolean') ||
+        (record.asyncFenceAttempted !== undefined && record.asyncFenceAttempted !== true)) {
       fail('DYNAMIC_ORIGINAL_ROUTE_NOT_BOUND')
     }
     return record
@@ -187,10 +188,44 @@ export function bindDynamicExecutor({ store, providers, policy, readRequirements
       },
       claimStart(ticket, assignment) {
         const before = owned(providerId, ticket.id, assignment.id, 'start')
+        if (store.get(keyFor(ticket.id, assignment.id))?.asyncFenceAttempted === true) {
+          fail('DYNAMIC_ASYNC_FENCE_ALREADY_ATTEMPTED_QUERY_ONLY')
+        }
         if (before.view.assignment.state !== 'pending' || typeof before.provider.claimStart !== 'function') {
           fail('DYNAMIC_ORIGINAL_NATIVE_FENCE_NOT_BOUND')
         }
         const decision = before.provider.claimStart(clone(before.view.ticket), clone(before.view.assignment))
+        if (!['send', 'query-only'].includes(decision)) fail('DYNAMIC_NATIVE_FENCE_OUTCOME_UNKNOWN')
+        const after = owned(providerId, ticket.id, assignment.id, 'start')
+        if (context(before.view) !== context(after.view)) fail('DYNAMIC_CONTEXT_CHANGED')
+        return decision
+      },
+      async claimStartAsync(ticket, assignment) {
+        const before = owned(providerId, ticket.id, assignment.id, 'start')
+        const claim = before.provider.claimStartAsync ?? before.provider.claimStart
+        if (before.view.assignment.state !== 'pending' || typeof claim !== 'function') {
+          fail('DYNAMIC_ORIGINAL_NATIVE_FENCE_NOT_BOUND')
+        }
+        const attempted = store.atomic(() => {
+          const current = owned(providerId, ticket.id, assignment.id, 'start')
+          if (context(before.view) !== context(current.view)) fail('DYNAMIC_CONTEXT_CHANGED')
+          const key = keyFor(ticket.id, assignment.id)
+          const record = originalRecord(clone(store.get(key)), current.view)
+          if (record.asyncFenceAttempted === true) return false
+          // A durable observation intent, not a second native reservation or grant.
+          // Unknown replies and crashes must never invoke the native fence again.
+          store.set(key, { ...record, asyncFenceAttempted: true })
+          return true
+        })
+        if (!attempted) {
+          if (typeof before.provider.recover !== 'function') fail('DYNAMIC_ORIGINAL_QUERY_RECOVERY_NOT_BOUND')
+          await before.provider.recover(clone(before.view.ticket), clone(before.view.assignment))
+          return 'query-only'
+        }
+        // Called by the original effect consumer, after the routing transaction.
+        // The original native repository owns the durable once fence; do not
+        // manufacture a second reservation or hold Store.atomic across this await.
+        const decision = await claim(clone(before.view.ticket), clone(before.view.assignment))
         if (!['send', 'query-only'].includes(decision)) fail('DYNAMIC_NATIVE_FENCE_OUTCOME_UNKNOWN')
         const after = owned(providerId, ticket.id, assignment.id, 'start')
         if (context(before.view) !== context(after.view)) fail('DYNAMIC_CONTEXT_CHANGED')
@@ -238,7 +273,10 @@ export function bindRuntimeDynamicExecutor({ capability, store, policy, original
   }
   if (!text(capability.originalProviderId) || !registered.some(provider =>
     provider.id === capability.originalProviderId && provider.executor === originalExecutor) ||
-      registered.some(provider => typeof provider.claimStart !== 'function' || typeof provider.recover !== 'function' ||
+      registered.some(provider => (provider.executor === originalExecutor
+        ? typeof provider.claimStart !== 'function'
+        : typeof provider.claimStart !== 'function' && typeof provider.claimStartAsync !== 'function') ||
+        typeof provider.recover !== 'function' ||
         (provider.executor !== originalExecutor && ['attachLifecycle', 'install', 'shutdown', 'dispose'].some(
           name => typeof provider[name] !== 'function')))) {
     fail('DYNAMIC_ORIGINAL_PROVIDER_LIFECYCLE_NOT_BOUND')
