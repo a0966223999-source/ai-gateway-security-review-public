@@ -1,6 +1,9 @@
 import type { Executor, Policy, Ticket, Assignment } from '../core/index.ts'
 import type { ExecutorRouting } from './dsh.ts'
 import type { Store } from '../app/store.ts'
+import type { Effects } from '../app/effects.ts'
+import type { EngineForExecutor } from '../core/index.ts'
+import type { ExternalConsumerLifecycle } from './provider_lifecycle.mjs'
 
 export interface RoutingRequirements {
   capabilities: string[]
@@ -22,6 +25,9 @@ export interface QueueProvider {
   recover?(ticket: Ticket, assignment: Assignment): void
   /** Required for every external executor before Runtime starts. */
   attachLifecycle?(routing: ExecutorRouting): void
+  install?: ExternalConsumerLifecycle['install']
+  shutdown?: ExternalConsumerLifecycle['shutdown']
+  dispose?: ExternalConsumerLifecycle['dispose']
 }
 export interface RoutingCheck {
   action: 'start' | 'deliver' | 'stop' | 'preview'
@@ -32,7 +38,8 @@ export interface RoutingCheck {
 }
 export interface DynamicRoutingCapability {
   originalProviderId: string
-  providers(host: { store: Store; originalExecutor: Executor; lifetime: AbortSignal }):
+  providers(host: { store: Store; originalExecutor: Executor; lifetime: AbortSignal;
+    effects: Effects; engine(): EngineForExecutor }):
     (QueueProvider & { lifetime: AbortSignal })[]
   readRequirements(ticket: Ticket, assignment: Assignment): RoutingRequirements
   checkCurrent(request: RoutingCheck): boolean
@@ -45,6 +52,7 @@ export interface DynamicExecutor extends Executor {
     requirementsDigest: string; dispatched: false; authority: false
   }>
 }
+export interface RuntimeDynamicExecutor extends DynamicExecutor, ExternalConsumerLifecycle {}
 export function bindDynamicExecutor(options: {
   store: Store
   providers: QueueProvider[]
@@ -58,4 +66,6 @@ export function bindRuntimeDynamicExecutor(options: {
   policy(): Policy
   originalExecutor: Executor
   lifetime: AbortSignal
+  effects: Effects
+  engine(): EngineForExecutor
 }): Executor

@@ -1,0 +1,32 @@
+{
+  "status": "EXECUTION_CONSUMER_LIFECYCLE_PATCHED_NOT_INSTALLED",
+  "base": "ef434c196d7b1883a1df20385f9194feed384196",
+  "observed_before_environment_failure": {
+    "selector_and_lifecycle_tests": {
+      "pass": 36,
+      "fail": 0,
+      "synthetic": true
+    },
+    "runtime_method_tests": {
+      "pass": 5,
+      "fail": 0,
+      "synthetic": true
+    },
+    "runtime_first_run": {
+      "pass": 3,
+      "fail": 2,
+      "cause": "Test fixture lacked machine.stateDir; fixed in fixture, then 5/5 passed."
+    }
+  },
+  "preservation": "Source reconstructed deterministically from recorded successful patches and the pinned base. New test files reconstructed from recorded tests with formatting/comments compacted. Executor environment became unavailable before final byte comparison or test replay. This checkpoint is not an exact-byte archive of the lost local workspace.",
+  "not_run": [
+    "formal_host_install",
+    "live_Source_binding",
+    "native_executor_model_test",
+    "full_project_typecheck",
+    "independent_QA",
+    "three_additional_factory_tests_patch_failed_before_saved"
+  ],
+  "boundary": "No new host, Source, grant, queue, model call, deployment, D2 write or enabled flag.",
+  "next": "Recover executor; compare this Git checkpoint with local files when available; rerun affected test command because checkpoint reconstruction was not replayed; bind owned S61 host instances and valid Source before enabling."
+}

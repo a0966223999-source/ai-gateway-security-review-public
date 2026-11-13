@@ -20,7 +20,7 @@ import { Commands } from '../infra/commands.ts'
 import type { Deployment, Machine } from '../deployment.ts'
 import { environmentOf, ticketEnvironment, type Variable } from './execution-environment.ts'
 import type { SetupProblem } from '../setup.ts'
-import { bindRuntimeDynamicExecutor, type DynamicExecutor, type DynamicRoutingCapability } from '../executor/dynamic_executor.mjs'
+import { bindRuntimeDynamicExecutor, type RuntimeDynamicExecutor, type DynamicRoutingCapability } from '../executor/dynamic_executor.mjs'
 import { DshExecutor, sourceTrigger, triggerMessage, workerSessionId } from '../executor/dsh.ts'
 import { ticketCard } from './cards.ts'
 import { MasterAssessor } from './assessment.ts'
@@ -67,7 +67,7 @@ export class Runtime extends Service implements SourceHost {
   readonly commands: Commands
   readonly sessions: Sessions
   readonly settings: Settings
-  private dynamicExecutor?: DynamicExecutor
+  private dynamicExecutor?: RuntimeDynamicExecutor
   private originalProviderId?: string
   readonly executor: DshExecutor
   readonly assessor: MasterAssessor
@@ -146,10 +146,11 @@ export class Runtime extends Service implements SourceHost {
       const outbox = this.outbox = new Outbox({ store, effects, sources, commands, paused: () => this.paused() })
       const { assessor, executor } = this
       const policy = () => settingsPolicy(store.settings(), sources)
-      const selected = bindRuntimeDynamicExecutor({ capability: dynamic, store, policy, originalExecutor: executor, lifetime: this.lifetime })
+      const selected = bindRuntimeDynamicExecutor({ capability: dynamic, store, policy, originalExecutor: executor,
+        lifetime: this.lifetime, effects, engine: () => runtime.engine })
       if (dynamic) {
         this.originalProviderId = dynamic.originalProviderId
-        this.dynamicExecutor = selected as DynamicExecutor
+        this.dynamicExecutor = selected as RuntimeDynamicExecutor
       }
       const engine = this.engine = new Engine({ repo: store, scope: sources, policy, assessor, executor: selected,
         outbox, prepareTicket: (ticket, outcome) => executor.prepare(ticket, outcome), emit: event => {
@@ -183,7 +184,12 @@ export class Runtime extends Service implements SourceHost {
         get github() { return runtime.context({ kind: 'github', health: ['github'] }) },
         requestPass: () => { passes.request() }, sendReplies: () => outbox.sent(),
         quietly: run => { this.quiet++; try { return run() } finally { this.quiet-- } } }
-      this.ready = this.initialize()
+      this.ready = this.initialize().catch(async (error: unknown) => {
+        try { await this.stop() } catch (cleanup) {
+          throw new AggregateError([error, cleanup], 'DYNAMIC_RUNTIME_INITIALIZE_AND_CLEANUP_FAILED')
+        }
+        throw error
+      })
     } catch (error) {
       // Release the database and state lock if initialization fails so an in-process restart can reacquire them.
       try { opened?.close() } finally { release() }
@@ -227,6 +233,7 @@ export class Runtime extends Service implements SourceHost {
     }
     this.sessions.install()
     this.executor.install()
+    this.dynamicExecutor?.install()
     await this.sessions.ensure(this.masterId, this.machine.stateDir, 'dsh-superagent orchestrator', 'orchestrator')
     for (const id of this.settings.syncable()) await this.settings.sync(id).catch(() => { /* sync() records its failure in health. */ })
     // If stop() was called while awaiting setup, session creation, or policy sync, do not start background loops.
@@ -260,13 +267,19 @@ export class Runtime extends Service implements SourceHost {
       const ids = [this.masterId, ...owned.map(ticket => workerSessionId(ticket.id))]
       const agents = ids.map(id => this.ctx.agents.get(id as SessionId)).filter((agent): agent is Agent => agent !== undefined)
       for (const agent of agents) agent.cancel({ kind: 'user' }, { keepInbox: true })
-      await Promise.allSettled([passes, this.effects.drain(), ...agents.map(agent => agent.whenIdle())])
+      const external = this.dynamicExecutor?.shutdown() ?? Promise.resolve()
+      const settled = await Promise.allSettled([external, passes, this.effects.drain(), ...agents.map(agent => agent.whenIdle())])
       // The workers' jobs and subagents stop too: their ends would start worker turns without the tool limits released below.
       await this.executor.shutdown()
       this.executor.dispose()
       this.sessions.dispose()
       for (const dispose of this.disposers.reverse()) dispose()
       await this.ctx.sessionPersistence.flush()
+      const externalResult = settled[0]!
+      const failures: unknown[] = externalResult.status === 'rejected' ? [externalResult.reason] : []
+      try { this.dynamicExecutor?.dispose() } catch (error) { failures.push(error) }
+      if (failures.length === 1) throw failures[0]
+      if (failures.length) throw new AggregateError(failures, 'DYNAMIC_RUNTIME_PROVIDER_CLEANUP_FAILED')
     } finally {
       // Close the database before releasing the directory lock so another process cannot open the database mid-write; a compromised lock may already be released.
       this.setup.restore()

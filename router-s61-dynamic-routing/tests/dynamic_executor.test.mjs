@@ -332,7 +332,8 @@ test('recovery reads saved provider once without enqueue or changing policy gran
 function runtimeOptions(f, signal) {
   return { store:f.store, policy:f.options.policy, lifetime:signal, originalExecutor:f.providers[0].executor,
     capability:{ originalProviderId:'general', readRequirements:f.options.readRequirements, checkCurrent:f.options.checkCurrent,
-      providers:() => f.providers.map(p => ({...p, lifetime:signal, claimStart:()=>'query-only', recover:()=>{}, attachLifecycle:()=>{}})) } }
+      providers:() => f.providers.map(p => ({...p, lifetime:signal, claimStart:()=>'query-only', recover:()=>{}, attachLifecycle:()=>{},
+        install:()=>{},shutdown:async()=>{},dispose:()=>{}})) } }
 }
 test('trusted Runtime binding attaches external lifecycle without enqueue; abort denies launch but permits cleanup', () => {
   const f = fixture()

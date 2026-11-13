@@ -4,6 +4,7 @@
  * This module creates no Store, queue, Source, grant, runtime or MCP server.
  */
 import { createHash } from 'node:crypto'
+import { providerLifecycle } from './provider_lifecycle.mjs'
 
 const clone = value => structuredClone(value)
 const fail = code => { throw new Error(code) }
@@ -225,20 +226,21 @@ export function bindDynamicExecutor({ store, providers, policy, readRequirements
  * Only a trusted loader can supply this capability; never hydrate it from
  * settings, request JSON, checkpoint data, a model result or an OAuth owner ID.
  */
-export function bindRuntimeDynamicExecutor({ capability, store, policy, originalExecutor, lifetime }) {
+export function bindRuntimeDynamicExecutor({ capability, store, policy, originalExecutor, lifetime, effects, engine }) {
   if (capability === undefined) return originalExecutor
   if (!capability || ['providers', 'readRequirements', 'checkCurrent'].some(
     key => typeof capability[key] !== 'function') || !lifetime || lifetime.aborted) {
     fail('DYNAMIC_RUNTIME_HOST_CAPABILITY_NOT_BOUND')
   }
-  const registered = capability.providers({ store, originalExecutor, lifetime })
+  const registered = capability.providers({ store, originalExecutor, lifetime, effects, engine })
   if (!Array.isArray(registered) || registered.some(provider => provider.lifetime !== lifetime)) {
     fail('DYNAMIC_PROVIDER_RUNTIME_LIFETIME_MISMATCH')
   }
   if (!text(capability.originalProviderId) || !registered.some(provider =>
     provider.id === capability.originalProviderId && provider.executor === originalExecutor) ||
       registered.some(provider => typeof provider.claimStart !== 'function' || typeof provider.recover !== 'function' ||
-        (provider.executor !== originalExecutor && typeof provider.attachLifecycle !== 'function'))) {
+        (provider.executor !== originalExecutor && ['attachLifecycle', 'install', 'shutdown', 'dispose'].some(
+          name => typeof provider[name] !== 'function')))) {
     fail('DYNAMIC_ORIGINAL_PROVIDER_LIFECYCLE_NOT_BOUND')
   }
   const readRequirements = capability.readRequirements
@@ -260,5 +262,7 @@ export function bindRuntimeDynamicExecutor({ capability, store, policy, original
   for (const provider of registered) {
     if (provider.executor !== originalExecutor) provider.attachLifecycle(bound.lifecycle(provider.id))
   }
-  return bound
+  // Capture actual consumer methods before returning control to the host loader.
+  const consumers = providerLifecycle(registered.filter(provider => provider.executor !== originalExecutor))
+  return Object.freeze({ ...bound, ...consumers })
 }
