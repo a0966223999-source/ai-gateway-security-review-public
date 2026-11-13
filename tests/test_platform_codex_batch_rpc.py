@@ -24,6 +24,11 @@ class RegistrationTests(unittest.IsolatedAsyncioTestCase):
             tools = {tool.name: tool for tool in await mcp.list_tools()}
             self.assertIn('batch_execute_batch', tools)
             self.assertIn('batch_stop', tools)
+            dag = json.dumps(tools['batch_execute_dag'].inputSchema)
+            self.assertIn('codex_dag_once', dag)
+            self.assertIn('codex_batch_once', dag)
+            self.assertNotIn('executable', dag)
+            self.assertNotIn('prompt', dag)
             single = json.dumps(tools['batch_execute'].inputSchema)
             self.assertIn('codex_once', single)
             self.assertNotIn('codex_batch_once', single)
