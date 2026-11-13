@@ -23,6 +23,28 @@ export async function applyWithRecovery(ctx: Context, config: DeploymentConfig, 
 /** Same original Runtime; only an owned host loader can provide these live capabilities. */
 export async function applyWithDynamicRouting(ctx: Context, config: DeploymentConfig, dynamic: DynamicRoutingCapability,
   coldIdle?: RecoveryColdIdleCapability): Promise<void> {
+  validateDynamicRoutingCapability(dynamic, coldIdle)
+  return applyRuntime(ctx, config, coldIdle, dynamic)
+}
+/**
+ * The owned loader registers this object IN PLACE OF this module's ordinary plugin.
+ * Keep the returned object stable across restarts; never put capabilities in config.
+ * Constructing the entry neither creates a Runtime nor authorizes a dispatch.
+ */
+export function createDynamicRoutingPlugin(dynamic: DynamicRoutingCapability,
+  coldIdle?: RecoveryColdIdleCapability) {
+  validateDynamicRoutingCapability(dynamic, coldIdle)
+  return Object.freeze({
+    name,
+    inject,
+    Config,
+    apply(ctx: Context, config: DeploymentConfig): Promise<void> {
+      return applyWithDynamicRouting(ctx, config, dynamic, coldIdle)
+    },
+  })
+}
+function validateDynamicRoutingCapability(dynamic: DynamicRoutingCapability,
+  coldIdle?: RecoveryColdIdleCapability): void {
   if (!dynamic || !dynamic.originalProviderId || ['providers', 'readRequirements', 'checkCurrent'].some(
     key => typeof dynamic[key as keyof DynamicRoutingCapability] !== 'function')) {
     throw new TypeError('DYNAMIC_RUNTIME_HOST_CAPABILITY_NOT_BOUND')
@@ -30,7 +52,6 @@ export async function applyWithDynamicRouting(ctx: Context, config: DeploymentCo
   if (coldIdle && (typeof coldIdle.readCurrentSource !== 'function' || typeof coldIdle.readCompletion !== 'function')) {
     throw new TypeError('RECOVERY_CAPABILITY_READERS_REQUIRED')
   }
-  return applyRuntime(ctx, config, coldIdle, dynamic)
 }
 async function applyRuntime(ctx: Context, config: DeploymentConfig, coldIdle?: RecoveryColdIdleCapability,
   dynamic?: DynamicRoutingCapability): Promise<void> {
