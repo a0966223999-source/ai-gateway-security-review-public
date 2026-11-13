@@ -383,6 +383,10 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
         def read_status():
             with rpc.connection_factory() as redis:
                 raw = redis.get(rpc.prefix + ':heartbeat')
+                queue_count = redis.llen(rpc.prefix + ':queue')
+                if type(queue_count) is not int or queue_count < 0:
+                    raise ValueError('ORIGINAL_QUEUE_COUNT_UNAVAILABLE')
+                queue_observed_at = time.time()
             ready = False
             observed = None
             if raw:
@@ -398,11 +402,16 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
                     'expires_at': rpc.config['expires_at'], 'worker_heartbeat_verified': ready,
                     'lifecycle': rpc.config.get('lifecycle', 'bounded-test'),
                     'execution_available': 'execute' in rpc.config['actions'],
-                    'observed_at': observed, 'automatic_dispatch': False}
+                    'observed_at': observed, 'automatic_dispatch': False,
+                    'control_queue_observation': {
+                        'pending_count': queue_count, 'observed_at': queue_observed_at,
+                        'source': 'ORIGINAL_MCP_OWNER_SCOPED_REDIS_READ',
+                        'worker_signed': False, 'all_writers_held': False}}
         try:
             result = await asyncio.to_thread(read_status)
             if principal() != owner:
                 raise ToolError('BATCH_PRINCIPAL_CHANGED_QUERY_ONLY')
+            rpc.check(owner, rpc.config['parent_id'])
             return result
         except ToolError:
             raise
