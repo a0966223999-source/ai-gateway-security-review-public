@@ -1,0 +1,56 @@
+{
+  "schema": "s61-onhost-source-build-v1",
+  "observed_at": 1794542621.9997954,
+  "status": "SOURCE_STAGED_BUILD_IMPORT_PASS_NOT_RUNTIME_BOUND",
+  "original_host": "fantastic-space-system-vprp5995g5q43xgv4",
+  "source_path": "/home/codespace/router-s61-execution-source-5798b3ca",
+  "source_archive": {
+    "commit": "0e5164ba56eb7670c9bea600b8e77a611612f7c9",
+    "sha256": "f20c247dc364d66bd22364e56ec9a893db430916d5dbb090c174ee61179cec9e",
+    "size_bytes": 454984,
+    "files": 145
+  },
+  "assets_restored": {
+    "commit": "ee8d4aa8812bb056fa7e36db7bd884a5052f1228",
+    "files": 2,
+    "sha256": {
+      "skills/dsh-superagent-feishu/SKILL.md": "5cd538eef17f39d3a7c8beb0ff12ab2fff6e405139e59e8667009fd16ebd23c8",
+      "skills/dsh-superagent-github/SKILL.md": "5081401e53813652f0afa3d73651147e0e7620577360f57cc43dd1c74fb41507"
+    }
+  },
+  "verification": {
+    "locked_dependencies_exit": 0,
+    "install_scripts": false,
+    "product_typecheck_exit": 0,
+    "product_build_exit": 0,
+    "first_import_exit": 1,
+    "first_import_failure": "Product transfer omitted two original packaged skill assets; restored exact original bytes and retained IMPORT-RECEIPT.json.",
+    "final_import_exit": 0,
+    "final_import_output": {
+      "status": "COMPILED_ENTRY_IMPORTED_NO_RUNTIME",
+      "name": "dsh-superagent",
+      "dynamicEntry": "function",
+      "runtimeConstructed": false
+    },
+    "compiled_entry_sha256": "67dfb96277f7f45af052337f979d0c6b27e142bc31be9a7f4e1f15aaa4011c62",
+    "node": "v24.21.0",
+    "pnpm": "11.7.0",
+    "typescript": "6.0.3",
+    "original_test_suite": "NOT_RUN (product-only transfer; prior 41 fixture tests remain separate evidence)"
+  },
+  "source_metadata_prefilter": {
+    "all_json": 27,
+    "task_sources": 2,
+    "expiry_unrevoked_candidates": 0,
+    "authority_verified": false,
+    "expiry_field": "grant.expiresAtEpoch",
+    "adopted_sources": 0
+  },
+  "runtime_constructed": false,
+  "native_dispatch": 0,
+  "new_Source_or_grant": 0,
+  "formal_QA": "NOT_RUN",
+  "boundary": "Original product source staged on same Codespace only. No original S61 Registry/Fiber/Store capability, native provider or trusted task binding was fabricated. No Gateway/worker/model launched by this Work; no D2 write or Gate1 change. Source staging is not formal runtime activation.",
+  "evidence_kind": "Observed UI outputs; raw receipts/logs remain in source_path. This Git report is a summary, not raw host log bytes.",
+  "next_required": "Owned original S61 Registry/Fiber/Store and current exact-task Source/Holder/native once/result mapping; then zero-dispatch integration and bounded native acceptance."
+}
