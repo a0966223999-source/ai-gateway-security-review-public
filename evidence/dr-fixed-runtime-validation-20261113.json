@@ -1,0 +1,41 @@
+{
+  "status": "ISOLATED_CANDIDATE_PASS_LIVE_NOT_RUN",
+  "source_base": "665840f3bda591536afbaf6ff2e5b8111e6c69e4",
+  "preserved_background_head": "5424d7bb70710886f05696229a32615b0935d169",
+  "checks": [
+    {
+      "log": "runtime-final-main-tests.txt",
+      "sha256": "8d23c6b127a5ffc13b5daf3315ad0171e8a29d6149166aa2523043ffa320d1eb",
+      "summary": [
+        "----------------------------------------------------------------------",
+        "Ran 92 tests in 32.136s",
+        "",
+        "OK"
+      ]
+    },
+    {
+      "log": "runtime-final-transport-tests.txt",
+      "sha256": "507542e44ef37a81d8999b87d8db7ea732bf0b40f8788265dfab8f55b8065d13",
+      "summary": [
+        "----------------------------------------------------------------------",
+        "Ran 56 tests in 14.036s",
+        "",
+        "OK"
+      ]
+    },
+    {
+      "log": "runtime-restored-candidate-tests.txt",
+      "sha256": "7db5b41009dccb7a962a64ae6ea02fa13b42b2406fce264ffc8b7a00cce3d935",
+      "summary": [
+        "----------------------------------------------------------------------",
+        "Ran 21 tests in 3.449s",
+        "",
+        "OK"
+      ]
+    }
+  ],
+  "independent_qa": "NOT_RUN",
+  "real_model": "NOT_RUN",
+  "fixed_role_live_stop": "NOT_RUN",
+  "runtime_grant_issued": false
+}

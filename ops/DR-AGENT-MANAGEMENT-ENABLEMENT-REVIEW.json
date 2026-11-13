@@ -1,0 +1,18 @@
+{
+  "status": "OPERATOR_HOST_TEST_APPROVED_EXECUTED_CLOSED",
+  "duration_seconds": 600,
+  "test_agent_name": "qa-dr-readback-20261112",
+  "scope_closed": true,
+  "model_execution": false,
+  "other_agents_affected": false,
+  "checkpoint_link_upgraded": false,
+  "global_agents_api_enabled": false,
+  "mcp_management_granted": false,
+  "pending": [
+    "authenticated original-account management consent issuer",
+    "original protected session transport and host resolver assembly",
+    "fixed-Agent CAS and stop capability"
+  ],
+  "receipt": "evidence/dr-fixed-agent-host-trial-20261112.json",
+  "approval_does_not_prove_deployed": true
+}

@@ -20,6 +20,7 @@ from typing import Literal
 from batch_mcp_entry import Submit, Status, RequestBase, planning_response
 from platform_pending_cancel import PendingCancel as Cancel
 from fresh_batch_host import canonical, digest, enrollment_active, request_deadline
+from platform_codex_batch import ExecuteBatch
 from platform_codex_executor import Execute
 from platform_codex_stop import Stop
 
@@ -34,10 +35,12 @@ def install_fresh_batch_routes(app, *, env=os.environ, connection_factory=None):
         return
     from fastapi import Request
     from starlette.responses import JSONResponse
-    from service_extension import original_redis_connection
+    if connection_factory is None:
+        from service_extension import original_redis_connection
+        connection_factory = original_redis_connection
     config = json.loads(env['XJ_FRESH_BATCH_HOST_CONFIG'])
     rpc = BatchRPC(config=config, ingress_key=bytes.fromhex(env['XJ_FRESH_BATCH_INGRESS_KEY']),
-                   connection_factory=connection_factory or original_redis_connection)
+                   connection_factory=connection_factory)
 
     @app.post('/internal/deer-batch/rpc')
     async def fresh_control(request: Request):
@@ -185,8 +188,12 @@ class BatchRPC:
             return self.verified_result(raw, body) if raw else {
                 'request_id': rid, 'status': 'PENDING_OR_UNKNOWN_QUERY_SAME_KEY', 'automatic_dispatch': False}
 
-    def call(self, *, owner, parent, action, operation_key, payload):
+    def call(self, *, owner, parent, action, operation_key, payload, response_timeout=3):
         self.check(owner, parent)
+        if (isinstance(response_timeout, bool)
+                or not isinstance(response_timeout, (int, float))
+                or not 0 < response_timeout <= 15):
+            raise ValueError('BATCH_RESPONSE_WAIT_INVALID')
         if action not in self.config['actions'] or action not in ('submit', 'read', 'cancel', 'execute'):
             raise ValueError('BATCH_ACTION_INVALID')
         body = dict(generation=self.config['generation'], owner=owner, parent_id=parent,
@@ -213,11 +220,18 @@ class BatchRPC:
                 response = redis.get(key + ':response')
                 if response:
                     return self.verified_result(response, original)
-                notice = subscription.get_message(ignore_subscribe_messages=True, timeout=3)
-                if notice and notice.get('type') == 'message':
+                deadline = time.monotonic() + response_timeout
+                while time.monotonic() < deadline:
+                    # Notices are hints only. Verify the stored signed response,
+                    # including after a timeout or an unrelated notice.
+                    subscription.get_message(ignore_subscribe_messages=True,
+                                             timeout=max(0, deadline - time.monotonic()))
                     response = redis.get(key + ':response')
                     if response:
                         return self.verified_result(response, original)
+                response = redis.get(key + ':response')
+                if response:
+                    return self.verified_result(response, original)
         return {'request_id': body['request_id'], 'status': 'PENDING_OR_UNKNOWN_QUERY_SAME_KEY',
                 'automatic_dispatch': False, 'native_execution_verified': False}
 
@@ -232,10 +246,21 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
         return {'enabled': False, 'tools': []}
     if env.get('XJ_FRESH_BATCH_HOST_ENABLED') != 'true':
         return {'enabled': False, 'tools': []}
-    from service_extension import original_redis_connection
+    if connection_factory is None:
+        from service_extension import original_redis_connection
+        connection_factory = original_redis_connection
     rpc = BatchRPC(config=json.loads(raw),
                    ingress_key=bytes.fromhex(env['XJ_FRESH_BATCH_INGRESS_KEY']),
-                   connection_factory=connection_factory or original_redis_connection)
+                   connection_factory=connection_factory)
+
+    from deer_fixed_runtime_rpc import install_fixed_runtime_tools
+    install_fixed_runtime_tools(mcp, rpc=rpc, principal=principal, oauth_meta=oauth_meta,
+        enabled=env.get('XJ_FIXED_AGENT_RUNTIME_ENABLED') == 'true')
+    # A separate, explicit management gate over this same signed transport.
+    # The host still requires original interactive consent and live user policy.
+    from deer_management_rpc import install_management_rpc_tools
+    install_management_rpc_tools(mcp, rpc=rpc, principal=principal,
+        oauth_meta=oauth_meta, enabled=env.get('XJ_AGENT_MANAGEMENT_ENABLED') == 'true')
 
     async def invoke(action, request):
         owner = principal()
@@ -253,10 +278,12 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
                                                         idempotentHint=True, openWorldHint=True))
-    async def batch_task(request: Submit | Execute | Stop) -> dict:
+    async def batch_task(request: Submit | Execute | Stop | ExecuteBatch) -> dict:
         """Save a goal and child tasks, or explicitly execute ONE saved item.
 
-        To execute: execution_mode=codex_once, batch_id, item_id, parent_id,
+        For bounded background execution: execution_mode=codex_batch_once, batch_id,
+        item_ids (1..3 independent saved pending items), parent_id and operation_key.
+        To execute one: execution_mode=codex_once, batch_id, item_id, parent_id,
         operation_key. No new items or prompt accepted in execute mode.
         To stop one owned running item: execution_mode=stop_codex_once with
         batch_id, item_id, parent_id and a fresh operation_key. No PID accepted.
@@ -270,7 +297,7 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
         Items must be independent. Ordinary goal/items requests only store pending work.
         Unknown commit outcomes: retain the same key and query batch_receipt.
         """
-        if isinstance(request, (Execute,Stop)):
+        if isinstance(request, (Execute, Stop, ExecuteBatch)):
             return await invoke('execute', request)
 
         if request.items is None:
@@ -290,6 +317,18 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
 
             Query an unknown stop with batch_receipt(operation_kind=execute)
             and the exact original stop key. Do not resend with a new key.
+            """
+            return await invoke('execute', request)
+
+    if 'execute' in rpc.config['actions']:
+        @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
+                                                            idempotentHint=True, openWorldHint=True))
+        async def batch_execute_batch(request: ExecuteBatch) -> dict:
+            """Run 1..3 saved independent pending items sequentially on the original worker.
+
+            Explicit batch only; no global scanning, retries, DAG or native Work route.
+            Query pending/unknown with batch_receipt(operation_kind=execute), same key.
+            Each completed result stays in original SQL; stop one with batch_stop.
             """
             return await invoke('execute', request)
 
@@ -374,4 +413,6 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
             raise ToolError('BATCH_RECEIPT_UNAVAILABLE_QUERY_ONLY') from None
 
     return {'enabled': True, 'tools': ['batch_task', 'batch_status', 'cancel_batch', 'batch_receipt', 'batch_host_status']}
+
+
 

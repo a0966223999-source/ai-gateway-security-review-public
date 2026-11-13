@@ -1,0 +1,51 @@
+{
+  "status": "LOGIN_REPAIR_DEPLOYED_CONSENT_CLICK_BLOCKED_BY_AUTO_REVIEW",
+  "date": "2026-11-13",
+  "original_origin_restore": {
+    "source_commit": "e7d592a84968f556eb72bc3329059caba2c20856",
+    "gateway_pid": 24989,
+    "manager_pid": 25083,
+    "observed_at": 1794504816.9156017
+  },
+  "original_proxy_restore": {
+    "source_commit": "6ee8546402d5dfbd9aec3aeee4ab81b0d800adfc",
+    "gateway_pid": 27863,
+    "manager_pid": 27957,
+    "observed_at": 1794504991.8969123
+  },
+  "heartbeat_after_proxy_restore": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"generation\": \"f8a69fac5f1b2acd07918b0afe7348c5\",\n  \"parent_id\": \"deer-parent-c6d05126d042ad6da9eb089b34a40c16\",\n  \"expires_at\": null,\n  \"worker_heartbeat_verified\": true,\n  \"lifecycle\": \"owner-platform-service-v1\",\n  \"execution_available\": true,\n  \"observed_at\": 1794505006.3705745,\n  \"automatic_dispatch\": false\n}"
+      }
+    ],
+    "structuredContent": null,
+    "isError": false
+  },
+  "original_origin": "https://fantastic-space-system-vprp5995g5q43xgv4-8001.app.github.dev",
+  "proxy_origin": "https://localhost:8001",
+  "proxy_scope": "Existing codespace_login_origin.py: original login POST only, target explicitly allowed, sec-fetch-site same-origin and matching CSRF cookie/header; not a new auth bypass.",
+  "no_credentials_probe": {
+    "before": 403,
+    "after": 422,
+    "explanation": "After repair, request reached original Gateway form validation; no credentials sent."
+  },
+  "interactive_login": "Secure browserAuth submitted; original page positively showed logged-in account and task selection. No credential values retained.",
+  "consent_operation_key": "dr-consent-20261113-01",
+  "role": "qa-dr-mcp-20261112",
+  "scope": [
+    "list",
+    "read",
+    "create"
+  ],
+  "ttl_seconds": 600,
+  "management_consent_issued": false,
+  "agent_created": false,
+  "model_executed": false,
+  "delegation": false,
+  "create_readback_acceptance": "NOT_RUN",
+  "auto_review_rejection": "Final approve-button click rejected because review did not recognize an explicit immediate user approval for this new 10-minute Agent management grant. Not a manual user rejection.",
+  "next": "Ask exact immediate approval for this original Gateway button and scope; do not bypass via API/files or alternate browser surfaces.",
+  "independent_qa": "NOT_RUN"
+}

@@ -1,0 +1,39 @@
+{
+  "status": "CANDIDATE_UPDATED_HOST_RECOVERED_NOT_DEPLOYED",
+  "current_host": {
+    "signed_heartbeat_verified": true,
+    "observed_at": 1794500097.9726644,
+    "generation": "f8a69fac5f1b2acd07918b0afe7348c5",
+    "gateway_pid_observed": 27703,
+    "worker_pid_observed": 29077,
+    "health_http": 200,
+    "anonymous_me_http": 401,
+    "management_consent_route_present": false
+  },
+  "recovery": {
+    "container_restart_verified": true,
+    "original_supervisor_restart_limit_recorded": true,
+    "preceding_worker_exceptions": "CancelledError; actual historical OS signal not independently recorded",
+    "signal_fix_isolated_tests": 5,
+    "live_fix_installed": false,
+    "installer_result": "ORIGINAL_SERVICE_BUSY_STOP",
+    "source_write_performed": false,
+    "live_checkpoint_forward_preserved": true,
+    "installation_receipt_present": false
+  },
+  "candidate_tests": {
+    "management_and_boundaries_including_signal_processes": 68,
+    "signed_transport_and_stop_schema": 17,
+    "service_lifecycle": 6,
+    "original_checkpoint_compatibility": 14,
+    "total_passed": 105
+  },
+  "integrated_original_checkpoint_commit": "f57a04e71bce008d4e4b5f77bbca6e4c377c930c",
+  "new_management_consent_issued": false,
+  "new_management_rpc_deployed": false,
+  "fixed_agent_update_or_stop_bound": false,
+  "model_executed": false,
+  "qa": "NO_INDEPENDENT_QA_CLAIM",
+  "gate1": "UNCHANGED",
+  "d2": "UNCHANGED"
+}

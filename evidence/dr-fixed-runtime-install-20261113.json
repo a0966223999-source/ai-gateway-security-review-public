@@ -1,0 +1,54 @@
+{
+  "status": "SOURCE_INSTALLED_RUNTIME_GRANT_NOT_SELECTED",
+  "commit": "2b12f7beebf6cb9e651e1c9ea0f30ca28259e41e",
+  "installer_exit": 0,
+  "gateway_pid": 73004,
+  "manager_pid": 73107,
+  "original_sql_counts": {
+    "pending": 3,
+    "succeeded": 7,
+    "cancelled": 17
+  },
+  "pins_unchanged": true,
+  "original_sql_snapshot_sha256": "bf9ba456acb04430b0b264220e827f67f2828710385847169f766f0873969f3c",
+  "pending_and_fences_preserved": true,
+  "runtime_grant_issued": false,
+  "model_executed": false,
+  "observed_at": 1794508594.9954836,
+  "post_install_signed_heartbeat": {
+    "verified": true,
+    "observed_at": 1794508623.892901
+  },
+  "mcp_deployment": {
+    "id": "dpl_Hp1cKTFtWKkvTgP7jnwYmVFZTnEA",
+    "state": "READY",
+    "commit": "2b12f7beebf6cb9e651e1c9ea0f30ca28259e41e",
+    "original_alias_verified": true
+  },
+  "private_branch_runtime_tool_flag": true,
+  "test_scope_grants_not_issued": true,
+  "maintenance_guard_tests": {
+    "pass": 8,
+    "new_distinct": 5
+  },
+  "manifest_exact_original_fresh_host_sha_corrected": "d28ea8a5d1c7a3d3cd88554fb0dc2f8df18cc1ee88b9c6a3e83253e1d7914a3d",
+  "note": "Old terminal-only gate was replaced by exact acknowledged pending IDs with attempt0/no lease/no native attempt plus whole original SQL snapshot consistency before/after original manager drain. No unknown or executing item accepted.",
+  "app_refresh": {
+    "same_plugin_id": "plugin_asdk_app_6af05e97756c8191affb9700b02418e7",
+    "version": "1.0.13",
+    "refresh_clicked_once": true,
+    "tools_independently_visible_in_app": [
+      "fixed_agent_task",
+      "fixed_agent_receipt"
+    ],
+    "current_work_native_schema_not_loaded": true,
+    "plugin_source_package_not_republished": true
+  },
+  "http_checks": {
+    "health": 200,
+    "anonymous_auth_me": 401,
+    "runtime_review_page": 200
+  },
+  "original_active_pin_generation": "f8a69fac5f1b2acd07918b0afe7348c5",
+  "final_signed_heartbeat_observed_at": 1794508800.4343004
+}

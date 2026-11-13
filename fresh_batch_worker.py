@@ -26,6 +26,20 @@ async def serve(args):
     from deerflow.persistence.subagent_batches.sql import SubagentBatchRepository
     from fresh_batch_host import FreshBatchHost, canonical
     host = FreshBatchHost(args.root)
+    management = None
+    if args.agent_management_grant_id is not None:
+        if args.gateway_pid is None or not {'read', 'execute'} <= set(host.config['actions']):
+            raise ValueError('ORIGINAL_MANAGEMENT_GATEWAY_AND_ENROLLMENT_REQUIRED')
+        from deer_management_host import original_gateway_management
+        management = original_gateway_management(host, backend=backend,
+            gateway_pid=args.gateway_pid, grant_id=args.agent_management_grant_id)
+    runtime_service = None
+    if args.agent_runtime_grant_id is not None:
+        if args.gateway_pid is None or not {'read','submit','execute'} <= set(host.config['actions']):
+            raise ValueError('ORIGINAL_RUNTIME_GATEWAY_AND_ENROLLMENT_REQUIRED')
+        from deer_management_host import original_gateway_fixed_runtime
+        runtime_service = original_gateway_fixed_runtime(host, backend=backend,
+            gateway_pid=args.gateway_pid, grant_id=args.agent_runtime_grant_id)
     endpoint = urlsplit(args.endpoint)
     if (endpoint.scheme != 'https' or not endpoint.hostname or not endpoint.hostname.endswith('.vercel.app')
             or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment
@@ -58,7 +72,12 @@ async def serve(args):
 
             async def handle(envelope):
                 try:
-                    response = await host.execute(envelope, repository=repository)
+                    if envelope.get("body", {}).get("payload", {}).get("execution_mode") == "platform-checkpoint-v1":
+                        from platform_checkpoint_forward import forward_checkpoint
+                        response = await asyncio.to_thread(forward_checkpoint, host, envelope)
+                    else:
+                        response = await host.execute(envelope, repository=repository,
+                                                      agent_management=management, agent_runtime=runtime_service)
                     await asyncio.to_thread(control, 'respond',
                         {'request_id': response['body']['request_id'], 'response': response})
                 except Exception:
@@ -102,14 +121,12 @@ def main():
     parser.add_argument('--gateway-backend', required=True)
     parser.add_argument('--database', required=True)
     parser.add_argument('--endpoint', required=True)
+    parser.add_argument('--agent-management-grant-id')
+    parser.add_argument('--agent-runtime-grant-id')
+    parser.add_argument('--gateway-pid', type=int)
     args = parser.parse_args()
-    async def run():
-        task = asyncio.create_task(serve(args))
-        loop = asyncio.get_running_loop()
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            loop.add_signal_handler(sig, task.cancel)
-        await task
-    asyncio.run(run())
+    from worker_signal_lifecycle import run_until_signalled
+    raise SystemExit(asyncio.run(run_until_signalled(serve, args)))
 
 
 if __name__ == '__main__':

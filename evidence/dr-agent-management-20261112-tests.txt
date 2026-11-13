@@ -1,0 +1,65 @@
+test_bad_fence_cannot_invoke_same_effect_twice (test_deer_agent_management.OriginalRouterTests.test_bad_fence_cannot_invoke_same_effect_twice) ... ok
+test_binding_must_match_original_mcp_principal (test_deer_agent_management.OriginalRouterTests.test_binding_must_match_original_mcp_principal) ... ok
+test_checkpoint_binding_is_not_management_grant (test_deer_agent_management.OriginalRouterTests.test_checkpoint_binding_is_not_management_grant) ... ok
+test_different_owner_cannot_read_definition (test_deer_agent_management.OriginalRouterTests.test_different_owner_cannot_read_definition) ... ok
+test_fixture_same_key_does_not_repeat_original_post (test_deer_agent_management.OriginalRouterTests.test_fixture_same_key_does_not_repeat_original_post) ... ok
+test_lost_reply_after_original_commit_is_not_retried (test_deer_agent_management.OriginalRouterTests.test_lost_reply_after_original_commit_is_not_retried) ... ok
+test_missing_once_fence_does_not_write (test_deer_agent_management.OriginalRouterTests.test_missing_once_fence_does_not_write) ... ok
+test_name_conflict_is_not_reported_as_our_success (test_deer_agent_management.OriginalRouterTests.test_name_conflict_is_not_reported_as_our_success) ... ok
+test_original_api_disabled_stays_denied (test_deer_agent_management.OriginalRouterTests.test_original_api_disabled_stays_denied) ... ok
+test_original_create_read_and_list_persist_same_owner (test_deer_agent_management.OriginalRouterTests.test_original_create_read_and_list_persist_same_owner) ... ok
+test_original_mcp_sdk_lists_only_bound_tools_without_context_input (test_deer_agent_management.OriginalRouterTests.test_original_mcp_sdk_lists_only_bound_tools_without_context_input) ... ok
+test_original_router_with_real_source_journal_survives_reopen (test_deer_agent_management.OriginalRouterTests.test_original_router_with_real_source_journal_survives_reopen) ... [11/12/26 23:01:36] INFO     Created agent 'qa-dr-fixed'           agents.py:354
+                    INFO     HTTP Request: POST                  _client.py:1740
+                             http://isolated-gateway.test/api/ag                
+                             ents "HTTP/1.1 201 Created"                        
+                    INFO     HTTP Request: GET                   _client.py:1740
+                             http://isolated-gateway.test/api/ag                
+                             ents/qa-dr-fixed "HTTP/1.1 200 OK"                 
+ok
+test_owner_changed_before_effect_is_rejected (test_deer_agent_management.OriginalRouterTests.test_owner_changed_before_effect_is_rejected) ... ok
+test_path_and_oversize_input_are_rejected (test_deer_agent_management.OriginalRouterTests.test_path_and_oversize_input_are_rejected) ... ok
+test_payload_owner_route_or_inherit_all_injection_is_rejected (test_deer_agent_management.OriginalRouterTests.test_payload_owner_route_or_inherit_all_injection_is_rejected) ... ok
+test_receipt_query_never_calls_create_transport (test_deer_agent_management.OriginalRouterTests.test_receipt_query_never_calls_create_transport) ... ok
+test_request_snapshot_survives_caller_mutation (test_deer_agent_management.OriginalRouterTests.test_request_snapshot_survives_caller_mutation) ...                     INFO     Created agent 'qa-dr-fixed'           agents.py:354
+                    INFO     HTTP Request: POST                  _client.py:1740
+                             http://isolated-gateway.test/api/ag                
+                             ents "HTTP/1.1 201 Created"                        
+ok
+test_revocation_before_effect_is_rechecked (test_deer_agent_management.OriginalRouterTests.test_revocation_before_effect_is_rechecked) ... ok
+test_truthy_authorization_is_rejected (test_deer_agent_management.OriginalRouterTests.test_truthy_authorization_is_rejected) ...                     WARNING  Executing <Task finished        base_events.py:1994
+                             name='Task-92'                                     
+                             coro=<OriginalRouterTests.async                    
+                             SetUp() done, defined at                           
+                             /workspace/scratch/12555d48d790                    
+                             /dr-agent-management/tests/test                    
+                             _deer_agent_management.py:34>                      
+                             result=None created at                             
+                             /opt/codex/runtimes/codex-prima                    
+                             ry-runtime/dependencies/python/                    
+                             lib/python3.12/asyncio/runners.                    
+                             py:100> took 0.191 seconds                         
+ok
+test_unbound_default_does_not_mount_or_call (test_deer_agent_management.OriginalRouterTests.test_unbound_default_does_not_mount_or_call) ... ok
+test_update_and_stop_do_not_call_unsafe_original_routes (test_deer_agent_management.OriginalRouterTests.test_update_and_stop_do_not_call_unsafe_original_routes) ... ok
+test_wrong_create_reply_is_query_only_not_success (test_deer_agent_management.OriginalRouterTests.test_wrong_create_reply_is_query_only_not_success) ... ok
+test_completed_result_survives_new_journal_instance (test_deer_management_journal.JournalTests.test_completed_result_survives_new_journal_instance) ... ok
+test_concurrent_reservation_does_not_repeat_effect (test_deer_management_journal.JournalTests.test_concurrent_reservation_does_not_repeat_effect) ... ok
+test_crash_after_commit_stays_unknown_after_restart (test_deer_management_journal.JournalTests.test_crash_after_commit_stays_unknown_after_restart) ... ok
+test_owner_cannot_query_another_owners_receipt (test_deer_management_journal.JournalTests.test_owner_cannot_query_another_owners_receipt) ... ok
+test_readonly_query_does_not_create_records (test_deer_management_journal.JournalTests.test_readonly_query_does_not_create_records) ... ok
+test_receipt_save_failure_is_unknown_not_replay (test_deer_management_journal.JournalTests.test_receipt_save_failure_is_unknown_not_replay) ... ok
+test_replaced_source_root_is_rejected (test_deer_management_journal.JournalTests.test_replaced_source_root_is_rejected) ... ok
+test_revoke_or_stop_prevents_new_effect (test_deer_management_journal.JournalTests.test_revoke_or_stop_prevents_new_effect) ... ok
+test_same_key_different_digest_conflicts (test_deer_management_journal.JournalTests.test_same_key_different_digest_conflicts) ... ok
+test_symlink_receipt_is_rejected (test_deer_management_journal.JournalTests.test_symlink_receipt_is_rejected) ... ok
+test_checkpoint_scope_cannot_be_upgraded (test_deer_management_test_scope.TestScopeTests.test_checkpoint_scope_cannot_be_upgraded) ... ok
+test_expired_window_never_reaches_original_transport (test_deer_management_test_scope.TestScopeTests.test_expired_window_never_reaches_original_transport) ... ok
+test_list_only_returns_named_test_role (test_deer_management_test_scope.TestScopeTests.test_list_only_returns_named_test_role) ... ok
+test_nonempty_tool_or_delegation_lists_are_rejected (test_deer_management_test_scope.TestScopeTests.test_nonempty_tool_or_delegation_lists_are_rejected) ... ok
+test_other_agent_name_never_reaches_original_transport (test_deer_management_test_scope.TestScopeTests.test_other_agent_name_never_reaches_original_transport) ... ok
+
+----------------------------------------------------------------------
+Ran 37 tests in 0.580s
+
+OK

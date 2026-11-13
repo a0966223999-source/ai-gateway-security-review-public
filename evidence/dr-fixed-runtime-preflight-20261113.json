@@ -1,0 +1,31 @@
+{
+  "schema": "dr-fixed-runtime-preflight-v1",
+  "status": "STAGED_ONLY_NOT_DEPLOYED",
+  "original_gateway_pid": 27863,
+  "original_manager_pid": 27957,
+  "observed_worker_pid": 47503,
+  "host_pin_changed": false,
+  "runtime_grant_issued": false,
+  "real_model_executed": false,
+  "pending_batch": {
+    "id": "native-batch-605006c8346943798f96895f3d46be59",
+    "title": "Bounded background Codex live acceptance",
+    "created_at": "2026-11-12 18:08:33.865825",
+    "pending": 3,
+    "attempts": [
+      0,
+      0,
+      0
+    ]
+  },
+  "observed_counts": {
+    "cancelled": 17,
+    "pending": 3,
+    "succeeded": 7
+  },
+  "concurrent_test_branch": "5424d7bb70710886f05696229a32615b0935d169",
+  "candidate_preserves_background_batch": true,
+  "plugin_observed_current": "1.0.13",
+  "plugin_not_modified_by_this_work": true,
+  "next": "Stage verified candidate; original task drain/idle, original role management consent for runtime test role, separate bounded runtime consent, then real prepare/execute/read/stop acceptance. No runtime grant upgrade."
+}

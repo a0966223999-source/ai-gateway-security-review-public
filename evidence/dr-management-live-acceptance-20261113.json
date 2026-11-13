@@ -1,0 +1,108 @@
+{
+  "schema": "dr-management-live-acceptance-v1",
+  "date": "2026-11-13",
+  "engineering_acceptance": "PASS",
+  "independent_qa": "NOT_RUN",
+  "scope": "Original authenticated Gateway consent -> real native MCP create -> independent real MCP readback -> original durable journal -> consent revocation -> fresh read rejected.",
+  "mcp_deployed_commit": "411272e8ab6e86f53b919c8dcc9f81db54ed5958",
+  "consent": {
+    "operation_key": "dr-consent-20261113-01",
+    "grant_id": "81dcd63ba85353fdf7e6a45e9db292911ffdd197ab7ea8779145eb06a233612a",
+    "names": [
+      "qa-dr-mcp-20261112"
+    ],
+    "actions": [
+      "create",
+      "list",
+      "read"
+    ],
+    "created_at": 1794505514.1566586,
+    "expires_at": 1794506114.1566591,
+    "approval_http": 200,
+    "revocation_http": 200,
+    "revoked": true,
+    "model_execution": false
+  },
+  "list": {
+    "request_id": "d465286ddfdcccd1970bbf499994d023386c0a36f3a69eecb28f145de6693891",
+    "status": "PENDING_OR_UNKNOWN_QUERY_SAME_KEY"
+  },
+  "list_same_key_receipt": {
+    "status": "SCOPED_REGISTRY_READ",
+    "historical_only": true,
+    "authority": false,
+    "request_id": "d465286ddfdcccd1970bbf499994d023386c0a36f3a69eecb28f145de6693891"
+  },
+  "create_request": {
+    "kind": "create",
+    "operation_key": "dr-mcp-create-20261113-01",
+    "name": "qa-dr-mcp-20261112",
+    "description": "DR Bot 原平台固定角色名冊管理驗收；僅保存角色定義，無工具、技能或派工。",
+    "soul": "你是固定角色名冊驗收員。唯一職責是說明本角色的測試用途。不得呼叫模型、工具或外部服務，不得派工、建立其他 Agent 或處理正式任務。驗收標記：dr-mcp-live-20261113-01。"
+  },
+  "create": {
+    "request_id": "74cc3121050d24f0cd940e215b462d4b3a63b99bac57fe082b4831696a88c262",
+    "create_operation_key": "dr-mcp-create-20261113-01",
+    "delegation": false,
+    "execution_started": false,
+    "fixed_agent_stop_bound": false,
+    "kind": "original-deer-agent-management-v1",
+    "model_executed": false,
+    "name": "qa-dr-mcp-20261112",
+    "payload_sha256": "255136a0a7ee7f62d933405a3e815d29a2fba29774b2a866d913cc080c051c75",
+    "status": "REGISTRY_SAVED_READBACK_REQUIRED",
+    "create_payload_sha256": "255136a0a7ee7f62d933405a3e815d29a2fba29774b2a866d913cc080c051c75"
+  },
+  "independent_readback": {
+    "request_id": "5c23d874b27e77c857932a71c1b09737adcd48cb642801d3439229cf9b641a02",
+    "agent": {
+      "allowed_subagents": [],
+      "description": "DR Bot 原平台固定角色名冊管理驗收；僅保存角色定義，無工具、技能或派工。",
+      "name": "qa-dr-mcp-20261112",
+      "skills": [],
+      "soul": "你是固定角色名冊驗收員。唯一職責是說明本角色的測試用途。不得呼叫模型、工具或外部服務，不得派工、建立其他 Agent 或處理正式任務。驗收標記：dr-mcp-live-20261113-01。",
+      "tool_groups": []
+    },
+    "execution_started": false,
+    "fixed_agent_stop_bound": false,
+    "kind": "original-deer-agent-management-v1",
+    "status": "REGISTRY_READBACK"
+  },
+  "definition_exact_match": true,
+  "journal": {
+    "request_id": "f6384d6c62cf695ba638e20fc20d2ebf5bfbc71a01908cb23299de0d0d5b591e",
+    "execution_started": false,
+    "fixed_agent_stop_bound": false,
+    "kind": "original-deer-agent-management-v1",
+    "operation_id": "c77f3495c9cc38f35fa47e7cc71ac4a2439dac0c25d4679089dc090d37fc7912",
+    "result": {
+      "delegation": false,
+      "model_executed": false,
+      "name": "qa-dr-mcp-20261112",
+      "status": "REGISTRY_SAVED_READBACK_REQUIRED"
+    },
+    "status": "CONFIRMED"
+  },
+  "fresh_read_after_revocation": {
+    "request_id": "6e63c7808e7afba767d3b31b17391f9fd9ad9ff2d321bc76d5498c719dbbe294",
+    "execution_started": false,
+    "kind": "original-deer-agent-management-v1",
+    "reason": "MANAGEMENT_CONSENT_REVOKED_OR_EXPIRED",
+    "status": "DENIED_OR_UNKNOWN_QUERY_ONLY"
+  },
+  "create_submitted_once": true,
+  "unknown_create_retried": false,
+  "model_executed": false,
+  "delegation": false,
+  "tool_groups": [],
+  "skills": [],
+  "allowed_subagents": [],
+  "test_definition_retained": true,
+  "definition_delete_not_authorized": true,
+  "fixed_agent_execution": "NOT_RUN",
+  "fixed_agent_version_update": "NOT_BOUND",
+  "fixed_agent_stop": "NOT_BOUND",
+  "d2_changed": false,
+  "gate1_changed": false,
+  "limits": "No claim of independent QA, automatic cross-provider installation, fixed-Agent runtime execution/stop, or continued management after revocation."
+}

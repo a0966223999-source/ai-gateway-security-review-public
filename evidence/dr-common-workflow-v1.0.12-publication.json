@@ -1,0 +1,18 @@
+{
+  "status": "PUBLISHED_AND_READBACK_VERIFIED",
+  "version": "1.0.12",
+  "release_id": "pluginrel_6af5fc942f048191806f0774fd2702b6",
+  "plugin_id": "plugin_asdk_app_6af05e97756c8191affb9700b02418e7",
+  "plugin_url": "https://chatgpt.com/plugins/plugin_asdk_app_6af05e97756c8191affb9700b02418e7",
+  "verified_files": 9,
+  "changed_files": [
+    "plugin.json",
+    ".codex-plugin/plugin.json",
+    "skills/redis-common-entry/references/dr-bot.md"
+  ],
+  "original_app_oauth_mcp_audience_presentation_and_default_prompt_unchanged": true,
+  "router_stop_and_notification_workflows_preserved": true,
+  "source_commit": "92a414b175992db01c3f9f8a3c7a902978cdcf58",
+  "management_grant_revoked": true,
+  "does_not_grant_future_access": true
+}
