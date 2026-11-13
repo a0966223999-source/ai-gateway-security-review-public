@@ -24,7 +24,7 @@ async def serve(args):
             raise ValueError('EXISTING_GATEWAY_BATCH_SCHEMA_REQUIRED')
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     from deerflow.persistence.subagent_batches.sql import SubagentBatchRepository
-    from fresh_batch_host import FreshBatchHost, canonical
+    from fresh_batch_host import FreshBatchHost, canonical, exclusive_write
     host = FreshBatchHost(args.root)
     management = None
     if args.agent_management_grant_id is not None:
@@ -70,6 +70,29 @@ async def serve(args):
             last_heartbeat = 0
             active = set()
 
+            async def deliver(response):
+                if response['body']['result'].get('status') == 'CODEX_DAG_WAITING_DEPENDENCIES':
+                    return  # Original execute receipt remains pending, not a terminal response.
+                await asyncio.to_thread(control, 'respond',
+                    {'request_id': response['body']['request_id'], 'response': response})
+                if response['body']['result'].get('coordinator') == 'original-worker-durable-dag-v2':
+                    try:
+                        exclusive_write(host.root / ('dag-response-' + response['body']['request_id']),
+                            canonical({'response_sha256': __import__('hashlib').sha256(canonical(response)).hexdigest()}))
+                    except FileExistsError:
+                        pass  # Existing successful transport acknowledgement.
+
+            async def recover(body):
+                try:
+                    from platform_dag_runtime import recover_response
+                    await deliver(await recover_response(host, repository, body))
+                except Exception:
+                    print('DAG_RECOVERY_QUERY_ONLY', flush=True)
+
+            from platform_dag_runtime import recoverable_bodies
+            recovery = await recoverable_bodies(host, repository) if 'execute' in host.config['actions'] else []
+            last_recovery_scan = time.monotonic()
+
             async def handle(envelope):
                 try:
                     if envelope.get("body", {}).get("payload", {}).get("execution_mode") == "platform-checkpoint-v1":
@@ -78,8 +101,7 @@ async def serve(args):
                     else:
                         response = await host.execute(envelope, repository=repository,
                                                       agent_management=management, agent_runtime=runtime_service)
-                    await asyncio.to_thread(control, 'respond',
-                        {'request_id': response['body']['request_id'], 'response': response})
+                    await deliver(response)
                 except Exception:
                     # Keep the durable request/attempt. Never replay after an
                     # unknown effect or pretend the original worker completed.
@@ -99,6 +121,11 @@ async def serve(args):
                     if len(active) >= 8:
                         await asyncio.wait(active, timeout=.25, return_when=asyncio.FIRST_COMPLETED)
                         continue
+                    if not recovery and 'execute' in host.config['actions'] and time.monotonic() - last_recovery_scan >= 2:
+                        recovery = await recoverable_bodies(host, repository)
+                        last_recovery_scan = time.monotonic()
+                    if recovery:
+                        active.add(asyncio.create_task(recover(recovery.pop(0))))
                     result = await asyncio.to_thread(control, 'poll', {})
                     envelope = result.get('request')
                     if envelope is None:

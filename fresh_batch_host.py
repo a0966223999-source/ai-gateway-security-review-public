@@ -268,13 +268,20 @@ class FreshBatchHost:
             from platform_codex_stop import Stop, stop_item
             payload = body['payload']
             from platform_codex_batch import ExecuteBatch, execute_batch
-            model = {'stop_codex_once': Stop, 'codex_batch_once': ExecuteBatch}.get(
+            from platform_dag_runtime import ExecuteDag, execute_durable_dag
+            model = {'stop_codex_once': Stop, 'codex_batch_once': ExecuteBatch, 'codex_dag_once': ExecuteDag}.get(
                 payload.get('execution_mode'), Execute)
             request = model.model_validate(dict(payload, parent_id=body['parent_id'],
                                                   operation_key=body['operation_key']))
             self.reserve(body)
             if isinstance(request, Stop):
                 result = await stop_item(self, repository, request)
+            elif isinstance(request, ExecuteDag):
+                from platform_codex_dag import snapshot
+                initial = await snapshot(self, repository, request.batch_id)
+                if initial is None or initial['graph']['schema'] != 'deer-codex-dag-v2':
+                    raise HostDenied('DAG_V2_SAVED_GRAPH_REQUIRED')
+                result = await execute_durable_dag(self, repository, request, initial)
             elif isinstance(request, ExecuteBatch):
                 result = await execute_batch(self, repository, request)
             else:
@@ -304,9 +311,10 @@ class FreshBatchHost:
                 goal_sha256=hashlib.sha256(request.goal.encode()).hexdigest(),
                 parent_id=self.config['parent_id'], planner='current_gpt_work',
                 item_keys=[item.key for item in request.items], automatic_dispatch=False)
-            from platform_codex_dag import parse_goal
+            from platform_codex_dag import parse_goal, validate_external_graph
             graph = parse_goal(request.goal, decomposition['item_keys'])
             if graph is not None:
+                await validate_external_graph(self, repository, graph)
                 decomposition['dag'] = graph
         runtime, tools, item_model = self.compose(repository, decomposition=decomposition)
         args = request.model_dump(exclude={'parent_id', 'operation_key'}, exclude_none=True)
@@ -337,6 +345,8 @@ class FreshBatchHost:
                     raise HostDenied('DECOMPOSITION_SOURCE_MISMATCH')
                 repository._native_control(row, user_id=self.config['owner'], binding=binding)
                 saved_plan = json.loads(canonical(row.execution_spec.get('task_decomposition')))
+                public_payload_digest = binding['payloadDigest']
+                dag_runtime = json.loads(canonical(row.execution_spec.get('dag_runtime_v2')))
             if saved_plan is not None:
                 if (saved_plan.get('parent_id') != self.config['parent_id']
                         or hashlib.sha256(saved_plan['goal'].encode()).hexdigest() != saved_plan['goal_sha256']):
@@ -345,6 +355,7 @@ class FreshBatchHost:
                     offset=request.item_offset or 0, limit=request.item_limit, status=request.item_status,
                     include_prompt=True, include_result=False, native_binding=self.binding('read'))
                 result['decomposition'] = dict(saved_plan, batch_id=request.batch_id,
+                    native_payload_digest=public_payload_digest, dag_runtime=dag_runtime,
                     children=children, offset=request.item_offset or 0, limit=request.item_limit)
             else:
                 result['decomposition'] = None

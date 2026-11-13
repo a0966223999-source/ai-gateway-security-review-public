@@ -21,6 +21,7 @@ from batch_mcp_entry import Submit, Status, RequestBase, planning_response
 from platform_pending_cancel import PendingCancel as Cancel
 from fresh_batch_host import canonical, digest, enrollment_active, request_deadline
 from platform_codex_batch import ExecuteBatch
+from platform_dag_runtime import ExecuteDag
 from platform_codex_executor import Execute
 from platform_codex_stop import Stop
 
@@ -278,7 +279,7 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
 
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
                                                         idempotentHint=True, openWorldHint=True))
-    async def batch_task(request: Submit | Execute | Stop | ExecuteBatch) -> dict:
+    async def batch_task(request: Submit | Execute | Stop | ExecuteBatch | ExecuteDag) -> dict:
         """Save a goal and child tasks, or explicitly execute ONE saved item.
 
         For bounded background execution: execution_mode=codex_batch_once, batch_id,
@@ -294,10 +295,13 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
         This GPT decomposes it, then calls once with the same goal/key and items.
         The original Holder atomically saves goal and children. Verify with
         batch_status(include_plan=true, item_offset=0). No extra model is called.
-        Items must be independent. Ordinary goal/items requests only store pending work.
+        Plain batches are independent; saved DAG goals enforce their dependencies.
+        For a saved v2 DAG use codex_dag_once and batch_id (up to 100 nodes).
+        Existing codex_batch_once is compatible with complete graphs of at most 3 nodes.
+        Ordinary goal/items requests only store pending work.
         Unknown commit outcomes: retain the same key and query batch_receipt.
         """
-        if isinstance(request, (Execute, Stop, ExecuteBatch)):
+        if isinstance(request, (Execute, Stop, ExecuteBatch, ExecuteDag)):
             return await invoke('execute', request)
 
         if request.items is None:
@@ -324,9 +328,10 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
         @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
                                                             idempotentHint=True, openWorldHint=True))
         async def batch_execute_batch(request: ExecuteBatch) -> dict:
-            """Run 1..3 saved independent pending items sequentially on the original worker.
+            """Run 1..3 saved items; saved DAGs enforce original dependencies.
 
-            Explicit batch only; no global scanning, retries, DAG or native Work route.
+            Explicit batch only; no unrelated pending-task scanning or native Work route.
+            A complete v2 DAG of at most 3 nodes can use this existing entrance.
             Query pending/unknown with batch_receipt(operation_kind=execute), same key.
             Each completed result stays in original SQL; stop one with batch_stop.
             """
@@ -335,13 +340,14 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
     if 'execute' in rpc.config['actions']:
         @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
                                                             idempotentHint=True, openWorldHint=True))
-        async def batch_execute_dag(request: ExecuteBatch) -> dict:
-            """Execute all 1..3 nodes of a saved deer-codex-dag-v1 goal on the original host.
+        async def batch_execute_dag(request: ExecuteBatch | ExecuteDag) -> dict:
+            """Execute a saved deer-codex-dag-v2 graph (1..100 nodes) on the original host.
 
-            Use execution_mode=codex_batch_once and all saved item_ids. The host
+            Use execution_mode=codex_dag_once and the original batch_id. The host
             requires each dependency's original successful result before its child.
-            Unknown: query the same execute receipt. No global scanning or retries.
-            The compatible batch_execute_batch entrance enforces the same saved DAG.
+            Unknown: query the same execute receipt. No unrelated task scanning or retries.
+            codex_batch_once with all item_ids remains compatible for 1..3-node DAGs.
+            Only the original worker recovers previously admitted safe unstarted nodes; never replay UNKNOWN.
             """
             return await invoke('execute', request)
 

@@ -45,6 +45,9 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.request = ExecuteBatch(parent_id=cfg['parent_id'], operation_key='batch-op',
             execution_mode='codex_batch_once', batch_id='batch', item_ids=['one', 'two', 'three'])
         self.repo = object()
+        # This suite isolates the independent coordinator; DAG SQL is tested separately.
+        self.graph_patch = patch('platform_codex_dag.snapshot', new_callable=AsyncMock, return_value=None)
+        self.graph_patch.start()
         self.validation = patch('platform_codex_batch.validate_pending', new_callable=AsyncMock)
         self.validate = self.validation.start()
         self.execution = patch('platform_codex_batch.execute_item', new_callable=AsyncMock)
@@ -52,6 +55,7 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.execute.return_value = dict(original_result_saved=True, observed_execution_verified=True)
 
     async def asyncTearDown(self):
+        self.graph_patch.stop()
         self.execution.stop()
         self.validation.stop()
         self.temp.cleanup()
