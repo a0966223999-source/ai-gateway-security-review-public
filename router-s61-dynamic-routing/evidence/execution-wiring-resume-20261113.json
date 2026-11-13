@@ -1,0 +1,36 @@
+{
+  "schema": "s61-execution-wiring-resume-v1",
+  "observed_at": "2026-11-13T03:42:04.414Z",
+  "implementation_commit": "5798b3cae06b65c0f98424eeb9b5640d671c57e9",
+  "restored_workspace_check": {
+    "product_files_equal_to_saved_commit": 5,
+    "dynamic_executor_test_equal": true,
+    "two_new_test_files_differ": "Saved checkpoint compacted formatting/comments; replay used the exact saved Git versions."
+  },
+  "saved_checkpoint_replay": {
+    "command": "node --experimental-transform-types --experimental-vm-modules --test tests/provider_lifecycle.test.mjs tests/runtime_consumers.test.mjs tests/dynamic_executor.test.mjs",
+    "node": "v24.22.1",
+    "tests": 41,
+    "pass": 41,
+    "fail": 0,
+    "skipped": 0,
+    "exit_code": 0,
+    "synthetic_dependencies": true,
+    "full_typecheck": "NOT_RUN",
+    "independent_QA": "NOT_RUN",
+    "evidence_kind": "Observed tool return summary, not raw stdout archive"
+  },
+  "host_attempt": {
+    "host": "fantastic-space-system-vprp5995g5q43xgv4",
+    "observed_state": "Codespace is stopped",
+    "action": "Clicked Restart codespace once",
+    "result": "Redirected to GitHub login",
+    "secure_auth_status": "declined",
+    "retry_performed": false,
+    "installed": false,
+    "service_start_verified": false
+  },
+  "next_step": "Complete authorized GitHub sign-in through secure browser flow, restore the same original Codespace, then locate the owned S61 runtime and exact-task Source/Holder. No permission or identity inferred from this report.",
+  "state": "ENGINEERING_REPLAY_VERIFIED_HOST_LOGIN_BLOCKED",
+  "Gate1": "DENY"
+}
