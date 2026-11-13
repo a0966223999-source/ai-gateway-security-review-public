@@ -1,0 +1,38 @@
+{
+  "kind": "ORIGINAL_HOST_TERMINAL_OBSERVATION_SUMMARY",
+  "commit": "426f745926b00e60881a9497f4ce5232e634f95b",
+  "observed_at": 1794550887.4749358,
+  "source_path": "/home/codespace/router-s61-execution-source-5798b3ca",
+  "checks": {
+    "typecheck_exit": 0,
+    "build_exit": 0,
+    "new_registration_tests_passed": 4,
+    "new_registration_tests_failed": 0
+  },
+  "test_scope": "Installed real Cordis Registry/Fiber; Runtime services and dispatch Source absent. Dependency-blocked registration tests, not a live S61 Runtime or independent QA.",
+  "first_failure": {
+    "commit": "bb0b748a0854bc8d6e869cfa6a90e1b74a96d07b",
+    "typecheck_exit": 2,
+    "code": "TS2345",
+    "cause": "Registration accepted decoded DeploymentConfig rather than original schema input.",
+    "preserved_on_host": [
+      "first-REGISTRATION-RECEIPT.json",
+      "first-registration-typecheck.log"
+    ]
+  },
+  "current_host_files": [
+    "REGISTRATION-RECEIPT.json",
+    "registration-typecheck.log",
+    "registration-build.log",
+    "registration-registration-tests.log"
+  ],
+  "formal_runtime_activation": false,
+  "native_dispatch": 0,
+  "live_gateway_modified": false,
+  "remaining": [
+    "Original owned startup must supply the live S61 service context and original machine config.",
+    "Current exact-task Source/Holder, revocation/authority checks and original executor once/result capabilities must be bound.",
+    "Formal zero-dispatch, native dispatch/results/stop and independent acceptance remain NOT_RUN."
+  ],
+  "note": "Gateway factory signature/requirements were read on the original host, not changed. Existing DR/DAG/memory work preserved. This JSON summarizes terminal observations; raw host logs have not been downloaded."
+}
