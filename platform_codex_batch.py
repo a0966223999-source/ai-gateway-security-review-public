@@ -63,6 +63,10 @@ async def validate_pending(host, repository, request, item_ids):
 
 async def execute_batch(host, repository, request):
     host.check('execute')
+    from platform_codex_dag import snapshot, execute_dag
+    graph = await snapshot(host, repository, request.batch_id)
+    if graph is not None:
+        return await execute_dag(host, repository, request, graph)
     # Same original private host directory, audit/lock only, not a task database.
     identity = hashlib.sha256(request.batch_id.encode()).hexdigest()
     fd = os.open(host.root / ('codex-batch-' + identity + '.lock'),

@@ -304,6 +304,10 @@ class FreshBatchHost:
                 goal_sha256=hashlib.sha256(request.goal.encode()).hexdigest(),
                 parent_id=self.config['parent_id'], planner='current_gpt_work',
                 item_keys=[item.key for item in request.items], automatic_dispatch=False)
+            from platform_codex_dag import parse_goal
+            graph = parse_goal(request.goal, decomposition['item_keys'])
+            if graph is not None:
+                decomposition['dag'] = graph
         runtime, tools, item_model = self.compose(repository, decomposition=decomposition)
         args = request.model_dump(exclude={'parent_id', 'operation_key'}, exclude_none=True)
         args.pop('goal', None)

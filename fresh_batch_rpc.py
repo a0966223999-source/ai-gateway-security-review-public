@@ -332,6 +332,19 @@ def install_fresh_batch_tools(mcp, *, principal, oauth_meta, env=os.environ, con
             """
             return await invoke('execute', request)
 
+    if 'execute' in rpc.config['actions']:
+        @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False,
+                                                            idempotentHint=True, openWorldHint=True))
+        async def batch_execute_dag(request: ExecuteBatch) -> dict:
+            """Execute all 1..3 nodes of a saved deer-codex-dag-v1 goal on the original host.
+
+            Use execution_mode=codex_batch_once and all saved item_ids. The host
+            requires each dependency's original successful result before its child.
+            Unknown: query the same execute receipt. No global scanning or retries.
+            The compatible batch_execute_batch entrance enforces the same saved DAG.
+            """
+            return await invoke('execute', request)
+
     @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False,
                                                         idempotentHint=True, openWorldHint=True))
     async def batch_status(request: Status) -> dict:
