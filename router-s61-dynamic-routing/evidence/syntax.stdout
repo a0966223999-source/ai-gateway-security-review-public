@@ -1,2 +1,4 @@
-router_dynamic_candidate/src/index.ts: transformed syntax PASS; imports not linked or executed
-router_dynamic_candidate/src/app/runtime.ts: transformed syntax PASS; imports not linked or executed
+PARSE_PASS src/index.ts
+PARSE_PASS src/app/runtime.ts
+PARSE_PASS src/executor/dsh.ts
+PARSE_PASS src/app/sessions.ts

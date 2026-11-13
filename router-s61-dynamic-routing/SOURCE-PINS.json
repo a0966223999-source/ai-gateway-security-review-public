@@ -18,5 +18,6 @@
   "original-contract/src/app/runtime.ts": "53f5cedcda7dba506d9ba87bb0466042d95acd5a796cbebf241ef73b93754d41",
   "original-contract/src/executor/dsh.ts": "6445a03121fa9bd15fc437736bcc2acc6ab950c5fe732e5b99eb8ee2c8a9476b",
   "original-contract/src/app/store.ts": "c124de893fbe260571b18b0ac4875bc7647e44e72062ba38b02c809e0012d583",
-  "original-contract/src/app/effects.ts": "d350590473299398b17c50dd641c72e1995dd95920c5138699491ab77e3ae481"
+  "original-contract/src/app/effects.ts": "d350590473299398b17c50dd641c72e1995dd95920c5138699491ab77e3ae481",
+  "original-contract/src/app/sessions.ts": "ca2b98e57e9f27b2abb0afab59d44ea744a96d8be4cf81d7b3776901b56cd36b"
 }

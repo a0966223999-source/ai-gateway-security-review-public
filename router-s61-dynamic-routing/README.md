@@ -1,71 +1,103 @@
-# S61 dynamic executor selection — staged, NOT ENABLED
+# S61 dynamic routing and lifecycle overlay — STAGED, NOT ENABLED
 
-Implements a trusted-host adapter at the ORIGINAL S61 Executor port. No live
-Runtime, Store, queue, Source, credential, database or MCP server is created.
-No existing Gateway, Codex worker, DR runtime or published plugin is changed.
+This candidate extends the recovered ORIGINAL S61 Executor port and lifecycle.
+It creates no Store, queue, Source, grant, runtime service, database or MCP server.
+The current live Gateway, Codex background worker, DR line and v1.0.15 plugin
+are unchanged. Gate1 remains DENY; formal D2 is untouched.
 
-The original Engine still owns admission, mandates, tickets and assignments.
-The adapter reads only the current original assignment, original policy and
-host-resolved Source requirements. It matches required capabilities against
-already registered executor adapters, excludes unavailable adapters, then uses
-host-configured priority and stable ID order. An explicit provider requirement
-never falls back to another provider. Health and priority do not grant authority.
+## Implemented
 
-The selection record and ORIGINAL effect enqueue must share the original Store
-transaction. The adapter uses the existing KV namespace only; it does not open
-a second store or invent another task authority. Same assignment is query-only
-after selection; delivery and Stop retain that provider. Stop can still queue
-owned cleanup after policy revocation. Every returned state says queued or
-query-only, never that execution or stopping completed.
+- Match current original Source requirements against same-Store registered
+  executors by capabilities, availability, host priority and stable ID. An
+  explicit provider requirement never falls back. Selection and the original
+  executor enqueue share the caller's original Store transaction.
+- Persist the selected provider per original assignment in existing KV. Reentry
+  and SQL reopen are query-only. Delivery and Stop retain that provider; Stop
+  still cleans up owned work after revocation and can address the previous
+  assignment when the original Engine has already created its replacement.
+- Add optional applyWithDynamicRouting and original Runtime constructor hooks.
+  Ordinary apply/applyWithRecovery retain their original behavior. Dynamic
+  capabilities are live host functions, never configuration or request JSON.
+- Guard original DshExecutor enqueue, effect consumer, native prompt callbacks,
+  reports, event handlers, background injections, restart and shutdown. Check
+  Source again after awaits. Restart observes the saved original attempt and
+  does not cancel/requeue/restart it. A native UNKNOWN is observation-only;
+  dynamic launch/turn failures do not trigger the legacy retry-model path.
+- Call the host's durable native once fence immediately before the original
+  prompt, after capacity/preparation. Query-only never sends. Preserve the
+  original Sessions/AgentDelivery request-ID deduplication for input delivery.
+- Guard original Sessions worker lookup, creation, prompt delivery, model-prompt
+  binding, inherited and registered tools, and worker subagent decoration.
+  A stale session name never grants the new provider's tools or Source rights.
+- On shutdown only the latest assignment can identify the original DSH session;
+  an old owned assignment cannot cause cancellation of a foreign replacement.
+
+## Original-host capability contract
+
+The optional fifth Runtime argument supplies originalProviderId, providers,
+readRequirements and checkCurrent. Providers receive the SAME original Store,
+originalExecutor and Runtime AbortSignal. Every provider must supply an original
+native claimStart fence and query-only recover port. External providers also
+must attachLifecycle before Runtime starts; they must enforce those callbacks
+at their own consumers, native boundaries and shutdown. Sharing the signal
+alone does not prove native cancellation.
+
+The original DSH provider's executor must be the exact originalExecutor object.
+The original Runtime supplies its lifecycle dynamically, fails closed while
+binding, gives the Engine the selector, and keeps DSH prepare/setup/lifecycle
+methods on the original object. Initialization calls selector recovery before
+starting the original passes/effect loops. Binding rejects active legacy
+assignments without an existing, valid saved route; there is no implicit
+migration, adoption or renewal of their authority.
+
+recover is a synchronous query/observation port into the existing host. It must
+not resend, clear a once record, manufacture an ACK, or create a new assignment.
+Only the original native result may advance original Engine state. Stop queued
+and completionVerified=false are not proof that a native task stopped or ran.
+No permissive adapter implementation is provided as an example grant.
 
 ## Validation
 
-Run with Node24:
+From this directory on Node 24:
 
-    node --experimental-transform-types --test tests/dynamic_executor.test.mjs
+    node --experimental-transform-types --experimental-vm-modules --test tests/*.test.mjs
 
-19 engineering cases pass. Tests use exact copied original S61 Engine and
-MemoryRepositories, with real temporary SQLite KV/effect CONTRACT fixtures.
-Identity, Source permissions and executor adapters are synthetic. Tests do NOT
-instantiate the production Store/Effects/Runtime, dispatch a Work, run a model,
-or prove independent QA. The copied core is test-only; its MIT license and
-source pins are retained. No full TypeScript project typecheck has run.
+48 engineering cases PASS, zero skipped. The 29 selector/composition cases use
+exact copied original Engine/MemoryRepositories with a real temporary SQLite
+KV/queue CONTRACT fixture. The 14 DSH and 5 Sessions cases execute the patched
+original class methods through Node's TypeScript transform/VM modules, with
+explicit synthetic Cordis/session/Source/background dependency adapters.
+No live grant, native model, production Store/Effects/Runtime, full dependency
+link, full project typecheck or independent QA is claimed. Four TS overlays
+also parse after transform; that is syntax validation only.
 
-## Required original-host integration — not supplied or enabled here
+The first expanded run (35/40) is retained. It caught an out-of-scope keyFor
+reference in Runtime binding, now moved to module scope; four DSH test fixtures
+also lacked the original required origin.triggerIds field. Corrected fixtures
+and implementation pass, including the real original Engine retry flow.
+SOURCE-PINS.json retains original upstream hashes and MIT license.
 
-1. Bind the same live original S61 Store/Effects/Registry/Fiber and current
-   ticket/assignment. The current Python batch worker and checkpoint-only
-   Source are not these capabilities and cannot be relabeled as them.
-2. Resolve requirements from the exact current authorized Source, preserving
-   revision, digest, mandate, owner, revocation and original native once fence.
-   The host's readRequirements/checkCurrent are constructor capabilities,
-   never settings JSON, model output, an OAuth owner alone or lambda True.
-3. Supply already owned, lifecycle-bound executor adapters that enqueue in
-   that SAME Store and recheck authority/capacity/once at actual native launch.
-   Codex batch success does not provide a S61-native ACK mapping. DR runtime
-   consent and native Work read/send/interrupt remain separately required.
-4. Before installing the optional Engine hook, integrate every ORIGINAL DSH
-   lifecycle path. In particular src/executor/dsh.ts resume() currently scans
-   all pending/running tickets and can call this.start directly; launchQueued,
-   delivery, restore and shutdown must respect the persisted provider. A hook
-   only around Engine.executor can therefore dispatch through the wrong
-   executor after restart. Do not install such a partial hook.
+## Installation boundary / next concrete host work
 
-An exploratory Engine/Runtime-only hook was withdrawn after this review. The
-candidate intentionally contains no src/index.ts or src/app/runtime.ts overlay.
-bindRuntimeDynamicExecutor is a tested composition HELPER, not an installed
-Runtime entry or permission to enable one. Native Work callables were absent
-from this Work's current tool inventory; that is not a claim about every host.
+This overlay has NOT been installed or enabled. The original production S61
+Store/Effects/Registry/Fiber capability, exact-task current Source and revocation
+mapping, native once fence, executor adapters and original ACK/result mapping
+still need their actual owned host instances. Current Python batch success and
+checkpoint permissions do not supply those instances. The current Work has no
+native Work read/send/interrupt tool; no substitute was fabricated.
 
-Ordinary composition without a routing capability returns the original
-executor unchanged. Do not enable routing or publish it as live until the
-same-Store production integration, source/revocation and lifecycle cases have
-real receipts. The existing v1.0.15 platform functions stay in service.
+A trusted host loader must verify the pinned original files, stage this overlay
+into that SAME S61 checkout, bind those ports, run its full typecheck, then
+validate original Store/Effects restart, lost-response, no-duplicate, revocation,
+Stop and result readback before enabling this shared capability. External
+adapters must separately prove lifecycle/shutdown handling. Do not replace the
+live Python/MCP branch with this isolated candidate. Do not rerun the completed
+three-item background acceptance batch. Without the host capabilities, remain
+DYNAMIC_LIFECYCLE_PATCHED_NOT_RUNTIME_BOUND.
 
-## Restore / rollback
+## Rollback
 
-This is an isolated source candidate. No formal deployment to roll back.
-Review source pins and restore the original S61 source before preparing its
-integration. Never replace the live Python/MCP branch with this candidate
-branch, renew an expired Source, clear once records, cancel other Work tasks,
-or rerun the already completed three-item platform acceptance batch.
+No production deployment occurred. Restore the pinned original index/runtime/
+DSH/Sessions files and remove the two new dynamic executor files when removing
+this staged overlay. Never discard an existing native once/route record to
+force a resend; an uncertain original attempt remains query-only.

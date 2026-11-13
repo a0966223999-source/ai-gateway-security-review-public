@@ -1,0 +1,176 @@
+(node:13) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(node:13) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+✔ original queued launch refuses foreign route before sessions, slots, native fence or reports (2.849966ms)
+✔ full worker slots leave original once fence untouched (1.392305ms)
+✖ repeated native attempt is query-only at actual prompt boundary (9.932697ms)
+✖ original launch calls trusted fence and retains original prompt/started callbacks (3.132372ms)
+✖ lost native response observes original attempt without failed report or retry prompt (1.667757ms)
+✔ revocation while session resolves prevents prompt and started ACK (3.332634ms)
+✖ native authorize callback rechecks changed Source after prompt was requested (1.697872ms)
+✔ original restart is observation only for owned running assignment (1.331355ms)
+✔ original restart leaves foreign assignment and native session untouched (1.549583ms)
+✔ original delayed stop rechecks ownership after commit (1.061476ms)
+✔ original delivery rechecks route after awaiting stopped work (2.765707ms)
+✔ ordinary unbound executor preserves original enqueue path (0.273546ms)
+✔ original shutdown does not cancel or stop background work of foreign route (1.731339ms)
+(node:14) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ original Engine dynamically routes capability requirements to two executor adapters (20.35122ms)
+✔ unavailable higher priority executor is excluded before any dispatch (4.370456ms)
+✔ required provider never silently falls back (6.957458ms)
+✔ missing capability refuses with no original Engine ticket or queue mutation (4.898031ms)
+✔ queue error rolls selection and original transaction effects back together (4.938897ms)
+✔ same assignment is query-only after SQLite reopen; no reselect or enqueue (5.078488ms)
+✔ preview performs no writes and cannot grant authority (2.563298ms)
+✔ delivery remains with chosen executor even when availability preferences change (5.938847ms)
+✔ policy revision change refuses delivery instead of changing route (4.631852ms)
+✔ stop preserves original owner/provider after revocation and deduplicates (3.994205ms)
+✔ stop cannot touch a different assignment or bypass retained ownership (2.274159ms)
+✔ source changes during candidate inspection prevent all enqueue effects (2.431403ms)
+✔ unknown health and truthy source checks never count as permission (2.962546ms)
+✔ provider from another Store cannot be registered (0.833609ms)
+✔ ordinary Runtime composition returns original executor with zero registry or source calls (0.476255ms)
+✔ JSON routing config is rejected before any provider factory invocation (0.276384ms)
+✔ wrong runtime lifetime rejects adapters before queue writes (1.045777ms)
+✔ original Engine stop callback targets retained executor after ticket ended (3.329604ms)
+✔ malformed durable route record cannot authorize delivery or stop (2.7007ms)
+✔ lifecycle ownership rejects foreign providers and changed Source at actual launch (4.674093ms)
+✔ original native once fence outcome stays query-only on repeated claim (4.262426ms)
+✔ native UNKNOWN and missing native once fence refuse sending (1.947151ms)
+✔ revocation inside original native fence is rechecked before send (2.091031ms)
+✔ recovery reads saved provider once without enqueue or changing policy grant (1.860417ms)
+✔ trusted Runtime binding attaches external lifecycle without enqueue; abort denies launch but permits cleanup (2.018608ms)
+✖ Runtime refuses legacy active assignment with no saved route before attaching providers (2.985883ms)
+✔ old assignment remains stoppable when original Engine has already stored its replacement (2.878908ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 35
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 560.007376
+
+✖ failing tests:
+
+test at router_dynamic_candidate/tests/dsh_lifecycle.test.mjs:68:1
+✖ repeated native attempt is query-only at actual prompt boundary (9.932697ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  -   'claim',
+      'observe'
+    ]
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/ad03cd1a864f/router_dynamic_candidate/tests/dsh_lifecycle.test.mjs:71:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'observe' ],
+    expected: [ 'claim', 'observe' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at router_dynamic_candidate/tests/dsh_lifecycle.test.mjs:73:1
+✖ original launch calls trusted fence and retains original prompt/started callbacks (3.132372ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   'observe'
+  -   'claim',
+  -   'prompt',
+  -   'assignmentStarted',
+  -   'assignmentStarted'
+    ]
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/ad03cd1a864f/router_dynamic_candidate/tests/dsh_lifecycle.test.mjs:76:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'observe' ],
+    expected: [ 'claim', 'prompt', 'assignmentStarted', 'assignmentStarted' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at router_dynamic_candidate/tests/dsh_lifecycle.test.mjs:78:1
+✖ lost native response observes original attempt without failed report or retry prompt (1.667757ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  -   'claim',
+  -   'native-unknown',
+      'observe'
+    ]
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/ad03cd1a864f/router_dynamic_candidate/tests/dsh_lifecycle.test.mjs:81:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'observe' ],
+    expected: [ 'claim', 'native-unknown', 'observe' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at router_dynamic_candidate/tests/dsh_lifecycle.test.mjs:88:1
+✖ native authorize callback rechecks changed Source after prompt was requested (1.697872ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  -   'claim',
+      'observe'
+    ]
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/ad03cd1a864f/router_dynamic_candidate/tests/dsh_lifecycle.test.mjs:91:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'observe' ],
+    expected: [ 'claim', 'observe' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at router_dynamic_candidate/tests/dynamic_executor.test.mjs:351:1
+✖ Runtime refuses legacy active assignment with no saved route before attaching providers (2.985883ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /RECOVERY_ROUTE_MISSING/. Input:
+  
+  'ReferenceError: keyFor is not defined'
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/ad03cd1a864f/router_dynamic_candidate/tests/dynamic_executor.test.mjs:361:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: ReferenceError: keyFor is not defined
+        at bindRuntimeDynamicExecutor (file:///workspace/scratch/ad03cd1a864f/router_dynamic_candidate/src/executor/dynamic_executor.mjs:254:26)
+        at file:///workspace/scratch/ad03cd1a864f/router_dynamic_candidate/tests/dynamic_executor.test.mjs:361:25
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///workspace/scratch/ad03cd1a864f/router_dynamic_candidate/tests/dynamic_executor.test.mjs:361:12)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1402:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+        at Test.postRun (node:internal/test_runner/test:1542:19)
+        at Test.run (node:internal/test_runner/test:1467:12),
+    expected: /RECOVERY_ROUTE_MISSING/,
+    operator: 'throws',
+    diff: 'simple'
+  }

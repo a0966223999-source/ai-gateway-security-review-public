@@ -270,3 +270,130 @@ test('malformed durable route record cannot authorize delivery or stop', () => {
     assert.equal(f.effects().length, 1)
   } finally { f.close() }
 })
+
+test('lifecycle ownership rejects foreign providers and changed Source at actual launch', () => {
+  const f = fixture()
+  try {
+    const {ticket, assignment} = f.create()
+    assert.equal(f.executor.lifecycle('specialist').check(ticket, assignment, 'launch'), false)
+    assert.equal(f.executor.lifecycle('general').check(ticket, assignment, 'launch'), true)
+    f.requirements({...f.requirementsNow, sourceRevision:'revoked'})
+    assert.equal(f.executor.lifecycle('general').check(ticket, assignment, 'launch'), false)
+    assert.equal(f.executor.lifecycle('general').check(ticket, assignment, 'stop'), true)
+  } finally { f.close() }
+})
+
+test('original native once fence outcome stays query-only on repeated claim', () => {
+  const f = fixture()
+  try {
+    let used = false
+    f.providers[0].claimStart = () => used ? 'query-only' : (used = true, 'send')
+    const router = bindDynamicExecutor(f.options)
+    const {ticket, assignment} = f.create()
+    assert.equal(router.lifecycle('general').claimStart(ticket, assignment), 'send')
+    assert.equal(router.lifecycle('general').claimStart(ticket, assignment), 'query-only')
+    assert.equal(f.effects().length, 1)
+  } finally { f.close() }
+})
+
+test('native UNKNOWN and missing native once fence refuse sending', () => {
+  const f = fixture()
+  try {
+    const {ticket, assignment} = f.create()
+    assert.throws(() => f.executor.lifecycle('general').claimStart(ticket, assignment), /NATIVE_FENCE_NOT_BOUND/)
+    f.providers[0].claimStart = () => 'UNKNOWN'
+    assert.throws(() => bindDynamicExecutor(f.options).lifecycle('general').claimStart(ticket, assignment), /OUTCOME_UNKNOWN/)
+  } finally { f.close() }
+})
+
+test('revocation inside original native fence is rechecked before send', () => {
+  const f = fixture()
+  try {
+    f.providers[0].claimStart = () => { f.authorized(false); return 'send' }
+    const router = bindDynamicExecutor(f.options), {ticket, assignment} = f.create()
+    assert.throws(() => router.lifecycle('general').claimStart(ticket, assignment), /PAUSED_OR_REVOKED/)
+    assert.equal(f.effects().length, 1)
+  } finally { f.close() }
+})
+
+test('recovery reads saved provider once without enqueue or changing policy grant', () => {
+  const f = fixture()
+  try {
+    let observed = 0
+    f.providers[0].recover = () => { observed++ }
+    const router = bindDynamicExecutor(f.options)
+    f.create(); f.authorized(false); f.paused(true)
+    router.recover()
+    assert.equal(observed, 1)
+    assert.equal(f.effects().length, 1)
+  } finally { f.close() }
+})
+
+function runtimeOptions(f, signal) {
+  return { store:f.store, policy:f.options.policy, lifetime:signal, originalExecutor:f.providers[0].executor,
+    capability:{ originalProviderId:'general', readRequirements:f.options.readRequirements, checkCurrent:f.options.checkCurrent,
+      providers:() => f.providers.map(p => ({...p, lifetime:signal, claimStart:()=>'query-only', recover:()=>{}, attachLifecycle:()=>{}})) } }
+}
+test('trusted Runtime binding attaches external lifecycle without enqueue; abort denies launch but permits cleanup', () => {
+  const f = fixture()
+  try {
+    const controller = new AbortController(), options = runtimeOptions(f, controller.signal)
+    const router = bindRuntimeDynamicExecutor(options)
+    const {ticket, assignment} = f.create()
+    assert.equal(router.lifecycle('general').check(ticket, assignment, 'launch'), true)
+    controller.abort()
+    assert.equal(router.lifecycle('general').check(ticket, assignment, 'launch'), false)
+    assert.equal(router.lifecycle('general').check(ticket, assignment, 'shutdown'), true)
+    assert.equal(f.effects().length, 1)
+  } finally { f.close() }
+})
+
+test('Runtime refuses legacy active assignment with no saved route before attaching providers', () => {
+  const f = fixture()
+  try {
+    f.create()
+    for (const row of f.records()) f.store.set(row.key, null)
+    let attached = 0
+    const options = runtimeOptions(f, new AbortController().signal)
+    const descriptors = options.capability.providers()
+    descriptors.forEach(p => {p.attachLifecycle = () => {attached++}})
+    options.capability.providers = () => descriptors
+    assert.throws(() => bindRuntimeDynamicExecutor(options), /RECOVERY_ROUTE_MISSING/)
+    assert.equal(attached, 0)
+    assert.equal(f.effects().length, 1)
+  } finally { f.close() }
+})
+
+test('old assignment remains stoppable when original Engine has already stored its replacement', () => {
+  const f = fixture()
+  try {
+    const {ticket, assignment} = f.create()
+    const old = {...assignment, state:'ended', endedReason:'retried'}, next = {...assignment, id:'new-assignment'}
+    const updated = {...ticket, assignments:[old,next]}; f.store.tickets.save(updated)
+    f.executor.stop(updated, old, 'retried')
+    assert.equal(f.effects().at(-1).assignment, assignment.id)
+    assert.equal(f.executor.lifecycle('general').check(updated, old, 'stop'), true)
+    assert.equal(f.executor.lifecycle('general').check(updated, old, 'launch'), false)
+  } finally { f.close() }
+})
+
+test('queued Stop blocks subsequent launch and delivery even while assignment remains pending', () => {
+  const f=fixture()
+  try {
+    const {ticket,assignment}=f.create();f.executor.stop(ticket,assignment,'fixture')
+    assert.equal(f.executor.lifecycle('general').check(ticket,assignment,'launch'),false)
+    assert.equal(f.executor.lifecycle('general').check(ticket,assignment,'deliver'),false)
+  } finally { f.close() }
+})
+test('original Engine retry stops old provider and selects replacement under same transaction', () => {
+  const f=fixture()
+  try {
+    const {ticket,assignment}=f.create()
+    f.engine.assignmentStarted(ticket.id,assignment.id)
+    f.engine.report(ticket.id,{state:'failed',summary:'synthetic failure'})
+    f.requirements({...f.requirementsNow,capabilities:['specialist-role']})
+    f.engine.retryTicket(ticket.id)
+    assert.deepEqual(f.effects().map(row=>[row.provider,row.action]),[
+      ['general','start'],['general','stop'],['specialist','start']])
+  } finally { f.close() }
+})

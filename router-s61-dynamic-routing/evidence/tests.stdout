@@ -1,29 +1,66 @@
-(node:22) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(node:15) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
-✔ original Engine dynamically routes capability requirements to two executor adapters (8.170825ms)
-✔ unavailable higher priority executor is excluded before any dispatch (1.349688ms)
-✔ required provider never silently falls back (1.227463ms)
-✔ missing capability refuses with no original Engine ticket or queue mutation (0.918256ms)
-✔ queue error rolls selection and original transaction effects back together (1.373053ms)
-✔ same assignment is query-only after SQLite reopen; no reselect or enqueue (1.559054ms)
-✔ preview performs no writes and cannot grant authority (2.215785ms)
-✔ delivery remains with chosen executor even when availability preferences change (2.395877ms)
-✔ policy revision change refuses delivery instead of changing route (1.956864ms)
-✔ stop preserves original owner/provider after revocation and deduplicates (2.882301ms)
-✔ stop cannot touch a different assignment or bypass retained ownership (1.793427ms)
-✔ source changes during candidate inspection prevent all enqueue effects (1.972187ms)
-✔ unknown health and truthy source checks never count as permission (2.190637ms)
-✔ provider from another Store cannot be registered (0.601218ms)
-✔ ordinary Runtime composition returns original executor with zero registry or source calls (0.426063ms)
-✔ JSON routing config is rejected before any provider factory invocation (0.281185ms)
-✔ wrong runtime lifetime rejects adapters before queue writes (0.872077ms)
-✔ original Engine stop callback targets retained executor after ticket ended (2.819096ms)
-✔ malformed durable route record cannot authorize delivery or stop (1.613305ms)
-ℹ tests 19
+(node:15) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(node:15) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+✔ original queued launch refuses foreign route before sessions, slots, native fence or reports (6.326837ms)
+✔ full worker slots leave original once fence untouched (2.100458ms)
+✔ repeated native attempt is query-only at actual prompt boundary (15.405551ms)
+✔ original launch calls trusted fence and retains original prompt/started callbacks (1.956561ms)
+✔ lost native response observes original attempt without failed report or retry prompt (1.967114ms)
+✔ revocation while session resolves prevents prompt and started ACK (1.240814ms)
+✔ native authorize callback rechecks changed Source after prompt was requested (1.237279ms)
+✔ original restart is observation only for owned running assignment (0.671693ms)
+✔ original restart leaves foreign assignment and native session untouched (0.385275ms)
+✔ original delayed stop rechecks ownership after commit (0.489254ms)
+✔ original delivery rechecks route after awaiting stopped work (0.508564ms)
+✔ ordinary unbound executor preserves original enqueue path (0.212699ms)
+✔ original shutdown does not cancel or stop background work of foreign route (0.4866ms)
+✔ original shutdown checks latest route instead of adopting a historical owned assignment (0.227658ms)
+(node:16) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ original Engine dynamically routes capability requirements to two executor adapters (10.686606ms)
+✔ unavailable higher priority executor is excluded before any dispatch (1.759313ms)
+✔ required provider never silently falls back (2.755224ms)
+✔ missing capability refuses with no original Engine ticket or queue mutation (1.87689ms)
+✔ queue error rolls selection and original transaction effects back together (2.679808ms)
+✔ same assignment is query-only after SQLite reopen; no reselect or enqueue (2.457589ms)
+✔ preview performs no writes and cannot grant authority (3.49945ms)
+✔ delivery remains with chosen executor even when availability preferences change (3.239141ms)
+✔ policy revision change refuses delivery instead of changing route (2.665608ms)
+✔ stop preserves original owner/provider after revocation and deduplicates (5.863261ms)
+✔ stop cannot touch a different assignment or bypass retained ownership (2.308007ms)
+✔ source changes during candidate inspection prevent all enqueue effects (2.622528ms)
+✔ unknown health and truthy source checks never count as permission (2.531019ms)
+✔ provider from another Store cannot be registered (0.978437ms)
+✔ ordinary Runtime composition returns original executor with zero registry or source calls (0.334132ms)
+✔ JSON routing config is rejected before any provider factory invocation (0.259451ms)
+✔ wrong runtime lifetime rejects adapters before queue writes (1.341284ms)
+✔ original Engine stop callback targets retained executor after ticket ended (4.606643ms)
+✔ malformed durable route record cannot authorize delivery or stop (2.994328ms)
+✔ lifecycle ownership rejects foreign providers and changed Source at actual launch (4.390839ms)
+✔ original native once fence outcome stays query-only on repeated claim (12.677213ms)
+✔ native UNKNOWN and missing native once fence refuse sending (1.940931ms)
+✔ revocation inside original native fence is rechecked before send (1.777645ms)
+✔ recovery reads saved provider once without enqueue or changing policy grant (1.661739ms)
+✔ trusted Runtime binding attaches external lifecycle without enqueue; abort denies launch but permits cleanup (1.946987ms)
+✔ Runtime refuses legacy active assignment with no saved route before attaching providers (2.803535ms)
+✔ old assignment remains stoppable when original Engine has already stored its replacement (2.308926ms)
+✔ queued Stop blocks subsequent launch and delivery even while assignment remains pending (2.177252ms)
+✔ original Engine retry stops old provider and selects replacement under same transaction (3.918637ms)
+(node:17) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(node:17) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+✔ original session ticket lookup cannot adopt another executor or revoked Source (1.498866ms)
+✔ original inherited tool guard rechecks current ownership at each invocation (0.599684ms)
+✔ already registered original worker tool refuses after route revocation (1.403692ms)
+✔ original model prompt binding refuses changed Source before prompt revision writes (0.236829ms)
+✔ original session creation refuses foreign route before resolving native agent (0.471711ms)
+ℹ tests 48
 ℹ suites 0
-ℹ pass 19
+ℹ pass 48
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 319.553361
+ℹ duration_ms 632.190359

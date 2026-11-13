@@ -12,6 +12,7 @@ const digest = value => createHash('sha256').update(JSON.stringify(value)).diges
 const tokenList = value => Array.isArray(value) && value.length <= 16 &&
   value.every(text) && new Set(value).size === value.length
 const prefix = 'router-s61/executor-selection/v1/'
+const keyFor = (ticketId, assignmentId) => prefix + digest([ticketId, assignmentId])
 
 function requirementsView(value) {
   if (!value || typeof value !== 'object' ||
@@ -44,12 +45,14 @@ export function bindDynamicExecutor({ store, providers, policy, readRequirements
     // Preserve original executor identity and copy caller-owned descriptors.
     registry.set(provider.id, Object.freeze({ id: provider.id, revision: provider.revision,
       capabilities: Object.freeze([...provider.capabilities]), priority: provider.priority,
-      available: provider.available, executor: provider.executor }))
+      available: provider.available, executor: provider.executor,
+      claimStart: provider.claimStart, recover: provider.recover }))
   }
 
   function current(ticketId, assignmentId, action) {
     const ticket = clone(store.tickets.get(ticketId))
-    const assignment = ticket?.assignments?.at(-1)
+    const assignment = action === 'stop' ? ticket?.assignments?.find(item => item.id === assignmentId)
+      : ticket?.assignments?.at(-1)
     if (!ticket || ticket.id !== ticketId || !assignment || assignment.id !== assignmentId) {
       fail('DYNAMIC_CURRENT_ORIGINAL_ASSIGNMENT_REQUIRED')
     }
@@ -76,7 +79,6 @@ export function bindDynamicExecutor({ store, providers, policy, readRequirements
     return { ticket, assignment, requirements, policyVersion: active.version }
   }
 
-  const keyFor = (ticketId, assignmentId) => prefix + digest([ticketId, assignmentId])
   const identity = view => digest([view.ticket.id, view.assignment.id, view.assignment.createdAt, view.ticket.mandate])
   const context = view => digest([identity(view), view.requirements, view.policyVersion])
 
@@ -162,7 +164,59 @@ export function bindDynamicExecutor({ store, providers, policy, readRequirements
     })
   }
 
-  return Object.freeze({ preview, start,
+  function owned(providerId, ticketId, assignmentId, action) {
+    const cleanup = action === 'stop' || action === 'shutdown' || action === 'recover'
+    const view = current(ticketId, assignmentId, cleanup ? 'stop' : 'deliver')
+    const record = originalRecord(clone(store.get(keyFor(ticketId, assignmentId))), view)
+    const provider = registry.get(providerId)
+    if (!provider || record.providerId !== provider.id || record.providerRevision !== provider.revision) {
+      fail('DYNAMIC_RETAINED_PROVIDER_NOT_BOUND')
+    }
+    if (!cleanup && record.stopQueued === true) fail('DYNAMIC_STOP_ALREADY_QUEUED')
+    if (!cleanup && (record.policyVersion !== view.policyVersion ||
+        record.requirementsDigest !== digest(view.requirements))) fail('DYNAMIC_RECORDED_SOURCE_CHANGED')
+    return { view, provider }
+  }
+
+  function lifecycle(providerId) {
+    if (!registry.has(providerId)) fail('DYNAMIC_RETAINED_PROVIDER_NOT_BOUND')
+    return Object.freeze({
+      check(ticket, assignment, action) {
+        try { owned(providerId, ticket.id, assignment.id, action); return true } catch { return false }
+      },
+      claimStart(ticket, assignment) {
+        const before = owned(providerId, ticket.id, assignment.id, 'start')
+        if (before.view.assignment.state !== 'pending' || typeof before.provider.claimStart !== 'function') {
+          fail('DYNAMIC_ORIGINAL_NATIVE_FENCE_NOT_BOUND')
+        }
+        const decision = before.provider.claimStart(clone(before.view.ticket), clone(before.view.assignment))
+        if (!['send', 'query-only'].includes(decision)) fail('DYNAMIC_NATIVE_FENCE_OUTCOME_UNKNOWN')
+        const after = owned(providerId, ticket.id, assignment.id, 'start')
+        if (context(before.view) !== context(after.view)) fail('DYNAMIC_CONTEXT_CHANGED')
+        return decision
+      },
+      recover(ticket, assignment) {
+        const { view, provider } = owned(providerId, ticket.id, assignment.id, 'recover')
+        if (typeof provider.recover !== 'function') fail('DYNAMIC_ORIGINAL_QUERY_RECOVERY_NOT_BOUND')
+        // Host capability must observe the original native attempt, never
+        // restart/requeue it or manufacture assignmentStarted/completion.
+        provider.recover(clone(view.ticket), clone(view.assignment))
+      },
+    })
+  }
+
+  function recover() {
+    if (typeof store.tickets.active !== 'function') fail('DYNAMIC_ORIGINAL_ACTIVE_TICKETS_NOT_BOUND')
+    for (const ticket of store.tickets.active()) {
+      const assignment = ticket.assignments.at(-1)
+      if (!assignment || !['pending', 'running'].includes(assignment.state)) continue
+      const record = store.get(keyFor(ticket.id, assignment.id))
+      if (!record) fail('DYNAMIC_RECOVERY_ROUTE_MISSING_QUERY_ONLY')
+      lifecycle(record.providerId).recover(ticket, assignment)
+    }
+  }
+
+  return Object.freeze({ preview, start, lifecycle, recover,
     deliver: (ticket, assignment) => retained(ticket, assignment, 'deliver'),
     stop: (ticket, assignment, reason) => retained(ticket, assignment, 'stop', reason) })
 }
@@ -181,9 +235,30 @@ export function bindRuntimeDynamicExecutor({ capability, store, policy, original
   if (!Array.isArray(registered) || registered.some(provider => provider.lifetime !== lifetime)) {
     fail('DYNAMIC_PROVIDER_RUNTIME_LIFETIME_MISMATCH')
   }
+  if (!text(capability.originalProviderId) || !registered.some(provider =>
+    provider.id === capability.originalProviderId && provider.executor === originalExecutor) ||
+      registered.some(provider => typeof provider.claimStart !== 'function' || typeof provider.recover !== 'function' ||
+        (provider.executor !== originalExecutor && typeof provider.attachLifecycle !== 'function'))) {
+    fail('DYNAMIC_ORIGINAL_PROVIDER_LIFECYCLE_NOT_BOUND')
+  }
   const readRequirements = capability.readRequirements
   const checkCurrent = capability.checkCurrent
-  return bindDynamicExecutor({ store, policy, providers: registered,
+  const bound = bindDynamicExecutor({ store, policy, providers: registered,
     readRequirements: (ticket, assignment) => readRequirements(ticket, assignment),
     checkCurrent: request => (request.action === 'stop' || !lifetime.aborted) && checkCurrent(request) === true })
+  // Refuse migration/adoption of legacy or changed active assignments before
+  // any recovery callback or original Runtime loops can start.
+  if (typeof store.tickets.active !== 'function') fail('DYNAMIC_ORIGINAL_ACTIVE_TICKETS_NOT_BOUND')
+  for (const ticket of store.tickets.active()) {
+    const assignment = ticket.assignments.at(-1)
+    if (!assignment || !['pending', 'running'].includes(assignment.state)) continue
+    const record = store.get(keyFor(ticket.id, assignment.id))
+    if (!record || !bound.lifecycle(record.providerId).check(ticket, assignment, 'recover')) {
+      fail('DYNAMIC_RECOVERY_ROUTE_MISSING_QUERY_ONLY')
+    }
+  }
+  for (const provider of registered) {
+    if (provider.executor !== originalExecutor) provider.attachLifecycle(bound.lifecycle(provider.id))
+  }
+  return bound
 }
