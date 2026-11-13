@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dev-6af05e97756c8191affb9700b02418e7",
+  "version": "1.0.16",
+  "description": "合成 Redis 事件寫入、讀回與\n\nTTL 測試",
+  "author": {
+    "name": "App developer"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "skills/redis-common-entry/SKILL.md",
+      "interface": {
+        "capabilities": [],
+        "category": "Other",
+        "defaultPrompt": null,
+        "developerName": "App developer",
+        "displayName": "X Redis Test",
+        "longDescription": "合成 Redis 事件寫入、讀回與\n\nTTL 測試",
+        "shortDescription": "合成 Redis 事件寫入、讀回與\n\nTTL 測試"
+      },
+      "apps": "./.app.json"
+    }
+  }
+}

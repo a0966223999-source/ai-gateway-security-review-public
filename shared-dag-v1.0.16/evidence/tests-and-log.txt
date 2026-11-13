@@ -1,0 +1,54 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {planDag} from './dag-plan.mjs';
+const node = (key, depends_on = []) => ({key, depends_on, prompt: `Compute ${key}`,
+  acceptance_criteria: ['Check the saved result']});
+const graph = nodes => ({version: 1, dag_id: 'test-original-1', goal: 'Test graph', nodes});
+test('fork and join schedules C only after A and B', () => {
+  const result = planDag(graph([node('C', ['A', 'B']), node('B'), node('A')]));
+  assert.deepEqual(result.waves, [[['A', 'B']], [['C']]]);
+  assert.equal(result.host_dag_enforced, false);
+});
+test('diamond and disconnected node', () => {
+  assert.deepEqual(planDag(graph([node('A'), node('B', ['A']), node('C', ['A']),
+    node('D', ['B', 'C']), node('E')])).waves, [[['A', 'E']], [['B', 'C']], [['D']]]);
+});
+test('original batch limit is three', () => {
+  assert.deepEqual(planDag(graph(['E','D','C','B','A'].map(k => node(k)))).waves,
+    [[['A','B','C'],['D','E']]]);
+});
+test('cycle refuses entire graph even with an independent root', () => {
+  assert.throws(() => planDag(graph([node('A', ['B']),node('B', ['A']),node('C')])), /CYCLIC_DAG/);
+});
+test('missing dependency rejected', () => assert.throws(() => planDag(graph([node('A',['X'])])), /MISSING_DEPENDENCY/));
+test('self dependency rejected', () => assert.throws(() => planDag(graph([node('A',['A'])])), /SELF_DEPENDENCY/));
+test('duplicate node rejected', () => assert.throws(() => planDag(graph([node('A'),node('A')])), /DUPLICATE_NODE/));
+test('duplicate edge rejected', () => assert.throws(() => planDag(graph([node('A'),node('B',['A','A'])])), /INVALID_NODE/));
+test('invalid and oversized graphs rejected', () => {
+  assert.throws(() => planDag(graph([])), /INVALID_DAG/);
+  assert.throws(() => planDag(graph(Array.from({length:101},(_,i)=>node(`n${i}`)))), /INVALID_DAG/);
+  assert.throws(() => planDag({...graph([node('A')]), dag_id:'../other'}), /INVALID_DAG/);
+});
+test('planning copies data and performs no dispatch', () => {
+  const input=graph([node('A')]); const copy=JSON.stringify(input);
+  const result=planDag(input);result.nodes[0].acceptance_criteria.push('extra');
+  assert.equal(JSON.stringify(input),copy);assert.equal(result.automatic_dispatch,false);
+});
+✔ fork and join schedules C only after A and B (4.517771ms)
+✔ diamond and disconnected node (0.529758ms)
+✔ original batch limit is three (0.547422ms)
+✔ cycle refuses entire graph even with an independent root (0.845206ms)
+✔ missing dependency rejected (0.546398ms)
+✔ self dependency rejected (0.610075ms)
+✔ duplicate node rejected (0.318089ms)
+✔ duplicate edge rejected (0.552747ms)
+✔ invalid and oversized graphs rejected (0.704097ms)
+✔ planning copies data and performs no dispatch (0.507471ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 247.275251
