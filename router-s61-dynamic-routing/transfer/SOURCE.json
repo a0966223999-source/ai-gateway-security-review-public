@@ -1,0 +1,9 @@
+{
+  "schema": "s61-product-source-transfer-v1",
+  "archive": "Router_S61_Execution_Product_5798b3ca.zip",
+  "sha256": "f20c247dc364d66bd22364e56ec9a893db430916d5dbb090c174ee61179cec9e",
+  "size_bytes": 454984,
+  "files": 145,
+  "source": "Original S61 continuation archive 1500784f3eb88d2d73cd2a3511720054fcbd1553afbf1268008f6beec5fe059c, overlaid with ef434c196d7b1883a1df20385f9194feed384196 DSH/Sessions/index and 5798b3cae06b65c0f98424eeb9b5640d671c57e9 execution wiring.",
+  "scope": "Product source, prompts, locale, package/lock/build configuration and MIT license. No credentials, runtime database, grants, host config, execution records or private host payload. Not an installed service or native authority."
+}
