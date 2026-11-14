@@ -23,13 +23,15 @@ from cycle_envelope import CycleAwareEventCatalog
 
 
 def install(api_app, write_event, read_event, event_model, *, batch_scope_resolver=None,
-            agent_management_resolver=None):
+            agent_management_resolver=None, summary_memory_scope_resolver=None):
     # Only trusted startup can supply the original batch authority. Environment
     # flags, mailbox payloads and model-provided IDs cannot create this capability.
     if batch_scope_resolver is not None and not callable(batch_scope_resolver):
         raise ValueError('BATCH_SCOPE_RESOLVER_REQUIRED')
     if batch_scope_resolver is not None and os.getenv('XJ_FRESH_BATCH_HOST_ENABLED') == 'true':
         raise ValueError('ONE_BATCH_HOST_MODE_REQUIRED')
+    if summary_memory_scope_resolver is not None and not callable(summary_memory_scope_resolver):
+        raise ValueError("ORIGINAL_SUMMARY_RESOLVER_REQUIRED")
     verifier = Auth0Verifier()
     hostname = os.environ['VERCEL_URL']
     if not hostname.endswith('.vercel.app') or '/' in hostname:
@@ -144,6 +146,7 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
         return await events.deliver(inbox, delivery_id)
 
     batch_mounted = False
+    summary_memory_mounted = False
 
     async def authenticated_batch_scope(ctx, parent_id, operation_key, action):
         owner = principal()
@@ -155,13 +158,20 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
     previous = api_app.router.lifespan_context
     @asynccontextmanager
     async def lifespan(app):
-        nonlocal batch_mounted
+        nonlocal batch_mounted, summary_memory_mounted
         async with previous(app):
             if batch_scope_resolver is not None and not batch_mounted:
                 from batch_mcp_entry import mount_batch_tools
                 await mount_batch_tools(mcp, resolve_scope=authenticated_batch_scope,
                                         oauth_meta=oauth_meta)
                 batch_mounted = True
+            if not summary_memory_mounted:
+                from working_memory_mcp_entry import mount_summary_read_tool
+                await mount_summary_read_tool(
+                    mcp, resolve_scope=summary_memory_scope_resolver,
+                    principal=principal, oauth_meta=oauth_meta,
+                )
+                summary_memory_mounted = True
             async with mcp.session_manager.run():
                 yield
     api_app.router.lifespan_context = lifespan
@@ -176,4 +186,5 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
         catalog = CycleAwareEventCatalog(catalog)
     api_app.mount('/', install_events_transport(mcp, catalog))
     return mcp
+
 
