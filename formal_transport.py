@@ -78,4 +78,46 @@ def install_formal_transport(mcp, mailbox, verifier, principal, oauth_meta):
             raise InboxError('formal_authority_required')
         return await asyncio.to_thread(inbox.subscription_status)
 
+
+    @mcp.tool(meta=oauth_meta, annotations=annotation(idempotent=True, external=True))
+    async def gateway_inbox_resume_delivery(mailbox_id: str, event_id: str,
+                                            subscription_id: str) -> dict:
+        """Resume ONE original, never-attempted pending Gateway callback.
+        No new event, replay of uncertain attempts, claim, ACK or Source grant.
+        Query delivery status first; callback 2xx is not Work completion.
+        """
+        import re
+        if (not re.fullmatch(r'[0-9a-f]{64}', event_id)
+                or not re.fullmatch(r'sub_[0-9a-f]{64}', subscription_id)):
+            raise InboxError('invalid_delivery_locator')
+        inbox = box(mailbox_id)
+        if transport_authority('resume_delivery', inbox, event_id) is not True:
+            raise InboxError('formal_authority_required')
+        delivery_id = event_id + ':' + subscription_id
+        snapshot = await asyncio.to_thread(inbox.delivery_status, delivery_id)
+        rows = snapshot.get('items')
+        if (not isinstance(rows, list) or len(rows) != 1
+                or rows[0].get('event_id') != event_id
+                or rows[0].get('delivery_id') != delivery_id
+                or rows[0].get('event_name') != FORMAL):
+            raise InboxError('original_delivery_not_found_or_mismatched')
+        row = rows[0]
+        if row.get('state') == 'delivered':
+            return {'status': 'ALREADY_DELIVERED', 'delivery': row,
+                    'new_event': False, 'work_completion': 'UNVERIFIED'}
+        if row.get('state') != 'pending' or type(row.get('attempts')) is not int or row['attempts'] != 0:
+            return {'status': 'QUERY_ONLY', 'delivery': row,
+                    'new_event': False, 'work_completion': 'UNVERIFIED'}
+        # Events.deliver owns the original atomic delivery lock and rechecks
+        # stored OAuth/access/revision immediately before callback attempts.
+        if transport_authority('resume_delivery', inbox, event_id) is not True:
+            raise InboxError('formal_authority_required')
+        try:
+            outcome = await formal.deliver(inbox, delivery_id)
+        except Exception:
+            return {'status': 'UNKNOWN_QUERY_ONLY', 'delivery_id': delivery_id,
+                    'new_event': False, 'work_completion': 'UNVERIFIED'}
+        return {'status': 'DELIVERY_ATTEMPT_FINISHED', 'delivery': outcome,
+                'new_event': False, 'work_completion': 'UNVERIFIED'}
+
     return formal
