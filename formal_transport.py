@@ -6,11 +6,34 @@ Source and current task authority before any native Work action.
 """
 import asyncio, hashlib, os
 from mcp.types import ToolAnnotations
+from mcp.server.fastmcp import Context
 from inbox import InboxError
 from mcp_events import Events
 
 FORMAL = 'gateway.continuation.ready'
 MAILBOX = 'gateway_internal_v1'
+
+
+def caller_context_observation(ctx, owner):
+    """Read only host MCP metadata, never payload IDs or authentication claims."""
+    result = {'schema': 'caller-context-observation-v1',
+              'work_identity_verified': False,
+              'evidence': 'NO_PLATFORM_ORIGIN_ATTESTATION',
+              'conversation_id_present': False}
+    try:
+        meta = ctx.request_context.meta if ctx is not None else None
+        extra = meta if isinstance(meta, dict) else getattr(meta, 'model_extra', None)
+        session = extra.get('openai/session') if isinstance(extra, dict) else None
+        if isinstance(session, str) and 0 < len(session) <= 512:
+            # Opaque owner-scoped correlation only. Never expose raw metadata,
+            # tokens, thread/session IDs, callback URLs or request headers.
+            result['conversation_id_present'] = True
+            result['conversation_fingerprint'] = hashlib.sha256(
+                ('caller-context-v1|' + owner + '|' + session).encode()).hexdigest()
+            result['evidence'] = 'CONVERSATION_METADATA_ONLY_NOT_WORK_IDENTITY'
+    except Exception:
+        result['evidence'] = 'CONTEXT_UNAVAILABLE'
+    return result
 
 def install_formal_transport(mcp, mailbox, verifier, principal, oauth_meta):
     def box(mailbox_id):
@@ -71,12 +94,14 @@ def install_formal_transport(mcp, mailbox, verifier, principal, oauth_meta):
         """Read formal callback delivery receipts. Does not expose secrets; 2xx is delivery, not native Work completion."""
         return await asyncio.to_thread(box(mailbox_id).delivery_status,delivery_id)
     @mcp.tool(meta=oauth_meta, annotations=annotation(read=True,idempotent=True))
-    async def gateway_inbox_subscription_status() -> dict:
+    async def gateway_inbox_subscription_status(ctx: Context = None) -> dict:
         """Read retained subscription metadata for the fixed original owner/mailbox. Includes retained expired entries, not deleted history; absence does not resolve an unknown create. No callbacks or credentials are returned."""
         inbox = box(MAILBOX)
         if transport_authority('subscription_status', inbox, None) is not True:
             raise InboxError('formal_authority_required')
-        return await asyncio.to_thread(inbox.subscription_status)
+        result = await asyncio.to_thread(inbox.subscription_status)
+        result['caller_context'] = caller_context_observation(ctx, inbox.owner)
+        return result
 
 
     @mcp.tool(meta=oauth_meta, annotations=annotation(idempotent=True, external=True))
