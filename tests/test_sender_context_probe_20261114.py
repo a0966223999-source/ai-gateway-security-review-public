@@ -11,7 +11,7 @@ from mcp.types import RequestParams, ToolAnnotations
 # fixture; Context/Meta/FastMCP registration use the installed real MCP SDK.
 class OfflineEvents:
     def __init__(self, *args, **kwargs): pass
-tree=ast.parse(Path(__file__).resolve().parents[1] / 'formal_transport.py'.read_text())
+tree=ast.parse((Path(__file__).resolve().parents[1] / 'formal_transport.py').read_text())
 nodes=[n for n in tree.body if isinstance(n, ast.FunctionDef) and
        n.name in ('caller_context_observation','install_formal_transport')]
 env=dict(asyncio=asyncio,hashlib=hashlib,os=os,Context=Context,
