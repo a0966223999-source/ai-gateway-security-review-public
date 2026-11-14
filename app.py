@@ -114,4 +114,6 @@ from routes import install_internal_route as _xj_install
 _xj_install(app, service=_xj_service(approved_bootstrap=True))
 
 from mcp_bridge import install
-_mcp = install(app, write_event, read_event, SyntheticEvent)
+from summary_read_channel import make_summary_scope_resolver
+_mcp = install(app, write_event, read_event, SyntheticEvent,
+    summary_memory_scope_resolver=make_summary_scope_resolver())

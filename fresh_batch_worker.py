@@ -95,7 +95,10 @@ async def serve(args):
 
             async def handle(envelope):
                 try:
-                    if envelope.get("body", {}).get("payload", {}).get("execution_mode") == "platform-checkpoint-v1":
+                    if envelope.get("body", {}).get("payload", {}).get("execution_mode") == "original-short-term-summary-read-v1":
+                        from summary_read_forward import forward_summary_read
+                        response = await asyncio.to_thread(forward_summary_read, host, envelope)
+                    elif envelope.get("body", {}).get("payload", {}).get("execution_mode") == "platform-checkpoint-v1":
                         from platform_checkpoint_forward import forward_checkpoint
                         response = await asyncio.to_thread(forward_checkpoint, host, envelope)
                     else:

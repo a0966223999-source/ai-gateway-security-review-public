@@ -133,6 +133,21 @@ async def mount_summary_read_tool(server, *, resolve_scope, principal, oauth_met
             scope = await resolve_scope(ctx, owner, summary_ref)
             if principal() != owner:
                 raise ToolError("ORIGINAL_SHORT_TERM_PRINCIPAL_CHANGED")
+            from summary_read_channel import RemoteSummaryReadScope, validate_view
+            if type(scope) is RemoteSummaryReadScope:
+                def check_remote():
+                    if (scope.owner != owner or scope.summary_ref != summary_ref
+                            or not callable(scope.is_current) or scope.is_current() is not True
+                            or not inspect.iscoroutinefunction(scope.read_original)
+                            or principal() != owner):
+                        raise ToolError("ORIGINAL_SHORT_TERM_READ_UNAVAILABLE")
+                check_remote()
+                raw, binding = await scope.read_original()
+                check_remote()
+                validate_view(raw, binding)
+                result = _public_view(raw)
+                check_remote()
+                return {**result, "summary_ref": summary_ref}
             _check_summary(scope, owner, summary_ref)
             original = scope.original
             raw = await original.invoke_original(

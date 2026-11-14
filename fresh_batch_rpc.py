@@ -107,8 +107,12 @@ def install_fresh_batch_routes(app, *, env=os.environ, connection_factory=None):
                 stored = redis.get(key)
                 original = json.loads(stored)['envelope']['body']
                 rpc.verified_result(canonical(payload['response']), original)
-                redis.eval(RESPOND, 2, key, key + ':response', stored,
-                           canonical(payload['response']).decode(), rid)
+                if original.get('payload', {}).get('execution_mode') == 'original-short-term-summary-read-v1':
+                    redis.eval(SUMMARY_RESPOND, 2, key, key + ':response', stored,
+                               canonical(payload['response']).decode(), rid, original['expires_at'])
+                else:
+                    redis.eval(RESPOND, 2, key, key + ':response', stored,
+                               canonical(payload['response']).decode(), rid)
                 return {'response_saved': True}
         try:
             return await asyncio.to_thread(perform)
@@ -131,6 +135,19 @@ if redis.call('GET',KEYS[1])~=ARGV[1] then return redis.error_reply('BATCH_REQUE
 local old=redis.call('GET',KEYS[2])
 if old and old~=ARGV[2] then return redis.error_reply('BATCH_RESPONSE_CONFLICT') end
 if not old then redis.call('SET',KEYS[2],ARGV[2]) end
+redis.call('PUBLISH',KEYS[2],ARGV[3]); return 'saved'
+"""
+
+
+# Ordinary summaries are transient transport replies, never a retained cache.
+SUMMARY_RESPOND = """
+if redis.call('GET',KEYS[1])~=ARGV[1] then return redis.error_reply('BATCH_REQUEST_CHANGED') end
+local now=redis.call('TIME')
+local ttl=math.floor((tonumber(ARGV[4])-tonumber(now[1])-tonumber(now[2])/1000000)*1000)
+if ttl<=0 or ttl>120000 then return redis.error_reply('SUMMARY_REPLY_EXPIRED') end
+local old=redis.call('GET',KEYS[2])
+if old and old~=ARGV[2] then return redis.error_reply('BATCH_RESPONSE_CONFLICT') end
+redis.call('SET',KEYS[2],ARGV[2],'PX',ttl)
 redis.call('PUBLISH',KEYS[2],ARGV[3]); return 'saved'
 """
 
@@ -185,9 +202,30 @@ class BatchRPC:
             if record is None:
                 return {'request_id': rid, 'status': 'NOT_FOUND_QUERY_ONLY', 'automatic_dispatch': False}
             body = json.loads(record)['envelope']['body']
+            if body.get('payload', {}).get('execution_mode') == 'original-short-term-summary-read-v1':
+                return {'request_id': rid, 'status': 'SUMMARY_READ_RECEIPT_ONLY',
+                        'historical_only': True, 'authority': False}
             raw = redis.get(key + ':response')
             return self.verified_result(raw, body) if raw else {
                 'request_id': rid, 'status': 'PENDING_OR_UNKNOWN_QUERY_SAME_KEY', 'automatic_dispatch': False}
+
+    def discard_summary_reply(self, *, owner, parent, operation_key):
+        self.check(owner, parent)
+        if (not isinstance(operation_key, str) or len(operation_key) != 61
+                or not operation_key.startswith('summary-read-')
+                or any(c not in '0123456789abcdef' for c in operation_key[13:])):
+            raise ValueError('SUMMARY_OPERATION_KEY_REQUIRED')
+        rid = request_id(self.config, 'read', operation_key)
+        key = self.prefix + ':request:' + rid
+        with self.connection_factory() as redis:
+            stored = redis.get(key)
+            if stored is None:
+                return
+            body = json.loads(stored)['envelope']['body']
+            if (body.get('owner') != owner or body.get('action') != 'read'
+                    or body.get('payload', {}).get('execution_mode') != 'original-short-term-summary-read-v1'):
+                raise ValueError('SUMMARY_REPLY_CLEANUP_SCOPE')
+            redis.delete(key + ':response')
 
     def call(self, *, owner, parent, action, operation_key, payload, response_timeout=3):
         self.check(owner, parent)

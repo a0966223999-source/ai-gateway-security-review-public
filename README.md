@@ -95,3 +95,17 @@ completion while Work is active does not itself provide a later completion wake.
 Do not label an enqueue receipt as successful automatic continuation.
 
 Host integration timing note: a measured real functions V8 registration child took 26.9 seconds before discovery and semantic review. A 30-second full first-registration budget is not established. Longer read-only diagnostic measurements must pass before configuring a larger RPC budget. The default RPC wait stays 30 and Source RPC remains disabled until host verification.
+
+
+## Ordinary short-term summary channel
+
+The existing read_short_term_summary tool uses summary_read_channel through the
+original signed RPC and Worker. Only summary_ref is supplied by the model.
+Read rights are assigned separately by the original host; an unset original
+Reader provider denies without returning content. No checkpoint link grants
+ordinary summary access. Replies expire by the original request deadline, are
+removed after consumption, and historical queries cannot return summary bodies.
+
+This source change does not start or restart the native Gateway/Worker or issue
+any grant. Gateway source mounting, MCP deployment, native process loading and
+real authorized/unauthorized summary acceptance are separate rollout stages.
