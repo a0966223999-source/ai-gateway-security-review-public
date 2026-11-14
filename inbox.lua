@@ -40,18 +40,33 @@ if action=='subscription_status' then
 elseif action=='send' then
  local name=req.event_name or 'inbox.message.created'
  if name~='inbox.message.created' and name~='gateway.continuation.ready' then return error('unknown_event') end
+ local origin=req.sender_context
+ if origin~=nil then
+  if name~='gateway.continuation.ready' or type(origin)~='table'
+     or origin.schema~='caller-context-observation-v1'
+     or origin.work_identity_verified~=false
+     or type(origin.conversation_id_present)~='boolean' then return error('invalid_sender_context') end
+  local present=origin.conversation_id_present
+  if present then
+   if count(origin)~=5 or type(origin.conversation_fingerprint)~='string'
+      or #origin.conversation_fingerprint~=64 or not string.match(origin.conversation_fingerprint,'^[0-9a-f]+$')
+      or origin.evidence~='CONVERSATION_METADATA_ONLY_NOT_WORK_IDENTITY' then return error('invalid_sender_context') end
+  elseif count(origin)~=4 or (origin.evidence~='NO_PLATFORM_ORIGIN_ATTESTATION'
+      and origin.evidence~='CONTEXT_UNAVAILABLE') then return error('invalid_sender_context') end
+ end
  local m=nil
  for _,existing in pairs(doc.messages) do
   if existing.operation_key==req.operation_key and event_name(existing)==name then m=existing; break end
  end
  if m then
   if m.digest~=req.digest then return error('operation_conflict') end
-  return result({event_id=m.event_id,duplicate=true,expires_at=m.expires_at})
+  return result({event_id=m.event_id,duplicate=true,expires_at=m.expires_at,sender_context=m.sender_context})
  end
  if count(doc.messages)>=100 or count(doc.deliveries)+count(doc.subscriptions)>1000 then return error('mailbox_full') end
  doc.seq=doc.seq+1
  m={event_name=name,event_id=req.event_id,digest=req.digest,operation_key=req.operation_key,message=req.message,
-    sequence=doc.seq,created_at=now,expires_at=now+86400,state='available',version=0}
+    sequence=doc.seq,created_at=now,expires_at=now+86400,state='available',version=0,
+    sender_context=origin}
  doc.messages[m.event_id]=m
  for sid,s in pairs(doc.subscriptions) do
   if active(s) and event_name(s)==name then
@@ -60,7 +75,7 @@ elseif action=='send' then
     event_name=name,created_at=now,expires_at=m.expires_at,state='pending',attempts=0}
   end
  end
- return save({event_id=m.event_id,duplicate=false,expires_at=m.expires_at})
+ return save({event_id=m.event_id,duplicate=false,expires_at=m.expires_at,sender_context=m.sender_context})
 elseif action=='list' then
  if not raw and req.cursor_epoch=='' then return result({items={},cursor='',has_more=false}) end
  if req.cursor_epoch~='' and req.cursor_epoch~=doc.epoch then return error('cursor_expired') end
@@ -70,7 +85,7 @@ elseif action=='list' then
    local state=m.state
    if state=='claimed' and m.lease_until<=now then state='available' end
    table.insert(items,{event_id=m.event_id,operation_key=m.operation_key,message=m.message,
-    sequence=m.sequence,state=state,created_at=m.created_at,expires_at=m.expires_at})
+    sequence=m.sequence,state=state,created_at=m.created_at,expires_at=m.expires_at,sender_context=m.sender_context})
   end
  end
  table.sort(items,function(a,b) return a.sequence<b.sequence end)
