@@ -59,10 +59,13 @@ def install_formal_transport(mcp, mailbox, verifier, principal, oauth_meta):
                                idempotentHint=idempotent, openWorldHint=external)
 
     @mcp.tool(meta=oauth_meta, annotations=annotation(idempotent=True, external=True))
-    async def gateway_inbox_send(mailbox_id: str, operation_key: str, message: str) -> dict:
+    async def gateway_inbox_send(mailbox_id: str, operation_key: str, message: str,
+                                 ctx: Context = None) -> dict:
         """Send an owner-scoped Gateway notification. May trigger the subscribed dot. It grants no Work authority; receiver must check original Source. Query same event on uncertainty."""
         inbox=box(mailbox_id)
-        receipt=await asyncio.to_thread(inbox.send, operation_key, message, event_name=FORMAL)
+        origin = caller_context_observation(ctx, inbox.owner)
+        receipt=await asyncio.to_thread(inbox.send, operation_key, message,
+                                        event_name=FORMAL, sender_context=origin)
         try:
             receipt['deliveries']=await formal.dispatch(inbox,receipt['event_id'])
         except Exception:
