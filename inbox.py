@@ -81,16 +81,37 @@ class Inbox:
         result['items'] = result['items'] or []
         return result
 
-    def send(self, operation_key, message, *, event_name='inbox.message.created'):
+    def send(self, operation_key, message, *, event_name='inbox.message.created', sender_context=None):
         if event_name not in ('inbox.message.created', 'gateway.continuation.ready'):
             raise InboxError('unknown_event')
         identifier(operation_key)
         if not isinstance(message, str) or not 1 <= len(message) <= 1024:
             raise InboxError('invalid_message')
         eid = hashlib.sha256((self.key + '|' + operation_key + '|' + secrets.token_hex(32)).encode()).hexdigest()
-        digest = hashlib.sha256(canonical([operation_key, message] if event_name == 'inbox.message.created' else [event_name, operation_key, message]).encode()).hexdigest()
+        envelope = [operation_key, message] if event_name == 'inbox.message.created' else [event_name, operation_key, message]
+        origin = {}
+        if sender_context is not None:
+            if event_name != 'gateway.continuation.ready' or type(sender_context) is not dict:
+                raise InboxError('invalid_sender_context')
+            present = sender_context.get('conversation_id_present')
+            fields = {'schema', 'work_identity_verified', 'evidence', 'conversation_id_present'}
+            if present is True:
+                fields.add('conversation_fingerprint')
+            if (set(sender_context) != fields
+                    or sender_context.get('schema') != 'caller-context-observation-v1'
+                    or sender_context.get('work_identity_verified') is not False
+                    or type(present) is not bool
+                    or (present and (not isinstance(sender_context.get('conversation_fingerprint'), str)
+                        or not re.fullmatch('[0-9a-f]{64}', sender_context['conversation_fingerprint'])))
+                    or sender_context.get('evidence') != ('CONVERSATION_METADATA_ONLY_NOT_WORK_IDENTITY'
+                        if present else 'NO_PLATFORM_ORIGIN_ATTESTATION')
+                        and not (not present and sender_context.get('evidence') == 'CONTEXT_UNAVAILABLE')):
+                raise InboxError('invalid_sender_context')
+            origin['sender_context'] = json.loads(canonical(sender_context))
+            envelope = ['sender-context-envelope-v1', envelope, origin['sender_context']]
+        digest = hashlib.sha256(canonical(envelope).encode()).hexdigest()
         return self.run('send', event_id=eid, digest=digest,
-                        operation_key=operation_key, message=message, event_name=event_name)
+                        operation_key=operation_key, message=message, event_name=event_name, **origin)
 
     def list(self, cursor='', limit=20):
         if type(limit) is not int or not 1 <= limit <= 100:
