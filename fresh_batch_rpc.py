@@ -54,6 +54,11 @@ def poll_exact_management(redis, rpc, payload):
     for rid in ids:
         rpc.check(rpc.config["owner"], rpc.config["parent_id"])
         key = rpc.prefix + ":request:" + rid
+        # Completed transport records are retained for same-key receipt queries.
+        # They must not be revalidated as pending work when their TTL passes.
+        # The atomic take below still rechecks the response to close the race.
+        if redis.get(key + ":response") is not None:
+            continue
         stored = redis.get(key)
         if stored is None:
             continue
