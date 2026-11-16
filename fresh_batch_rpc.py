@@ -26,6 +26,61 @@ from platform_codex_executor import Execute
 from platform_codex_stop import Stop
 
 
+
+MANAGEMENT_EXACT_TAKE = """
+if redis.call('GET',KEYS[1])~=ARGV[1] then return false end
+if redis.call('EXISTS',KEYS[3])~=0 then return false end
+if redis.call('LREM',KEYS[2],1,KEYS[1])~=1 then return false end
+return ARGV[1]
+"""
+
+
+def poll_exact_management(redis, rpc, payload):
+    """Take only trusted-startup-selected management IDs from the original queue.
+
+    Never LPOP, scan, acknowledge or remove another request. The original
+    signed control route authenticates the host before calling this helper;
+    the original host still verifies ingress and durable consent afterwards.
+    """
+    if type(payload) is not dict or set(payload) != {"management_request_ids"}:
+        raise ValueError("CONTROL_MANAGEMENT_POLL_SCOPE")
+    ids = payload["management_request_ids"]
+    if (type(ids) is not list or not 1 <= len(ids) <= 16
+            or any(type(rid) is not str or len(rid) != 64
+                   or any(c not in "0123456789abcdef" for c in rid) for rid in ids)
+            or len(set(ids)) != len(ids)):
+        raise ValueError("CONTROL_MANAGEMENT_REQUEST_IDS_REQUIRED")
+    from deer_management_rpc import MODE, transport_action, transport_key
+    for rid in ids:
+        rpc.check(rpc.config["owner"], rpc.config["parent_id"])
+        key = rpc.prefix + ":request:" + rid
+        stored = redis.get(key)
+        if stored is None:
+            continue
+        envelope = json.loads(stored)["envelope"]
+        body = envelope["body"]
+        request = body["payload"]
+        kind = request.get("kind")
+        if (kind not in ("list", "read", "create", "receipt")
+                or request.get("execution_mode") != MODE
+                or any(body.get(k) != rpc.config[k] for k in ("owner", "generation", "parent_id"))
+                or body.get("request_id") != rid
+                or body.get("action") != transport_action(kind)
+                or body.get("operation_key") != transport_key(kind, request.get("management_operation_key"))
+                or rid != request_id(rpc.config, body["action"], body["operation_key"])
+                or type(body.get("expires_at")) not in (int, float)
+                or not time.time() < body["expires_at"] <= request_deadline(rpc.config, time.time(), 120)):
+            raise ValueError("CONTROL_MANAGEMENT_REQUEST_SCOPE")
+        raw = canonical(body)
+        mac = hmac.new(rpc.key, raw, "sha256").hexdigest()
+        if not isinstance(envelope.get("mac"), str) or not hmac.compare_digest(envelope["mac"], mac):
+            raise ValueError("CONTROL_MANAGEMENT_INGRESS_INVALID")
+        selected = redis.eval(MANAGEMENT_EXACT_TAKE, 3, key, rpc.prefix + ":queue",
+                              key + ":response", stored)
+        if selected is not None and selected is not False:
+            return {"request": json.loads(selected)["envelope"]}
+    return {"request": None}
+
 def install_fresh_batch_routes(app, *, env=os.environ, connection_factory=None):
     """The fresh host's signed control port on the EXISTING API service.
 
@@ -77,7 +132,7 @@ def install_fresh_batch_routes(app, *, env=os.environ, connection_factory=None):
                 payload = body['payload']
                 if body['action'] == 'poll':
                     if payload:
-                        raise ValueError('CONTROL_POLL_SCOPE')
+                        return poll_exact_management(redis, rpc, payload)
                     key = redis.lpop(rpc.prefix + ':queue')
                     if key is None:
                         return {'request': None}
