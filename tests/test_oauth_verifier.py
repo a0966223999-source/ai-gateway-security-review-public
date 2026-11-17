@@ -12,7 +12,9 @@ from oauth_verifier import Auth0Verifier
 
 
 DOMAIN = 'dev-qatwac1c6lbnvv4d.jp.auth0.com'
-AUDIENCE = 'https://example.vercel.app/mcp'
+AUDIENCE = 'urn:xj:redis-preview'
+HOST = 'fixture.vercel.app'
+RESOURCE = 'https://fixture.vercel.app/mcp'
 CONFIGURED = 'configuredClientId'
 DYNAMIC = 'tpc_8f3a9c0b1d2e4f567890abcd'
 SUBJECT = 'auth0|owner'
@@ -32,10 +34,13 @@ class VerifierTests(unittest.IsolatedAsyncioTestCase):
             'XJ_AUTH0_CLIENT_ID': CONFIGURED,
             'XJ_AUTH0_ALLOWED_SUBJECT': SUBJECT,
             'VERCEL_ENV': 'preview',
+            'VERCEL_URL': HOST,
         }, clear=False)
         self.env.start()
         self.addCleanup(self.env.stop)
         os.environ.pop('XJ_AUTH0_ALLOWED_CLIENT_IDS', None)
+        os.environ.pop('XJ_AUTH0_EXTRA_AUDIENCES', None)
+        os.environ.pop('XJ_MCP_PUBLIC_HOST', None)
         self.verifier = Auth0Verifier()
         self.verifier.jwks.get_signing_key_from_jwt = lambda token: SimpleNamespace(key=self.public)
 
@@ -97,6 +102,68 @@ class VerifierTests(unittest.IsolatedAsyncioTestCase):
         access = self.verifier.verify_sync(self.token(aud=[AUDIENCE, 'https://' + DOMAIN + '/userinfo']))
         self.assertEqual(access.client_id, DYNAMIC)
 
+    def test_chatgpt_urn_audience_still_accepted(self):
+        access = self.verifier.verify_sync(self.token(aud='urn:xj:redis-preview', azp=CONFIGURED))
+        self.assertEqual(access.client_id, CONFIGURED)
+        self.assertEqual(access.subject, SUBJECT)
+        self.assertEqual(access.claims['aud'], 'urn:xj:redis-preview')
+
+    def test_advertised_mcp_resource_accepted_without_extra_env(self):
+        self.assertNotIn('XJ_AUTH0_EXTRA_AUDIENCES', os.environ)
+        self.assertEqual(self.verifier.resource, RESOURCE)
+        access = self.verifier.verify_sync(self.token(aud=RESOURCE, azp=DYNAMIC))
+        self.assertEqual(access.client_id, DYNAMIC)
+        self.assertIn('synthetic:events', access.scopes)
+        listed = self.verifier.verify_sync(self.token(
+            aud=[RESOURCE, 'https://' + DOMAIN + '/userinfo']))
+        self.assertEqual(listed.client_id, DYNAMIC)
+        self.assertIsNone(self.verifier.verify_sync(self.token(aud=RESOURCE, sub='auth0|someone-else')))
+        self.assertIsNone(self.verifier.verify_sync(self.token(aud=RESOURCE, scope='openid')))
+
+    def test_other_audience_rejected(self):
+        self.assertIsNone(self.verifier.verify_sync(self.token(aud='https://evil.example/mcp')))
+        self.assertIsNone(self.verifier.verify_sync(self.token(aud='https://fixture.vercel.app/mcp/')))
+        self.assertIsNone(self.verifier.verify_sync(self.token(aud='https://fixture.vercel.app')))
+        self.assertIsNone(self.verifier.verify_sync(self.token(aud=['https://evil.example/mcp'])))
+
+    def test_extra_audiences_optional_and_blank_by_default(self):
+        extra = 'https://extra.example/api'
+        self.assertIsNone(self.verifier.verify_sync(self.token(aud=extra)))
+        for blank in ('', '   ', ',,,'):
+            os.environ['XJ_AUTH0_EXTRA_AUDIENCES'] = blank
+            self.assertIsNone(self.verifier.verify_sync(self.token(aud=extra)), blank)
+        os.environ['XJ_AUTH0_EXTRA_AUDIENCES'] = ' https://nope.example , ' + extra + ' '
+        access = self.verifier.verify_sync(self.token(aud=extra))
+        self.assertEqual(access.client_id, DYNAMIC)
+        self.assertIsNotNone(self.verifier.verify_sync(self.token(aud=AUDIENCE, azp=CONFIGURED)))
+        self.assertIsNotNone(self.verifier.verify_sync(self.token(aud=RESOURCE)))
+        self.assertIsNone(self.verifier.verify_sync(self.token(aud='https://still-other.example/mcp')))
+
+    def test_public_host_resource_is_the_advertised_audience(self):
+        os.environ['XJ_MCP_PUBLIC_HOST'] = 'public-name.vercel.app'
+        verifier = Auth0Verifier()
+        verifier.jwks.get_signing_key_from_jwt = lambda token: SimpleNamespace(key=self.public)
+        resource = 'https://public-name.vercel.app/mcp'
+        self.assertEqual(verifier.resource, resource)
+        access = verifier.verify_sync(self.token(aud=resource))
+        self.assertEqual(access.client_id, DYNAMIC)
+        self.assertIsNotNone(verifier.verify_sync(self.token(aud=AUDIENCE, azp=CONFIGURED)))
+        self.assertIsNone(verifier.verify_sync(self.token(aud=RESOURCE)))
+
+    def test_metadata_advertises_the_audience_the_verifier_accepts(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        import mcp_bridge
+        os.environ['XJ_INBOX_SECRET_KEY'] = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+        app = FastAPI()
+        mcp_bridge.install(app, lambda *a: None, lambda *a: None, dict)
+        with TestClient(app, base_url='https://fixture.vercel.app') as client:
+            body = client.get('/.well-known/oauth-protected-resource').json()
+        self.assertEqual(body['resource'], self.verifier.resource)
+        self.assertEqual(body['resource'], RESOURCE)
+        access = self.verifier.verify_sync(self.token(aud=body['resource']))
+        self.assertEqual(access.client_id, DYNAMIC)
+
     def test_rejects_wrong_subject_scope_azp_and_guards(self):
         self.assertIsNone(self.verifier.verify_sync(self.token(sub='auth0|someone-else')))
         self.assertIsNone(self.verifier.verify_sync(self.token(scope='openid profile')))
@@ -131,8 +198,12 @@ class VerifierTests(unittest.IsolatedAsyncioTestCase):
                             'not-the-rsa-key-and-long-enough!', algorithm='HS256')
         self.assertIsNone(self.verifier.verify_sync(forged))
 
-    def test_configured_client_env_still_required(self):
+    def test_configured_client_and_audience_env_still_required(self):
         os.environ.pop('XJ_AUTH0_CLIENT_ID')
+        with self.assertRaises(KeyError):
+            Auth0Verifier()
+        os.environ['XJ_AUTH0_CLIENT_ID'] = CONFIGURED
+        os.environ.pop('AUTH0_AUDIENCE')
         with self.assertRaises(KeyError):
             Auth0Verifier()
 

@@ -8,7 +8,7 @@ from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
-from oauth_verifier import Auth0Verifier
+from oauth_verifier import Auth0Verifier, protected_resource
 from inbox import Inbox, InboxError
 from mcp_events import Events
 from events_transport import install_events_transport
@@ -33,13 +33,7 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
     if summary_memory_scope_resolver is not None and not callable(summary_memory_scope_resolver):
         raise ValueError("ORIGINAL_SUMMARY_RESOLVER_REQUIRED")
     verifier = Auth0Verifier()
-    hostname = os.environ['VERCEL_URL']
-    if not hostname.endswith('.vercel.app') or '/' in hostname:
-        raise ValueError('INVALID_RESOURCE_HOST')
-    public_hostname = os.getenv('XJ_MCP_PUBLIC_HOST', hostname)
-    if not public_hostname.endswith('.vercel.app') or '/' in public_hostname:
-        raise ValueError('INVALID_PUBLIC_RESOURCE_HOST')
-    resource = 'https://' + public_hostname + '/mcp'
+    hostname, public_hostname, resource = protected_resource()
     @api_app.get('/.well-known/oauth-protected-resource', include_in_schema=False)
     async def resource_metadata_root():
         return {'resource': resource, 'authorization_servers': [verifier.issuer],
