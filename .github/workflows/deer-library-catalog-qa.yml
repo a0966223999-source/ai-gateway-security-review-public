@@ -1,0 +1,28 @@
+name: Deer Library catalog bridge | offline guards
+on:
+  push:
+    branches:
+      - work/deer-library-catalog-bridge-20261117
+  pull_request:
+    paths:
+      - library_catalog_gate.py
+      - library_catalog_mcp_entry.py
+      - mcp_bridge.py
+      - tests/test_library_catalog_gate.py
+      - .github/workflows/deer-library-catalog-qa.yml
+
+permissions:
+  contents: read
+
+jobs:
+  library-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Compile guarded source without executing gateway
+        run: python -m py_compile library_catalog_gate.py library_catalog_mcp_entry.py mcp_bridge.py
+      - name: Library catalog ACL, format, version and revocation negative tests
+        run: python -m unittest tests.test_library_catalog_gate -v

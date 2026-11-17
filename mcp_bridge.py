@@ -23,7 +23,8 @@ from cycle_envelope import CycleAwareEventCatalog
 
 
 def install(api_app, write_event, read_event, event_model, *, batch_scope_resolver=None,
-            agent_management_resolver=None, summary_memory_scope_resolver=None):
+            agent_management_resolver=None, summary_memory_scope_resolver=None,
+            library_catalog_scope_resolver=None):
     # Only trusted startup can supply the original batch authority. Environment
     # flags, mailbox payloads and model-provided IDs cannot create this capability.
     if batch_scope_resolver is not None and not callable(batch_scope_resolver):
@@ -32,6 +33,8 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
         raise ValueError('ONE_BATCH_HOST_MODE_REQUIRED')
     if summary_memory_scope_resolver is not None and not callable(summary_memory_scope_resolver):
         raise ValueError("ORIGINAL_SUMMARY_RESOLVER_REQUIRED")
+    if library_catalog_scope_resolver is not None and not callable(library_catalog_scope_resolver):
+        raise ValueError("ORIGINAL_LIBRARY_RESOLVER_REQUIRED")
     verifier = Auth0Verifier()
     hostname, public_hostname, resource = protected_resource()
     @api_app.get('/.well-known/oauth-protected-resource', include_in_schema=False)
@@ -141,6 +144,7 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
 
     batch_mounted = False
     summary_memory_mounted = False
+    library_catalog_mounted = False
 
     async def authenticated_batch_scope(ctx, parent_id, operation_key, action):
         owner = principal()
@@ -152,7 +156,7 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
     previous = api_app.router.lifespan_context
     @asynccontextmanager
     async def lifespan(app):
-        nonlocal batch_mounted, summary_memory_mounted
+        nonlocal batch_mounted, summary_memory_mounted, library_catalog_mounted
         async with previous(app):
             if batch_scope_resolver is not None and not batch_mounted:
                 from batch_mcp_entry import mount_batch_tools
@@ -166,6 +170,13 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
                     principal=principal, oauth_meta=oauth_meta,
                 )
                 summary_memory_mounted = True
+            if library_catalog_scope_resolver is not None and not library_catalog_mounted:
+                from library_catalog_mcp_entry import mount_library_catalog_tools
+                await mount_library_catalog_tools(
+                    mcp, resolve_scope=library_catalog_scope_resolver,
+                    principal=principal, oauth_meta=oauth_meta,
+                )
+                library_catalog_mounted = True
             async with mcp.session_manager.run():
                 yield
     api_app.router.lifespan_context = lifespan
