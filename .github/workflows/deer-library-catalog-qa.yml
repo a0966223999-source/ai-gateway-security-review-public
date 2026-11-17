@@ -17,7 +17,7 @@ permissions:
 jobs:
   library-contract:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -26,3 +26,7 @@ jobs:
         run: python -m py_compile library_catalog_gate.py library_catalog_mcp_entry.py mcp_bridge.py
       - name: Library catalog ACL, format, version and revocation negative tests
         run: python -m unittest tests.test_library_catalog_gate -v
+      - name: Install existing MCP runtime dependencies for mount regression
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Original MCP and Library tools mount/deny regression
+        run: python -m unittest tests.test_original_mcp_mount tests.test_library_mcp_mount -v
