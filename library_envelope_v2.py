@@ -61,7 +61,7 @@ PREPARED_TYPES = frozenset({"image/png", "image/jpeg", "image/webp",
 KEY = re.compile(r"[A-Za-z0-9_-]{1,80}\Z")          # inbox identifier
 TEST_ID = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
 AGENT = re.compile(r"[a-z0-9][a-z0-9_-]{0,15}(:[A-Za-z0-9_-]{1,48})?\Z")
-VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,47}\Z")
+VERSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 OPAQUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}\Z")
 

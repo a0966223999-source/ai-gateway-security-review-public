@@ -275,6 +275,70 @@ class UnknownDiscipline(unittest.TestCase):
             L.inbox_key_for("k" * 79, "result", 1)
 
 
+class VersionLength(unittest.TestCase):
+    """VERSION accepts 1–128 of [A-Za-z0-9._-]; Drive/Dropbox refs stay 64-hex."""
+
+    DRIVE_ID = "1AbCdEfGhIjKlMn"
+    DROPBOX_ID = "id:sBBMuAxz79cAAAAAAAAADA"
+
+    def test_drive_read_64hex_roundtrip(self):
+        ver = hashlib.sha256(b"drive-rev").hexdigest()
+        self.assertEqual(len(ver), 64)
+        e = env(fr="drive:" + self.DRIVE_ID + "@" + ver, v=ver)
+        msg = L.encode(e, now=NOW)
+        self.assertLessEqual(len(msg), L.RECOMMENDED_LIMIT)
+        self.assertEqual(L.decode(msg, now=NOW), e)
+        parsed = L.validate(e, now=NOW)["file_ref"]
+        self.assertEqual((parsed["provider"], parsed["version"]), ("drive", ver))
+
+    def test_dropbox_read_64hex_roundtrip(self):
+        ver = hashlib.sha256(b"dropbox-rev").hexdigest()
+        self.assertEqual(len(ver), 64)
+        e = env(fr="dropbox:" + self.DROPBOX_ID + "@" + ver, v=ver)
+        msg = L.encode(e, now=NOW)
+        self.assertLessEqual(len(msg), L.RECOMMENDED_LIMIT)
+        self.assertEqual(L.decode(msg, now=NOW), e)
+        parsed = L.validate(e, now=NOW)["file_ref"]
+        self.assertEqual((parsed["provider"], parsed["version"]), ("dropbox", ver))
+
+    def test_version_128_roundtrip(self):
+        ver = "a" * 128
+        e = env(fr="library:file_0123456789abcdef@" + ver, v=ver)
+        msg = L.encode(e, now=NOW)
+        self.assertEqual(L.decode(msg, now=NOW)["v"], ver)
+
+    def test_version_129_rejected(self):
+        with self.assertRaisesRegex(L.EnvelopeError, "VERSION_INVALID"):
+            L.validate(env(v="a" * 129), now=NOW)
+
+    def test_version_disallowed_characters_rejected(self):
+        for bad in ("v 1", "v/1", "v:1", "v+1", ".v1", "-v1", "_v1", "v1é"):
+            with self.assertRaisesRegex(L.EnvelopeError, "VERSION_INVALID", msg=bad):
+                L.validate(env(v=bad), now=NOW)
+
+    def test_drive_ref_non_64hex_version_rejected(self):
+        for ver in ("v3", "ab" * 31, "ab" * 32 + "c", "A" * 64, "g" * 64):
+            ref = "drive:" + self.DRIVE_ID + "@" + ver
+            with self.assertRaisesRegex(L.EnvelopeError, "FILE_REF_INVALID", msg=ver):
+                L.parse_file_ref(ref)
+        with self.assertRaisesRegex(L.EnvelopeError, "FILE_REF_INVALID"):
+            L.validate(env(fr="drive:" + self.DRIVE_ID + "@v3", v="v3"), now=NOW)
+
+    def test_read_version_mismatch_rejected(self):
+        pinned = hashlib.sha256(b"pinned").hexdigest()
+        other = hashlib.sha256(b"other").hexdigest()
+        drive = env(fr="drive:" + self.DRIVE_ID + "@" + pinned, v=other)
+        dropbox = env(fr="dropbox:" + self.DROPBOX_ID + "@" + pinned, v=other)
+        library = env(fr="library:file_0123456789abcdef@v3", v="v4")
+        for e in (drive, dropbox, library):
+            with self.assertRaisesRegex(L.EnvelopeError, "READ_NEEDS_PINNED_VERSION"):
+                L.validate(e, now=NOW)
+
+    def test_empty_version_rejected(self):
+        with self.assertRaisesRegex(L.EnvelopeError, "VERSION_INVALID"):
+            L.validate(env(v=""), now=NOW)
+
+
 class MeasuredSizes(unittest.TestCase):
     def test_typical_and_worst_case(self):
         typical = L.encode(env(st="ok", re="a" * 64, h="b" * 64), now=NOW)

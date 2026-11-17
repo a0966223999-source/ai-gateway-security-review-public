@@ -18,7 +18,7 @@
 
 - 伺服器：`inbox.py` 要求 `1 <= len(message) <= 1024`（以字元計）。
 - 硬上限 **1000 字元**（`HARD_LIMIT`），建議 **800**（`RECOMMENDED_LIMIT`，`encode()` 預設值）。都包含所有 ID 欄位；以 canonical JSON（`sort_keys`、`separators=(",",":")`、`ensure_ascii=False`）的 `len()` 計。
-- 欄位上限的設計保證：**所有 ID 都填到上限的最壞情況 ≤ 1000**，並在測試中實測：
+- 下表是測試實測（版本長 48、其餘 ID 到當時上限）：最壞結果 **914 ≤ 1000**。`v` 樣式上限現為 128，整封 canonical 仍須 ≤ 1000，`fr` 仍須 ≤ 220（`library:` + id 96 + `@` 時版本最長 115）。更長的組合由既有的 `ENVELOPE_TOO_LONG` / `FILE_REF_INVALID` 拒絕：
 
 | 範例（實測） | 字元 |
 |---|---|
@@ -46,7 +46,7 @@
 | `r` | receiver | ✔ | 同格式，例如 `gpt-work:<thread_ref>`；`thread_ref` 只能來自宿主簽章綁定，不得自填 |
 | `a` | action | ✔ | `search` / `read` / `create` / `update` / `status`（PR #7 工具名；PR #61 對應 catalog/read/create/update/status，PR #62 對應 catalog_search/file_read/create/update/status） |
 | `fr` | file_ref | ✔ | 見 §5；search=`catalog`，status=`status` |
-| `v` | version | ✔ | search/status=`none`；read=與 `fr` 內版本相同；create=`create-only`；update=**原件目前版本**（必須等於 `fr` 的 `@version`） |
+| `v` | version | ✔ | search/status=`none`；read=與 `fr` 內版本相同；create=`create-only`；update=**原件目前版本**（必須等於 `fr` 的 `@version`）。一般版本 `[A-Za-z0-9][A-Za-z0-9._-]{0,127}`（1–128；Drive／Dropbox／sealed 的 64hex 可放入） |
 | `ia` | issued_at | ✔ | Unix 秒；超過現在 60 秒拒絕 |
 | `ttl` | TTL | ✔ | 秒；讀類 ≤3600，寫入 ≤900；`now >= ia+ttl` 即過期拒絕。宿主 claim 另有 ≤120 秒 lease（PR #62） |
 | `st` | status | ✔ | 請求固定 `req`；結果 `ok`／`committed`／`pending`／`denied`／`NOT_BOUND`／`UNKNOWN_QUERY_ONLY` |
@@ -96,7 +96,7 @@
 
 | 形式 | 用途 |
 |---|---|
-| `library:<id>@<version>` | ChatGPT Library 原件（id ≤96、版本 ≤48） |
+| `library:<id>@<version>` | ChatGPT Library 原件（id ≤96、版本 ≤128） |
 | `drive:<fileId>@<sha256>` | Google Drive 檔（內容雜湊鎖定） |
 | `dropbox:id:<id>@<sha256>` | Dropbox 檔 |
 | `sealed:<handle>@<sha256>` | 來源端預備的不透明 handle（PR #61 `prepared`）；圖片、ZIP、神經圖寫入只能用這個 |
