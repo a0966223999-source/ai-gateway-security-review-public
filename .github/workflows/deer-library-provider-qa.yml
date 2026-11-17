@@ -1,0 +1,33 @@
+name: Deer Library original provider | isolated QA
+on:
+  push:
+    branches:
+      - work/library-native-provider-provision-20261117
+  pull_request:
+    paths:
+      - library_original_host_binding.py
+      - app.py
+      - mcp_bridge.py
+      - tests/test_library_original_host_binding.py
+      - tests/test_library_bridge_status.py
+      - .github/workflows/deer-library-provider-qa.yml
+
+permissions:
+  contents: read
+
+jobs:
+  native-binding-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Source syntax
+        run: python -m py_compile library_original_host_binding.py app.py mcp_bridge.py
+      - name: Original native provider read/write and revoke contract
+        run: python -m unittest tests.test_library_original_host_binding -v
+      - name: Install original SDK for OAuth MCP regression
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Verify anonymous/authorized/disabled MCP status
+        run: python -m unittest tests.test_library_bridge_status tests.test_original_mcp_mount -v

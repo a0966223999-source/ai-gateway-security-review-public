@@ -91,6 +91,16 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
 
     events = Events(mailbox, verifier)
     oauth_meta = {'securitySchemes': [{'type': 'oauth2', 'scopes': ['synthetic:events']}]}
+
+    @mcp.tool(meta=oauth_meta, annotations=ToolAnnotations(
+        readOnlyHint=True, destructiveHint=False,
+        idempotentHint=True, openWorldHint=False))
+    def library_bridge_status() -> dict:
+        """Authenticated readiness check; never a Library read or grant."""
+        principal()
+        from library_original_host_binding import library_mount_state
+        return library_mount_state(
+            library_catalog_scope_resolver, library_write_scope_resolver)
     # New, explicitly enrolled batch generations use the existing authenticated
     # service/Redis connection. They never adopt the legacy Source RPC signer.
     from fresh_batch_rpc import install_fresh_batch_tools, install_fresh_batch_routes
