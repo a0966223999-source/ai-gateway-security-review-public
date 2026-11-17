@@ -1,0 +1,54 @@
+name: Deer MCP | guarded preview alias
+on:
+  push:
+    branches:
+      - test/vercel-fastapi-protected-preview
+      - work/deer-mcp-preview-alias-guard-20261117 # QA-only branch; release job denies
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: deer-mcp-preview-alias
+  cancel-in-progress: false
+
+jobs:
+  offline-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Guarded alias negative and rollback tests
+        run: python -m unittest tests.test_deer_mcp_alias_release -v
+
+  alias-release:
+    needs: offline-qa
+    if: ${{ github.ref == 'refs/heads/test/vercel-fastapi-protected-preview' && vars.XJ_MCP_ALIAS_AUTO_ENABLED == 'true' }}
+    environment: deer-mcp-alias-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Verify explicit release credential exists
+        env:
+          XJ_VERCEL_ALIAS_TOKEN: ${{ secrets.XJ_VERCEL_ALIAS_TOKEN }}
+        run: |
+          if [ -z "$XJ_VERCEL_ALIAS_TOKEN" ]; then
+            echo "BLOCKED: missing protected Vercel alias credential"
+            exit 2
+          fi
+      - name: Wait for same-commit READY preview and verify old alias
+        env:
+          XJ_VERCEL_ALIAS_TOKEN: ${{ secrets.XJ_VERCEL_ALIAS_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python ops/deer_mcp_alias_release.py check --sha "$GITHUB_SHA" --poll
+      - name: Recheck and assign exact alias, verify OAuth metadata or roll back
+        env:
+          XJ_VERCEL_ALIAS_TOKEN: ${{ secrets.XJ_VERCEL_ALIAS_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python ops/deer_mcp_alias_release.py release --sha "$GITHUB_SHA"
