@@ -33,6 +33,22 @@ def caller_context_observation(ctx, owner):
             result['evidence'] = 'CONVERSATION_METADATA_ONLY_NOT_WORK_IDENTITY'
     except Exception:
         result['evidence'] = 'CONTEXT_UNAVAILABLE'
+    # Observation only. Never write the raw client_id, never a grant, and
+    # never flip work_identity_verified. Caller-controlled MCP meta is not
+    # an Auth context and must not supply this value.
+    result['client_id_observed'] = False
+    try:
+        import re
+        from mcp.server.auth.middleware.auth_context import get_access_token
+        token = get_access_token()
+        client_id = getattr(token, 'client_id', None) if token is not None else None
+        if isinstance(client_id, str) and re.fullmatch(r'[A-Za-z0-9_-]{1,200}', client_id):
+            result['client_id_observed'] = True
+            result['client_id_fingerprint'] = hashlib.sha256(
+                ('caller-client-v1|' + owner + '|' + client_id).encode()).hexdigest()
+    except Exception:
+        result['client_id_observed'] = False
+        result.pop('client_id_fingerprint', None)
     return result
 
 def install_formal_transport(mcp, mailbox, verifier, principal, oauth_meta):

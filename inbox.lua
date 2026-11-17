@@ -46,13 +46,32 @@ elseif action=='send' then
      or origin.schema~='caller-context-observation-v1'
      or origin.work_identity_verified~=false
      or type(origin.conversation_id_present)~='boolean' then return error('invalid_sender_context') end
-  local present=origin.conversation_id_present
-  if present then
-   if count(origin)~=5 or type(origin.conversation_fingerprint)~='string'
-      or #origin.conversation_fingerprint~=64 or not string.match(origin.conversation_fingerprint,'^[0-9a-f]+$')
+  -- Optional client_id_observed / client_id_fingerprint are observation only.
+  -- Legacy records without those fields stay valid. work_identity_verified
+  -- must remain false; raw client ids and unknown fields are rejected.
+  local allowed={schema=true,work_identity_verified=true,evidence=true,
+    conversation_id_present=true,conversation_fingerprint=true,
+    client_id_observed=true,client_id_fingerprint=true}
+  for k,_ in pairs(origin) do
+   if not allowed[k] then return error('invalid_sender_context') end
+  end
+  local function hex64(s) return type(s)=='string' and #s==64 and string.match(s,'^[0-9a-f]+$') end
+  if origin.conversation_id_present then
+   if not hex64(origin.conversation_fingerprint)
       or origin.evidence~='CONVERSATION_METADATA_ONLY_NOT_WORK_IDENTITY' then return error('invalid_sender_context') end
-  elseif count(origin)~=4 or (origin.evidence~='NO_PLATFORM_ORIGIN_ATTESTATION'
-      and origin.evidence~='CONTEXT_UNAVAILABLE') then return error('invalid_sender_context') end
+  elseif origin.conversation_fingerprint~=nil
+      or (origin.evidence~='NO_PLATFORM_ORIGIN_ATTESTATION'
+          and origin.evidence~='CONTEXT_UNAVAILABLE') then return error('invalid_sender_context') end
+  local observed=origin.client_id_observed
+  if observed==nil and origin.client_id_fingerprint==nil then
+   -- legacy observation without client_id fields
+  elseif observed==true then
+   if not hex64(origin.client_id_fingerprint) then return error('invalid_sender_context') end
+  elseif observed==false then
+   if origin.client_id_fingerprint~=nil then return error('invalid_sender_context') end
+  else
+   return error('invalid_sender_context')
+  end
  end
  local m=nil
  for _,existing in pairs(doc.messages) do
