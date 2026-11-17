@@ -1,6 +1,7 @@
 """Owner-scoped synthetic inbox. No formal Source or Work identity authority."""
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 import re
@@ -140,8 +141,32 @@ class Inbox:
             origin['sender_context'] = json.loads(canonical(sender_context))
             envelope = ['sender-context-envelope-v1', envelope, origin['sender_context']]
         digest = hashlib.sha256(canonical(envelope).encode()).hexdigest()
-        return self.run('send', event_id=eid, digest=digest,
-                        operation_key=operation_key, message=message, event_name=event_name, **origin)
+        receipt = self.run('send', event_id=eid, digest=digest,
+                           operation_key=operation_key, message=message, event_name=event_name, **origin)
+        # Optional wake notice. It runs only after the Redis write commits, and
+        # a missing or failing doorbell never changes this receipt.
+        self._ring_doorbell(event_name, receipt)
+        return receipt
+
+    def _ring_doorbell(self, event_name, receipt):
+        if not isinstance(receipt, dict):
+            return
+        sequence = receipt.pop('sequence', None)
+        created_at = receipt.pop('created_at', None)
+        if event_name != 'inbox.message.created' or receipt.get('duplicate') is not False:
+            return
+        if not (os.getenv('DEER_INBOX_DOORBELL_URL') or os.getenv('DEER_INBOX_DOORBELL_KEY')
+                or os.getenv('DEER_INBOX_DOORBELL_MAILBOXES')):
+            return
+        try:
+            from inbox_doorbell import notify
+            notify(self.mailbox_id, receipt.get('event_id'), sequence, created_at)
+        except Exception as exc:
+            try:
+                logging.getLogger('inbox_doorbell').warning(
+                    'inbox doorbell skipped error_type=%s', type(exc).__name__)
+            except Exception:
+                return
 
     def list(self, cursor='', limit=20):
         if type(limit) is not int or not 1 <= limit <= 100:
