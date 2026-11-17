@@ -156,7 +156,7 @@ class LibraryBridgeContractTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_denies_invalid_revision(self):
         self.scope = OriginalLibraryScope(
-            owner=OWNER, revision="not-a-sha",
+            owner=OWNER, client_id=CLIENT, revision="not-a-sha",
             is_current=lambda: True,
             search_original=self.scope.search_original,
             read_original=self.scope.read_original)
