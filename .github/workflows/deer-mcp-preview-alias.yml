@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - test/vercel-fastapi-protected-preview
+      - work/deer-mcp-preview-alias-guard-20261117 # QA-only branch; release job denies
 
 permissions:
   contents: read
@@ -25,7 +26,7 @@ jobs:
 
   alias-release:
     needs: offline-qa
-    if: ${{ vars.XJ_MCP_ALIAS_AUTO_ENABLED == 'true' }}
+    if: ${{ github.ref == 'refs/heads/test/vercel-fastapi-protected-preview' && vars.XJ_MCP_ALIAS_AUTO_ENABLED == 'true' }}
     environment: deer-mcp-alias-release
     runs-on: ubuntu-latest
     timeout-minutes: 20
