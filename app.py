@@ -115,5 +115,12 @@ _xj_install(app, service=_xj_service(approved_bootstrap=True))
 
 from mcp_bridge import install
 from summary_read_channel import make_summary_scope_resolver
+from library_original_host_binding import make_original_library_resolvers
+# Only a trusted in-process native/bootstrap owner may install this object.
+# Existing preview has no such port; no env or OAuth grants create one.
+_library_read, _library_write = make_original_library_resolvers(
+    getattr(app.state, "original_library_host_binding", None))
 _mcp = install(app, write_event, read_event, SyntheticEvent,
-    summary_memory_scope_resolver=make_summary_scope_resolver())
+    summary_memory_scope_resolver=make_summary_scope_resolver(),
+    library_catalog_scope_resolver=_library_read,
+    library_write_scope_resolver=_library_write)
