@@ -88,3 +88,24 @@ The preview_kind can be `text_excerpt`, `image_description`, `binary_manifest`, 
 - Original trusted Library producer/provider: NOT_BOUND.
 - Live authorization / real MCP read: NOT_RUN.
 - Privacy: no private catalog entries committed to this repository.
+
+## Authorized write-through extension (same original Library, NO second Store)
+
+Writer entry is also DEFAULT OFF, and is never mounted unless the original trusted Gateway startup provides both `library_catalog_scope_resolver` and `library_write_scope_resolver` with independent write authorization.
+
+Additional MCP tools:
+- `library_item_create(parent_ref, name, mime_type, content, operation_key, payload_kind='text')`
+- `library_item_update(ref, expected_version, mime_type, content, operation_key, payload_kind='text')`
+- `library_write_status(operation_key)` for read-only query of prior attempt.
+
+Exact source authority: verified JWT establishes owner AND specific OAuth client (`azp`/`client_id`). Neither OAuth login alone nor shared `synthetic:events` scope grants Library write access. Trusted host resolver attests exact caller/client, operation, target, expected version, source, TTL, original write authority, and revocation before and after the effect.
+
+Content: at most 16 KiB of inline UTF-8 for allowed text/JSON MIME. Binary images, ZIP, diagrams and other formats require a source-controlled short-lived staged reference previously authorized for exact client/source/operation. NO browser cookie, bearer token, private file path, arbitrary URL or raw binary upload is accepted by this public tool.
+
+Source-atomic requirement: original provider MUST implement create-if-absent or atomic compare-and-swap against expected_version. It must persist same-operation-key idempotency before effect and read back exact committed revision afterward. No new Writer/Store/Issuer here. If a ChatGPT Library source/path lacks CAS or a legitimate existing serialized Writer, updates DENY to avoid lost concurrent edits.
+
+Unknown result: timeout after effect MAY mean committed. Never retry mutation blindly or with new key. Use library_write_status on the same operation key, under same authenticated client and original source permissions.
+
+No delete/move/rename: these operations are not part of this first write-through bridge and require separate authority QA.
+
+Reality check: This PR provides a bounded, tested MCP contract. It does NOT create a native ChatGPT Library external API, trusted ChatGPT-side producer, source credential, actual original Reader/Writer, or new grants. The separately authorized Grok backup connector cannot lend its token to Deer. True E2E requires provider-specific original Gateway adapter and approved source permissions.
