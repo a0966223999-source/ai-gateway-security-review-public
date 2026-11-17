@@ -191,7 +191,7 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
                 from library_catalog_mcp_entry import mount_library_catalog_tools
                 await mount_library_catalog_tools(
                     mcp, resolve_scope=library_catalog_scope_resolver,
-                    principal=principal, oauth_meta=oauth_meta,
+                    principal=principal, client=verified_library_client, oauth_meta=oauth_meta,
                 )
                 library_catalog_mounted = True
             if library_write_scope_resolver is not None and not library_write_mounted:

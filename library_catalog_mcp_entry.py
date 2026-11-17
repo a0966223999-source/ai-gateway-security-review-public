@@ -9,8 +9,8 @@ from mcp.types import ToolAnnotations
 from library_catalog_gate import LibraryReadDenied, authorized_read, authorized_search
 
 
-async def mount_library_catalog_tools(server, *, resolve_scope, principal, oauth_meta=None):
-    if not callable(resolve_scope) or not callable(principal):
+async def mount_library_catalog_tools(server, *, resolve_scope, principal, client, oauth_meta=None):
+    if not callable(resolve_scope) or not callable(principal) or not callable(client):
         raise ValueError("ORIGINAL_LIBRARY_READER_REQUIRED")
     tool_names = {tool.name for tool in await server.list_tools()}
     if tool_names & {"library_catalog_search", "library_item_read"}:
@@ -29,7 +29,7 @@ async def mount_library_catalog_tools(server, *, resolve_scope, principal, oauth
         never an all-files grant or raw ChatGPT file ID.
         """
         try:
-            return await authorized_search(resolve_scope, principal, ctx,
+            return await authorized_search(resolve_scope, principal, client, ctx,
                                            query, cursor, limit)
         except LibraryReadDenied:
             from mcp.server.fastmcp.exceptions import ToolError
@@ -45,7 +45,7 @@ async def mount_library_catalog_tools(server, *, resolve_scope, principal, oauth
         copied to the public MCP service through this contract.
         """
         try:
-            return await authorized_read(resolve_scope, principal, ctx,
+            return await authorized_read(resolve_scope, principal, client, ctx,
                                          ref, expected_version)
         except LibraryReadDenied:
             from mcp.server.fastmcp.exceptions import ToolError

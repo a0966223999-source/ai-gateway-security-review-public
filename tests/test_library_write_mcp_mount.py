@@ -36,14 +36,14 @@ class LibraryWriteMountTests(unittest.TestCase):
         self.writes = []
         self.receipts = {}
 
-    async def reader(self, ctx, owner, action, ref):
+    async def reader(self, ctx, owner, client_id, action, ref):
         async def search(query, cursor, limit):
             return {"schema": "chatgpt-library-catalog-page-v1",
                     "source": "chatgpt-library", "owner": OWNER,
                     "revision": REVISION, "items": [], "next_cursor": ""}
         async def read(ref, version):
             raise RuntimeError("not part of write test")
-        return OriginalLibraryScope(owner=OWNER, revision=REVISION,
+        return OriginalLibraryScope(owner=OWNER, client_id=CLIENT, revision=REVISION,
             is_current=lambda: self.current,
             search_original=search, read_original=read)
 

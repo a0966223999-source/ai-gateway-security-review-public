@@ -52,11 +52,11 @@ class LibraryMountTests(unittest.TestCase):
                 "preview": "authorized fake diagram"}
 
         self.scope = OriginalLibraryScope(
-            owner=OWNER, revision=REV,
+            owner=OWNER, client_id="fixture-client", revision=REV,
             is_current=lambda: self.active,
             search_original=search_original, read_original=read_original)
 
-    async def resolve(self, ctx, owner, action, ref):
+    async def resolve(self, ctx, owner, client_id, action, ref):
         return self.scope
 
     def client(self, resolver, check):
