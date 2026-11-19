@@ -216,6 +216,13 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
                 yield
     api_app.router.lifespan_context = lifespan
     formal = install_formal_transport(mcp, mailbox, verifier, principal, oauth_meta)
+    # Group chat tools: default off (XJ_CHAT_ROOM_ENABLED=true). Wakes reuse the
+    # original formal mailbox send path above; no new subscription or Redis.
+    from chat_room import install_chat_tools, formal_notifier
+    from formal_transport import caller_context_observation, MAILBOX, FORMAL
+    install_chat_tools(mcp, principal, oauth_meta,
+                       notify=formal_notifier(mailbox, formal, MAILBOX, FORMAL),
+                       caller_context=caller_context_observation)
     rpc_config = host_rpc_config()
     install_rpc_tools(mcp, mailbox, formal, principal, oauth_meta, host_config=rpc_config)
     install_rpc_diagnostic(mcp, principal, oauth_meta, host_config=rpc_config)
