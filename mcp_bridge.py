@@ -224,6 +224,15 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
     install_chat_tools(mcp, principal, oauth_meta,
                        notify=formal_notifier(mailbox, formal, MAILBOX, FORMAL),
                        caller_context=caller_context_observation)
+    # AI approval tickets: default off (XJ_APPROVAL_ENABLED=true). Any AI may ask;
+    # only the Owner's passkey approves. Routes go in before the '/' mount below.
+    from approval import install_approval, ApprovalError
+    from mail_hook import owner_principal
+    try:
+        install_approval(api_app, mcp, principal, oauth_meta,
+                         owner_from_env=lambda: owner_principal(os.environ))
+    except ApprovalError:
+        pass  # bad approval config: feature stays off, the rest of Deer keeps running
     rpc_config = host_rpc_config()
     install_rpc_tools(mcp, mailbox, formal, principal, oauth_meta, host_config=rpc_config)
     install_rpc_diagnostic(mcp, principal, oauth_meta, host_config=rpc_config)
