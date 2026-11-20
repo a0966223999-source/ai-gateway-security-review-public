@@ -216,8 +216,9 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
                 yield
     api_app.router.lifespan_context = lifespan
     formal = install_formal_transport(mcp, mailbox, verifier, principal, oauth_meta)
-    # Group chat tools: default off (XJ_CHAT_ROOM_ENABLED=true). Wakes reuse the
-    # original formal mailbox send path above; no new subscription or Redis.
+    # Group chat tools: default off (XJ_CHAT_ROOM_ENABLED=true). Mailbox wakes
+    # reuse the original formal send path above. The mention doorbell is a
+    # separate optional HTTPS POST (chat_doorbell.py), also default off.
     from chat_room import install_chat_tools, formal_notifier
     from formal_transport import caller_context_observation, MAILBOX, FORMAL
     install_chat_tools(mcp, principal, oauth_meta,
