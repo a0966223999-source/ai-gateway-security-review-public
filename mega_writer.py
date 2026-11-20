@@ -12,7 +12,7 @@ Ticket rule. The write's operation_key must be an approval ticket that:
   * is approved or claimed and still inside the 24h claim window,
   * has a title starting with "MEGA知識庫寫入",
   * has a plan line exactly "mega_write parent=<parent_ref> name=<name>"
-    matching this call.
+    matching this call (parent_ref "kb:root" means the 知識庫 folder itself).
 A ticket authorizes one write; it is consumed before the upload starts.
 
 Path rule. parent_ref must be a folder ref inside the exported 知識庫 tree
@@ -41,7 +41,8 @@ import urllib.request
 from mega_library import API, MegaDenied, b64d, ecb_decrypt, version_of
 
 TITLE_PREFIX = 'MEGA知識庫寫入'
-PLAN_LINE = re.compile(r'^mega_write parent=(m:[A-Za-z0-9_-]{8}) name=([^\n/\\]{1,160})$', re.M)
+ROOT_REF = 'kb:root'  # the 知識庫 folder itself, so tickets never carry its handle
+PLAN_LINE = re.compile(r'^mega_write parent=(kb:root|m:[A-Za-z0-9_-]{8}) name=([^\n/\\]{1,160})$', re.M)
 CLAIM_WINDOW = 24 * 3600
 MAX_WRITE_BYTES = 16384
 NAMESPACE = 'xj:mega-write:v1'
@@ -280,8 +281,11 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
             def go():
                 folder._tree = None  # fresh listing: path and no-overwrite checks
                 tree = folder.tree()
-                m = re.fullmatch(r'm:([A-Za-z0-9_-]{8})', target_ref)
-                parent = tree.get(m.group(1)) if m else None
+                if target_ref == ROOT_REF:
+                    parent = next((n for n in tree.values() if n['p'] not in tree), None)
+                else:
+                    m = re.fullmatch(r'm:([A-Za-z0-9_-]{8})', target_ref)
+                    parent = tree.get(m.group(1)) if m else None
                 if parent is None or parent['t'] != 1:
                     raise MegaDenied('MEGA_PARENT_NOT_IN_FOLDER')
                 if any(n['p'] == parent['h'] and n['name'] == name for n in tree.values()):

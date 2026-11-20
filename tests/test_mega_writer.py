@@ -231,6 +231,11 @@ class WriterTests(unittest.TestCase):
         for parent in ('m:Outside1', 'm:ZipFile1', 'm:DotDot01'):
             self.assert_denied(self.ticket(plan=plan_for(parent)), parent=parent)
 
+    def test_root_alias(self):
+        receipt = self.create(self.ticket(plan=plan_for('kb:root')), parent='kb:root')
+        self.assertEqual(receipt['status'], 'committed')
+        self.assertEqual(self.fake.puts[0]['t'], self.fake.folder_handle)
+
     def test_subfolder_allowed(self):
         receipt = self.create(self.ticket(plan=plan_for('m:SubDir01')), parent='m:SubDir01')
         self.assertEqual(receipt['status'], 'committed')
