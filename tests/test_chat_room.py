@@ -32,10 +32,12 @@ ENABLED = {'XJ_CHAT_ROOM_ENABLED': 'true'}
 
 
 class Harness:
-    def __init__(self, env=None, owner='oauth:owner-a', notify_error=False):
+    def __init__(self, env=None, owner='oauth:owner-a', notify_error=False, push_error=None):
         self.server = fakeredis.FakeServer()
         self.owner = owner
         self.notices = []
+        self.pushes = []
+        self.push_error = push_error
         self.notify_error = notify_error
         self.mcp = FakeMcp()
         self.config = ChatConfig({**ENABLED, **(env or {})})
@@ -50,7 +52,13 @@ class Harness:
             self.mcp, lambda: self.owner, {'securitySchemes': []}, notify=notify,
             caller_context=lambda ctx, owner: {'schema': 'caller-context-observation-v1',
                                                'work_identity_verified': False},
-            config=self.config, client_factory=self.client)
+            config=self.config, client_factory=self.client, push=self.push)
+
+    def push(self, url, body):
+        self.pushes.append((url, body))
+        if self.push_error == 'raise':
+            raise OSError('push lost')
+        return 500 if self.push_error == 'status' else 200
 
     def client(self):
         return fakeredis.FakeRedis(server=self.server, decode_responses=True)
@@ -282,6 +290,59 @@ class FormalNotifierTests(unittest.TestCase):
         self.assertEqual(receipt['deliveries'], [{'state': 'delivered'}])
         with self.assertRaises(ChatError):
             asyncio.run(notify('oauth:someone-else', 'chat-wake-x', '{}'))
+
+
+
+
+PUSH = {'XJ_CHAT_PUSH_URLS': 'Claude=https://ntfy.sh/xj-test-topic'}
+
+
+class PushWakeTests(unittest.TestCase):
+    def test_push_config_parsed_and_validated(self):
+        self.assertEqual(ChatConfig({**ENABLED, **PUSH}).push_urls,
+                         {'Claude': 'https://ntfy.sh/xj-test-topic'})
+        self.assertEqual(ChatConfig(ENABLED).push_urls, {})
+        for bad in ('Nobody=https://ntfy.sh/t', 'Claude=http://ntfy.sh/t',
+                    'Claude=https://ntfy.sh/t?x=1', 'Claude=https://u:p@ntfy.sh/t', 'Claude='):
+            with self.subTest(bad=bad), self.assertRaises(ChatError):
+                ChatConfig({**ENABLED, 'XJ_CHAT_PUSH_URLS': bad})
+
+    def test_mention_pushes_hint_without_text(self):
+        h = Harness(env=PUSH)
+        r = h.call('chat_post', room='main', speaker='祐', text='秘密內容 @Claude 請看')
+        self.assertEqual(r['push_wakes'], [{'to': 'Claude', 'delivery': 'sent'}])
+        self.assertEqual(len(h.pushes), 1)
+        url, body = h.pushes[0]
+        self.assertEqual(url, 'https://ntfy.sh/xj-test-topic')
+        self.assertEqual(json.loads(body), {'type': 'chat.mention', 'room': 'main', 'seq': 1,
+                                            'to': 'Claude', 'from': '祐'})
+        self.assertNotIn('秘密', body)
+
+    def test_no_push_without_mention_or_for_unlisted(self):
+        h = Harness(env=PUSH)
+        h.call('chat_post', room='main', speaker='祐', text='沒有點名')
+        h.call('chat_post', room='main', speaker='祐', text='@Grok 你好')
+        self.assertEqual(h.pushes, [])
+
+    def test_self_mention_does_not_push(self):
+        h = Harness(env=PUSH)
+        h.call('chat_post', room='main', speaker='Claude', text='我是 @Claude')
+        self.assertEqual(h.pushes, [])
+
+    def test_push_failure_keeps_message(self):
+        for mode, delivery in (('raise', 'failed'), ('status', 'rejected')):
+            with self.subTest(mode=mode):
+                h = Harness(env=PUSH, push_error=mode)
+                r = h.call('chat_post', room='main', speaker='祐', text='@Claude hi')
+                self.assertTrue(r['stored'])
+                self.assertEqual(r['push_wakes'], [{'to': 'Claude', 'delivery': delivery}])
+                self.assertEqual(h.call('chat_read', room='main')['latest_seq'], 1)
+
+    def test_rooms_lists_push_members_not_urls(self):
+        h = Harness(env=PUSH)
+        info = h.call('chat_rooms')
+        self.assertEqual(info['push_wake'], ['Claude'])
+        self.assertNotIn('ntfy', json.dumps(info))
 
 
 if __name__ == '__main__':
