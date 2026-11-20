@@ -20,6 +20,12 @@ Speaker names are self-declared: every caller shares one OAuth owner. Each store
 message records the existing caller-context observation (conversation
 fingerprint only) for later review; it is not an identity proof.
 
+XJ_CHAT_PUSH_URLS optionally maps members to an https push endpoint, e.g.
+"Claude=https://ntfy.sh/<random-topic>". When a post @mentions such a member,
+one small JSON notice {type, room, seq, to, from} is POSTed there so a listener
+can wake that member. The notice never contains message text. A failed push
+never affects the stored message. Unset or blank sends nothing.
+
 Enable with XJ_CHAT_ROOM_ENABLED=true. No credential, subscription, schedule or
 Redis instance is created here.
 """
@@ -30,6 +36,7 @@ import os
 from pathlib import Path
 import re
 import time
+import urllib.request
 from urllib.parse import urlsplit
 
 from chat_doorbell import ring_mentions
@@ -82,6 +89,18 @@ class ChatConfig:
         self.mailbox_wake = {w.strip() for w in wake.split(',') if w.strip()}
         if not self.mailbox_wake <= set(self.members):
             raise ChatError('invalid_config_XJ_CHAT_MAILBOX_WAKE')
+        self.push_urls = {}
+        for item in (get('XJ_CHAT_PUSH_URLS') or '').split(','):
+            item = item.strip()
+            if not item:
+                continue
+            name, _, url = item.partition('=')
+            name, url = name.strip(), url.strip()
+            parts = urlsplit(url)
+            if (name not in self.members or parts.scheme != 'https' or not parts.hostname
+                    or parts.query or parts.fragment or parts.username or parts.password):
+                raise ChatError('invalid_config_XJ_CHAT_PUSH_URLS')
+            self.push_urls[name] = url
         self.ttl_seconds = 86400 * _int_env(env, 'XJ_CHAT_TTL_DAYS', DEFAULT_TTL_DAYS, 1, 365)
         self.max_messages = _int_env(env, 'XJ_CHAT_MAX_MESSAGES', DEFAULT_MAX_MESSAGES, 10, 20000)
         self.ai_streak_limit = _int_env(env, 'XJ_CHAT_AI_STREAK_LIMIT',
@@ -225,9 +244,23 @@ def wake_notice(message, target):
     return body
 
 
+def push_notice(message, target):
+    """Wake hint only: no text, no preview, no authority."""
+    return json.dumps({'type': 'chat.mention', 'room': message['room'], 'seq': message['seq'],
+                       'to': target, 'from': message['speaker']},
+                      ensure_ascii=False, separators=(',', ':'))
+
+
+def default_push(url, body):
+    req = urllib.request.Request(url, data=body.encode(), method='POST',
+                                 headers={'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        return resp.status
+
+
 def install_chat_tools(mcp, principal, oauth_meta, *, notify=None,
                        caller_context=None, config=None, client_factory=default_client,
-                       doorbell_environ=None):
+                       doorbell_environ=None, push=default_push):
     """Register chat tools when enabled. notify(owner, op_key, body) -> receipt.
 
     Returns the registered tool names (empty when disabled)."""
@@ -295,6 +328,16 @@ def install_chat_tools(mcp, principal, oauth_meta, *, notify=None,
                 # The chat message is stored; resend reuses the same key safely.
                 wakes.append({'to': target, 'operation_key': op,
                               'delivery': 'unconfirmed_resend_same_key'})
+        pushes = []
+        for target in mentions:
+            url = config.push_urls.get(target)
+            if not url or push is None:
+                continue
+            try:
+                status = await asyncio.to_thread(push, url, push_notice(message, target))
+                pushes.append({'to': target, 'delivery': 'sent' if 200 <= status < 300 else 'rejected'})
+            except Exception:
+                pushes.append({'to': target, 'delivery': 'failed'})
         doorbells = []
         if mentions:
             # Doorbell failure must not undo the stored message.
@@ -305,7 +348,8 @@ def install_chat_tools(mcp, principal, oauth_meta, *, notify=None,
             except Exception:
                 doorbells = [{'delivery': 'failed'}]
         result = {'stored': True, 'message': message, 'ai_streak': streak,
-                  'ai_streak_limit': config.ai_streak_limit, 'mailbox_wakes': wakes}
+                  'ai_streak_limit': config.ai_streak_limit, 'mailbox_wakes': wakes,
+                  'push_wakes': pushes}
         if doorbells:
             result['mention_doorbells'] = doorbells
         return result
@@ -342,6 +386,7 @@ def install_chat_tools(mcp, principal, oauth_meta, *, notify=None,
         return {'rooms': rooms,
                 'members': [{'name': n, 'kind': k} for n, k in config.members.items()],
                 'mailbox_wake': sorted(config.mailbox_wake),
+                'push_wake': sorted(config.push_urls),
                 'ai_streak_limit': config.ai_streak_limit,
                 'retention_days': config.ttl_seconds // 86400}
 
@@ -349,13 +394,16 @@ def install_chat_tools(mcp, principal, oauth_meta, *, notify=None,
 
 
 def formal_notifier(mailbox, formal, mailbox_id, event_name):
-    """Build notify() on the ORIGINAL formal mailbox send path, unchanged."""
+    """Send the group-chat notice through the original formal mailbox."""
     async def notify(owner, operation_key, body):
         inbox = mailbox(mailbox_id).for_event(event_name)
         if inbox.owner != owner:
             raise ChatError('owner_changed')
-        receipt = await asyncio.to_thread(inbox.send, operation_key, body,
-                                          event_name=event_name)
+        notice = json.loads(body)
+        options = {'event_name': event_name}
+        if (notice.get('type'), notice.get('room'), notice.get('to')) == ('chat.mention', 'lobby', 'GPT'):
+            options['chat_mention'] = True
+        receipt = await asyncio.to_thread(inbox.send, operation_key, body, **options)
         try:
             receipt['deliveries'] = await formal.dispatch(inbox, receipt['event_id'])
         except Exception:

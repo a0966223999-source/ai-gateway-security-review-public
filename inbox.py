@@ -13,6 +13,8 @@ from redis.exceptions import RedisError
 SCRIPT = Path(__file__).with_name('inbox.lua').read_text()
 IDENTIFIER = re.compile(r'^[A-Za-z0-9_-]{1,80}$')
 EVENT_ID = re.compile(r'^[0-9a-f]{64}$')
+LOBBY_GPT_MENTION = {'type': 'chat.mention', 'room': 'lobby', 'target': 'GPT'}
+LOBBY_GPT_SUBSCRIPTION = 'gateway.continuation.ready:chat.mention:lobby:GPT'
 
 
 class InboxError(Exception):
@@ -81,7 +83,8 @@ class Inbox:
         result['items'] = result['items'] or []
         return result
 
-    def send(self, operation_key, message, *, event_name='inbox.message.created', sender_context=None):
+    def send(self, operation_key, message, *, event_name='inbox.message.created',
+             sender_context=None, chat_mention=False):
         if event_name not in ('inbox.message.created', 'gateway.continuation.ready'):
             raise InboxError('unknown_event')
         identifier(operation_key)
@@ -90,6 +93,10 @@ class Inbox:
         eid = hashlib.sha256((self.key + '|' + operation_key + '|' + secrets.token_hex(32)).encode()).hexdigest()
         envelope = [operation_key, message] if event_name == 'inbox.message.created' else [event_name, operation_key, message]
         origin = {}
+        if chat_mention:
+            if event_name != 'gateway.continuation.ready' or sender_context is not None:
+                raise InboxError('invalid_chat_mention_source')
+            origin['chat_mention'] = LOBBY_GPT_MENTION
         if sender_context is not None:
             if event_name != 'gateway.continuation.ready' or type(sender_context) is not dict:
                 raise InboxError('invalid_sender_context')
