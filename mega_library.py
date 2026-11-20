@@ -204,6 +204,10 @@ class MegaFolder:
         self._tree, self._loaded = safe, self._clock()
         return safe
 
+    def share(self):
+        """(share handle, share key) of the exported folder, for the Writer's cr entry."""
+        return self._handle, self._key
+
     def revision(self):
         tree = self.tree()
         stamp = max((n['ts'] for n in tree.values()), default=0)
@@ -317,7 +321,8 @@ def make_mega_reader(folder, owner_of_deployment):
     return resolve_reader
 
 
-def binding_from_env(env=None, owner_of_deployment=None, **folder_kw):
+def binding_from_env(env=None, owner_of_deployment=None, post_bytes=None,
+                     client_factory=None, **folder_kw):
     """OriginalLibraryHostBinding for MEGA, or None when disabled/misconfigured."""
     env = os.environ if env is None else env
     if env.get('XJ_MEGA_KB_ENABLED') != 'true':
@@ -331,6 +336,12 @@ def binding_from_env(env=None, owner_of_deployment=None, **folder_kw):
     if owner_of_deployment is None:
         from mail_hook import owner_principal
         owner_of_deployment = lambda: owner_principal(env)  # noqa: E731
+    # Stage 2 (Owner ruling 2026-11-21): optional create-only Writer, default off.
+    from mega_writer import writer_from_env
+    extra = {k: v for k, v in (('post_bytes', post_bytes), ('client_factory', client_factory))
+             if v is not None}
+    writer = writer_from_env(env, folder, owner_of_deployment,
+                             folder_kw.get('post_json', _post_json), **extra)
     return OriginalLibraryHostBinding(
         source=MEGA_SOURCE, generation=folder.revision_seed, is_current=lambda: True,
-        resolve_reader=make_mega_reader(folder, owner_of_deployment), resolve_writer=None)
+        resolve_reader=make_mega_reader(folder, owner_of_deployment), resolve_writer=writer)

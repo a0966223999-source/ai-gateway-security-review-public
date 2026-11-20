@@ -21,7 +21,7 @@ SAFE_INLINE = frozenset((
     "text/plain", "text/markdown", "application/json", "text/x-python",
     "text/yaml", "application/yaml", "application/xml", "text/csv",
 ))
-SOURCES = frozenset(("chatgpt-library", "google-drive", "dropbox"))
+SOURCES = frozenset(("chatgpt-library", "google-drive", "dropbox", "mega-knowledge-base"))
 MAX_TEXT_BYTES = 16384
 
 

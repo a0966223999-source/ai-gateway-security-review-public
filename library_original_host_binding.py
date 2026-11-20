@@ -17,6 +17,8 @@ NATIVE_SOURCE = "chatgpt-library"
 # Owner ruling 2026-11-20 (approval ticket 05e93e8f): a second, separately
 # labeled read-only source backed by the Owner's MEGA "知識庫" folder export link.
 READ_SOURCES = frozenset((NATIVE_SOURCE, MEGA_SOURCE))
+# Owner ruling 2026-11-21 (stage 2): MEGA may also carry a create-only writer.
+WRITE_SOURCES = frozenset((NATIVE_SOURCE, MEGA_SOURCE))
 
 
 class LibraryNativeBindingDenied(ValueError):
@@ -47,7 +49,7 @@ def make_original_library_resolvers(binding):
         return None, None
     if (type(binding) is not OriginalLibraryHostBinding
             or binding.source not in READ_SOURCES
-            or (binding.source != NATIVE_SOURCE and binding.resolve_writer is not None)
+            or (binding.source not in WRITE_SOURCES and binding.resolve_writer is not None)
             or not isinstance(binding.generation, str)
             or not GENERATION.fullmatch(binding.generation)
             or not callable(binding.is_current)
@@ -85,7 +87,9 @@ def make_original_library_resolvers(binding):
     async def write_resolver(ctx, owner, client_id, operation, target_ref,
                              expected_version, operation_key):
         if (binding.resolve_writer is None or not current()
-                or operation not in ("create", "update", "status")):
+                or operation not in ("create", "update", "status")
+                or (binding.source != NATIVE_SOURCE and operation == "update")):
+            # MEGA 知識庫 is create-only: no update, no overwrite.
             denied()
         try:
             scope = await binding.resolve_writer(
@@ -93,7 +97,7 @@ def make_original_library_resolvers(binding):
                 expected_version, operation_key)
             check_write(scope, owner, client_id, operation, target_ref,
                         expected_version, operation_key)
-            if scope.source != NATIVE_SOURCE:
+            if scope.source != binding.source:
                 denied()
             old = scope.is_current
             result = replace(scope, is_current=lambda: current() and old() is True)

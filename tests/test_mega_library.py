@@ -210,16 +210,25 @@ class BindingTests(unittest.TestCase):
         self.assertIsNone(mega_library.binding_from_env(
             {'XJ_MEGA_KB_ENABLED': 'true', 'XJ_MEGA_KB_FOLDER_LINK': 'nope'}))
 
-    def test_mega_binding_cannot_carry_a_writer(self):
+    def test_reader_only_without_write_env(self):
+        # Stage 2 (2026-11-21) allows a MEGA writer, but only via XJ_MEGA_KB_WRITE_ENABLED.
         b = binding_for(FakeMega())
+        self.assertIsNone(b.resolve_writer)
+
+    def test_mega_writer_resolver_refuses_update(self):
+        b = binding_for(FakeMega())
+        calls = []
 
         async def writer(*a):
-            return None
-        bad = OriginalLibraryHostBinding(source=b.source, generation=b.generation,
-                                         is_current=b.is_current, resolve_reader=b.resolve_reader,
-                                         resolve_writer=writer)
+            calls.append(a)
+            raise AssertionError('must not be reached for update')
+        withw = OriginalLibraryHostBinding(source=b.source, generation=b.generation,
+                                           is_current=b.is_current, resolve_reader=b.resolve_reader,
+                                           resolve_writer=writer)
+        _, write = make_original_library_resolvers(withw)
         with self.assertRaises(LibraryNativeBindingDenied):
-            make_original_library_resolvers(bad)
+            asyncio.run(write(None, OWNER, CLIENT, 'update', 'm:ZipFile1', 'v:1:1', 'k' * 32))
+        self.assertEqual(calls, [])
 
     def test_unknown_source_still_denied(self):
         b = binding_for(FakeMega())
