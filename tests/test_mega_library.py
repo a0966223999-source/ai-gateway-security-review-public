@@ -82,7 +82,9 @@ class FakeMega:
         assert f'n={self.folder_handle}' in url
         cmd = payload[0]
         if cmd['a'] == 'f':
-            return [{'f': self.nodes}]
+            # Real folder links never list file versions (nodes under a file).
+            files = {x['h'] for x in self.nodes if x['t'] == 0}
+            return [{'f': [x for x in self.nodes if x['p'] not in files]}]
         if cmd['a'] == 'g':
             if cmd['n'] not in self.blobs:
                 return [-9]

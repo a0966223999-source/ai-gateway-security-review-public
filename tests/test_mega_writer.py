@@ -78,6 +78,12 @@ class FakeAccount(FakeMega):
 
     def post_json(self, url, payload):
         cmd = payload[0]
+        if cmd['a'] == 'f' and 'sid=' in url:
+            # Account listing: like real MEGA, file versions only in "f2".
+            assert f'sid={self.sid}' in url
+            files = {x['h'] for x in self.nodes if x['t'] == 0}
+            return [{'f': [x for x in self.nodes if x['p'] not in files],
+                     'f2': [x for x in self.nodes if x['p'] in files]}]
         if cmd['a'] in ('f', 'g'):
             return super().post_json(url, payload)
         self.calls.append(url)
