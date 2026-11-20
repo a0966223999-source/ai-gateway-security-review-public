@@ -188,6 +188,21 @@ class MegaSession:
         except Exception:
             raise MegaDenied('MEGA_LOGIN_FAILED') from None
 
+    def version_chain(self, handle):
+        """Older versions of a file, newest first. MEGA lists file versions only in the
+        account listing's "f2" (never in "f", never via the folder link)."""
+        res = self.api({'a': 'f', 'c': 1, 'r': 1})
+        older = {}
+        for n in (res.get('f2') or []) if isinstance(res, dict) else []:
+            if isinstance(n, dict) and isinstance(n.get('h'), str) and isinstance(n.get('p'), str):
+                older.setdefault(n['p'], []).append(n['h'])
+        chain, cur, seen = [], handle, {handle}
+        while len(older.get(cur, [])) == 1 and older[cur][0] not in seen:
+            cur = older[cur][0]
+            chain.append(cur)
+            seen.add(cur)
+        return chain
+
     def delete(self, handle):
         """Remove one node (and anything under it). Used only to prune old versions."""
         self.api({'a': 'd', 'n': handle, 'i': secrets.token_hex(5)})
@@ -424,7 +439,7 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
                     # Owner ruling 2026-11-21: keep only the previous version. Delete only
                     # versions older than that, and only within this one file's own chain.
                     try:
-                        for extra in folder.version_chain(created['h'])[1:][:1]:
+                        for extra in session.version_chain(created['h'])[1:][:1]:
                             session.delete(extra)  # removes it and every older version under it
                             pruned += 1
                     except Exception:
