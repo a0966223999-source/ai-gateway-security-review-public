@@ -221,9 +221,20 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
     # separate optional HTTPS POST (chat_doorbell.py), also default off.
     from chat_room import install_chat_tools, formal_notifier
     from formal_transport import caller_context_observation, MAILBOX, FORMAL
+    def chat_origin(ctx, owner):
+        # Owner ruling 2026-11-21: AIs could not see gateway_whoami, so each chat
+        # message also carries the poster's verified OAuth client ID (from its own
+        # token, never from arguments; not a secret) for the MEGA 知識庫 allowlist.
+        result = caller_context_observation(ctx, owner)
+        try:
+            result['oauth_client_id'] = verified_library_client()
+        except Exception:
+            result['oauth_client_id'] = None
+        return result
+
     install_chat_tools(mcp, principal, oauth_meta,
                        notify=formal_notifier(mailbox, formal, MAILBOX, FORMAL),
-                       caller_context=caller_context_observation)
+                       caller_context=chat_origin)
     # AI approval tickets: default off (XJ_APPROVAL_ENABLED=true). Any AI may ask;
     # only the Owner's passkey approves. Routes go in before the '/' mount below.
     from approval import install_approval, ApprovalError
