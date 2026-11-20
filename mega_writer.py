@@ -173,7 +173,7 @@ class MegaSession:
     def upload(self, parent_handle, share_handle, share_key, name, data):
         """New file under parent; returns the put-nodes node dict."""
         aes, nonce = secrets.token_bytes(16), secrets.token_bytes(8)
-        info = self.api({'a': 'u', 's': len(data)})
+        info = self.api({'a': 'u', 's': len(data), 'ssl': 1})  # ssl=1: https upload URL
         url = info.get('p') if isinstance(info, dict) else None
         if not isinstance(url, str) or not url.startswith('https://'):
             raise MegaDenied('MEGA_UPLOAD_UNAVAILABLE')
@@ -189,7 +189,9 @@ class MegaSession:
             'a': 'p', 't': parent_handle, 'i': secrets.token_hex(5),
             'n': [{'h': token, 't': 0, 'a': encrypt_attrs(aes, {'n': name}),
                    'k': b64e(ecb_encrypt(self.master_key, node_key))}],
-            'cr': [[share_handle], [token], [0, 0, b64e(ecb_encrypt(share_key, node_key))]]})
+            # Same shape as MEGA's web client crypto_makecr(newNodes, [share], false):
+            # node list empty, the second index points into "n".
+            'cr': [[share_handle], [], [0, 0, b64e(ecb_encrypt(share_key, node_key))]]})
         nodes = res.get('f') if isinstance(res, dict) else None
         if not isinstance(nodes, list) or len(nodes) != 1 or not isinstance(nodes[0], dict):
             raise MegaDenied('MEGA_PUT_FAILED')
@@ -279,28 +281,47 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
                 raise MegaDenied('MEGA_WRITE_TOO_LARGE')
 
             def go():
-                folder._tree = None  # fresh listing: path and no-overwrite checks
-                tree = folder.tree()
-                if target_ref == ROOT_REF:
-                    parent = next((n for n in tree.values() if n['p'] not in tree), None)
-                else:
-                    m = re.fullmatch(r'm:([A-Za-z0-9_-]{8})', target_ref)
-                    parent = tree.get(m.group(1)) if m else None
-                if parent is None or parent['t'] != 1:
-                    raise MegaDenied('MEGA_PARENT_NOT_IN_FOLDER')
-                if any(n['p'] == parent['h'] and n['name'] == name for n in tree.values()):
-                    raise MegaDenied('MEGA_NAME_EXISTS')
-                ledger.check(operation_key, target_ref, name)
-                ledger.consume(operation_key)
-                share_handle, share_key = folder.share()
-                node = session_factory().upload(parent['h'], share_handle, share_key, name, data)
-                folder._tree = None
-                created = folder.tree().get(node.get('h'))
-                if created is None or created['p'] != parent['h'] or created['name'] != name:
-                    raise MegaDenied('MEGA_READBACK_NOT_IN_FOLDER')
+                stage = 'check'
+                try:
+                    folder._tree = None  # fresh listing: path and no-overwrite checks
+                    tree = folder.tree()
+                    if target_ref == ROOT_REF:
+                        parent = next((n for n in tree.values() if n['p'] not in tree), None)
+                    else:
+                        m = re.fullmatch(r'm:([A-Za-z0-9_-]{8})', target_ref)
+                        parent = tree.get(m.group(1)) if m else None
+                    if parent is None or parent['t'] != 1:
+                        raise MegaDenied('MEGA_PARENT_NOT_IN_FOLDER')
+                    if any(n['p'] == parent['h'] and n['name'] == name for n in tree.values()):
+                        raise MegaDenied('MEGA_NAME_EXISTS')
+                    ledger.check(operation_key, target_ref, name)
+                    stage = 'login'
+                    session = session_factory()  # login failures do not use up the ticket
+                    stage = 'consume'
+                    ledger.consume(operation_key)
+                    stage = 'upload'
+                    share_handle, share_key = folder.share()
+                    node = session.upload(parent['h'], share_handle, share_key, name, data)
+                    stage = 'readback'
+                    folder._tree = None
+                    created = folder.tree().get(node.get('h'))
+                    if created is None or created['p'] != parent['h'] or created['name'] != name:
+                        raise MegaDenied('MEGA_READBACK_NOT_IN_FOLDER')
+                except Exception as exc:
+                    code = str(exc) if isinstance(exc, MegaDenied) else 'MEGA_INTERNAL_' + type(exc).__name__
+                    # Fixed codes only: never credentials, links, keys or MEGA URLs.
+                    print(f'xj-mega-write ticket={operation_key[:8]} stage={stage} code={code}', flush=True)
+                    if stage in ('upload', 'readback'):
+                        # The upload may have happened: status stays "pending", never retried.
+                        try:
+                            ledger.save(operation_key, dict(base_receipt('pending'), request_digest=''))
+                        except Exception:
+                            pass
+                    raise MegaDenied(code) from None
                 receipt = dict(base_receipt('committed', 'm:' + created['h'], version_of(created)),
                                request_digest=request_digest(request))
                 ledger.save(operation_key, receipt)
+                print(f'xj-mega-write ticket={operation_key[:8]} stage=done code=COMMITTED', flush=True)
                 return receipt
             receipts[operation_key] = await asyncio.to_thread(go)
 
@@ -310,6 +331,8 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
             stored = await asyncio.to_thread(ledger.load, key)
             if not stored:
                 return dict(base_receipt('denied'), request_digest='')
+            if stored.get('schema') is None:  # bare consume marker from an interrupted write
+                return dict(base_receipt('pending'), request_digest='')
             return stored
 
         return OriginalLibraryWriteScope(
