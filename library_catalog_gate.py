@@ -12,6 +12,8 @@ from dataclasses import dataclass
 SCHEMA_PAGE = "chatgpt-library-catalog-page-v1"
 SCHEMA_ITEM = "chatgpt-library-item-view-v1"
 SOURCE = "chatgpt-library"
+MEGA_SOURCE = "mega-knowledge-base"
+SOURCES = frozenset((SOURCE, MEGA_SOURCE))  # each scope carries exactly one of these
 REF_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9:_-]{0,127}\Z")
 VERSION_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9:._-]{0,127}\Z")
 CLIENT_RE = re.compile(r"[A-Za-z0-9_-]{1,200}\Z")
@@ -40,6 +42,7 @@ class OriginalLibraryScope:
     is_current: object
     search_original: object
     read_original: object
+    source: str = SOURCE
 
 
 def check_scope(scope, owner, client_id):
@@ -48,6 +51,7 @@ def check_scope(scope, owner, client_id):
             or not isinstance(client_id, str) or not CLIENT_RE.fullmatch(client_id)
             or not isinstance(owner, str) or not owner
             or not isinstance(scope.revision, str) or not HEX_RE.fullmatch(scope.revision)
+            or scope.source not in SOURCES
             or not callable(scope.is_current) or scope.is_current() is not True
             or not inspect.iscoroutinefunction(scope.search_original)
             or not inspect.iscoroutinefunction(scope.read_original)):
@@ -78,7 +82,7 @@ def validate_entry(entry):
 def validate_page(page, scope, limit):
     if (type(page) is not dict
             or set(page) != {"schema", "source", "owner", "revision", "items", "next_cursor"}
-            or page["schema"] != SCHEMA_PAGE or page["source"] != SOURCE
+            or page["schema"] != SCHEMA_PAGE or page["source"] != scope.source
             or page["owner"] != scope.owner or page["revision"] != scope.revision
             or type(page["items"]) is not list or len(page["items"]) > limit
             or len(page["items"]) > 50
@@ -98,7 +102,7 @@ def validate_view(view, scope, ref, expected_version):
     if (type(view) is not dict
             or set(view) != {"schema", "source", "owner", "revision", "ref",
                             "version", "mime_type", "preview_kind", "preview"}
-            or view["schema"] != SCHEMA_ITEM or view["source"] != SOURCE
+            or view["schema"] != SCHEMA_ITEM or view["source"] != scope.source
             or view["owner"] != scope.owner or view["revision"] != scope.revision
             or view["ref"] != ref or view["version"] != expected_version
             or view["preview_kind"] not in PREVIEWS

@@ -123,8 +123,11 @@ from summary_read_channel import make_summary_scope_resolver
 from library_original_host_binding import make_original_library_resolvers
 # Only a trusted in-process native/bootstrap owner may install this object.
 # Existing preview has no such port; no env or OAuth grants create one.
-_library_read, _library_write = make_original_library_resolvers(
-    getattr(app.state, "original_library_host_binding", None))
+# Owner ruling 2026-11-20 (approval ticket 05e93e8f): when no native binding is
+# installed, a read-only MEGA "知識庫" binding may be built from Sensitive env.
+from mega_library import binding_from_env as _mega_binding
+_library_binding = getattr(app.state, "original_library_host_binding", None) or _mega_binding()
+_library_read, _library_write = make_original_library_resolvers(_library_binding)
 _mcp = install(app, write_event, read_event, SyntheticEvent,
     summary_memory_scope_resolver=make_summary_scope_resolver(),
     library_catalog_scope_resolver=_library_read,
