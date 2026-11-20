@@ -9,6 +9,13 @@ one short notice is sent through the original formal mailbox path
 (gateway_internal_v1 / gateway.continuation.ready), so an existing subscription
 can wake that member. The notice carries no task, Source or Work authority.
 
+A separate mention doorbell can POST once to a configured member webhook after
+the message is stored. It is off unless that member's URL and Authorization
+value are both set. Grok is the first member (XJ_CHAT_DOORBELL_GROK_URL and
+XJ_CHAT_DOORBELL_GROK_AUTHORIZATION). The body is type, room, seq, member and
+created time, never the message text. A failed POST does not undo the write
+and is not retried. See chat_doorbell.py.
+
 Speaker names are self-declared: every caller shares one OAuth owner. Each stored
 message records the existing caller-context observation (conversation
 fingerprint only) for later review; it is not an identity proof.
@@ -31,6 +38,8 @@ import re
 import time
 import urllib.request
 from urllib.parse import urlsplit
+
+from chat_doorbell import ring_mentions
 
 NAMESPACE = 'xj:chat-room:v1'
 MAX_TEXT = 8000
@@ -190,6 +199,19 @@ class ChatStore:
         return {'room': room, 'latest_seq': last, 'oldest_kept_seq': first,
                 'items': items, 'has_more': bool(items) and items[-1]['seq'] < last}
 
+    def claim_doorbell(self, room, seq, member):
+        """First claim for this room, sequence and member wins. No message text is stored."""
+        digest = hashlib.sha256(f'{room}|{seq}|{member}'.encode()).hexdigest()
+        key = self.prefix + ':doorbell:' + digest
+
+        def go(client):
+            return client.set(key, '1', nx=True, ex=self.config.ttl_seconds) is True
+
+        try:
+            return self._run(go)
+        except ChatError:
+            return None
+
     def rooms(self):
         return self._run(lambda client: client.zrevrange(self._rooms_key(), 0, 99))
 
@@ -238,7 +260,7 @@ def default_push(url, body):
 
 def install_chat_tools(mcp, principal, oauth_meta, *, notify=None,
                        caller_context=None, config=None, client_factory=default_client,
-                       push=default_push):
+                       doorbell_environ=None, push=default_push):
     """Register chat tools when enabled. notify(owner, op_key, body) -> receipt.
 
     Returns the registered tool names (empty when disabled)."""
@@ -316,9 +338,21 @@ def install_chat_tools(mcp, principal, oauth_meta, *, notify=None,
                 pushes.append({'to': target, 'delivery': 'sent' if 200 <= status < 300 else 'rejected'})
             except Exception:
                 pushes.append({'to': target, 'delivery': 'failed'})
-        return {'stored': True, 'message': message, 'ai_streak': streak,
-                'ai_streak_limit': config.ai_streak_limit, 'mailbox_wakes': wakes,
-                'push_wakes': pushes}
+        doorbells = []
+        if mentions:
+            # Doorbell failure must not undo the stored message.
+            try:
+                env = os.environ if doorbell_environ is None else doorbell_environ
+                doorbells = await asyncio.to_thread(
+                    ring_mentions, message, speaker, store, environ=env)
+            except Exception:
+                doorbells = [{'delivery': 'failed'}]
+        result = {'stored': True, 'message': message, 'ai_streak': streak,
+                  'ai_streak_limit': config.ai_streak_limit, 'mailbox_wakes': wakes,
+                  'push_wakes': pushes}
+        if doorbells:
+            result['mention_doorbells'] = doorbells
+        return result
 
     @mcp.tool(meta=oauth_meta, annotations=annotation(read=True))
     async def chat_read(room: str, after_seq: int = 0, limit: int = 50) -> dict:

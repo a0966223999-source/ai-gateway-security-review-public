@@ -32,7 +32,8 @@ ENABLED = {'XJ_CHAT_ROOM_ENABLED': 'true'}
 
 
 class Harness:
-    def __init__(self, env=None, owner='oauth:owner-a', notify_error=False, push_error=None):
+    def __init__(self, env=None, owner='oauth:owner-a', notify_error=False, push_error=None,
+                 doorbell_environ=None):
         self.server = fakeredis.FakeServer()
         self.owner = owner
         self.notices = []
@@ -48,11 +49,14 @@ class Harness:
                 raise OSError('lost after possible send')
             return {'event_id': 'e' * 64, 'duplicate': False}
 
+        if doorbell_environ is None:
+            doorbell_environ = {}
         self.names = install_chat_tools(
             self.mcp, lambda: self.owner, {'securitySchemes': []}, notify=notify,
             caller_context=lambda ctx, owner: {'schema': 'caller-context-observation-v1',
                                                'work_identity_verified': False},
-            config=self.config, client_factory=self.client, push=self.push)
+            config=self.config, client_factory=self.client, push=self.push,
+            doorbell_environ=doorbell_environ)
 
     def push(self, url, body):
         self.pushes.append((url, body))

@@ -96,6 +96,36 @@ Do not label an enqueue receipt as successful automatic continuation.
 
 Host integration timing note: a measured real functions V8 registration child took 26.9 seconds before discovery and semantic review. A 30-second full first-registration budget is not established. Longer read-only diagnostic measurements must pass before configuring a larger RPC budget. The default RPC wait stays 30 and Source RPC remains disabled until host verification.
 
+## Group chat mention doorbell
+
+Chat tools stay off unless `XJ_CHAT_ROOM_ENABLED=true`. After a stored
+`chat_post`, an `@GPT` mention can still wake GPT through the existing formal
+mailbox (`XJ_CHAT_MAILBOX_WAKE`, default GPT). That path is unchanged.
+
+A separate mention doorbell can wake Grok with one HTTPS POST. It stays off
+unless both variables below are set. These files do not set them, deploy, or
+change any Vercel configuration.
+
+| Variable | Purpose |
+|---|---|
+| `XJ_CHAT_DOORBELL_GROK_URL` | HTTPS webhook URL for mentions of Grok. Any other scheme is not called. |
+| `XJ_CHAT_DOORBELL_GROK_AUTHORIZATION` | Sent as the `Authorization` header value, unchanged. Not logged and not returned. |
+
+The POST body is only these fields, as compact JSON with sorted keys:
+
+```json
+{"created":1700000000,"member":"Grok","room":"main","seq":1,"type":"chat.mention"}
+```
+
+`created` is the stored message time in Unix seconds. The body has no message
+text, speaker, preview, owner, or credential. `chat_post` reports that ring as
+`mention_doorbells[].delivery`: `dispatched`, `failed`, or `skipped`. The
+response does not include the URL or the header value.
+
+The POST times out after 3 seconds, does not follow redirects, and is not
+retried. One attempt is claimed per room, sequence, and member in the existing
+chat Redis namespace. `NOOP` stores nothing and does not ring. A member is not
+rung for their own post. If the POST fails, the chat message stays stored.
 
 ## Ordinary short-term summary channel
 
