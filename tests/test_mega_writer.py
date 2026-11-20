@@ -93,7 +93,8 @@ class FakeAccount(FakeMega):
                      'csid': b64e(mpi(csid)), 'u': 'UserHand'}]
         assert f'sid={self.sid}' in url, 'command without a valid session'
         if cmd['a'] == 'u':
-            return [{'p': 'https://ul.example/up1'}]
+            # Real MEGA hands out an http:// URL unless ssl is requested.
+            return [{'p': 'https://ul.example/up1' if cmd.get('ssl') else 'http://ul.example/up1'}]
         if cmd['a'] == 'p':
             self.puts.append(cmd)
             [n] = cmd['n']
@@ -101,7 +102,7 @@ class FakeAccount(FakeMega):
             node_key_master = ecb_decrypt(self.master, b64d(n['k']))
             parts = []
             cr = cmd.get('cr')
-            if cr and cr[0] == [self.folder_handle] and cr[1] == [n['h']]:
+            if cr and cr[0] == [self.folder_handle] and cr[1] == [] and cr[2][:2] == [0, 0]:
                 shared = ecb_decrypt(self.folder_key, b64d(cr[2][2]))
                 assert shared == node_key_master
                 parts.append(f'{self.folder_handle}:{cr[2][2]}')
@@ -261,6 +262,30 @@ class WriterTests(unittest.TestCase):
         self.env['XJ_MEGA_PASSWORD'] = PASSWORD
         self.mount()
         self.assert_denied(self.ticket())
+
+    def test_login_failure_keeps_ticket_usable(self):
+        t = self.ticket()
+        self.env['XJ_MEGA_PASSWORD'] = 'wrong'
+        self.mount()
+        self.assert_denied(t)
+        self.env['XJ_MEGA_PASSWORD'] = PASSWORD
+        self.mount()
+        self.assertEqual(self.create(t)['status'], 'committed')
+
+    def test_failed_upload_reports_pending_not_retryable(self):
+        t = self.ticket()
+        self.fake.post_bytes = lambda url, data: (_ for _ in ()).throw(OSError('net'))
+        self.mount()
+        self.assert_denied(t)
+        status = asyncio.run(authorized_status(self.write, lambda: OWNER, lambda: CLIENT, None, t))
+        self.assertEqual(status['status'], 'pending')
+        with self.assertRaises(LibraryWriteDenied):
+            self.create(t)
+
+    def test_status_of_unused_ticket_is_denied(self):
+        status = asyncio.run(authorized_status(self.write, lambda: OWNER, lambda: CLIENT, None,
+                                               self.ticket()))
+        self.assertEqual(status['status'], 'denied')
 
     def test_session_errors_never_echo_credentials(self):
         self.fake.twofa = True
