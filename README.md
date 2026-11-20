@@ -139,3 +139,6 @@ removed after consumption, and historical queries cannot return summary bodies.
 This source change does not start or restart the native Gateway/Worker or issue
 any grant. Gateway source mounting, MCP deployment, native process loading and
 real authorized/unauthorized summary acceptance are separate rollout stages.
+
+## AgentMail 收信通知
+POST /api/mail-hook：AgentMail message.received → lobby 通知（預設關閉，需 AGENTMAIL_WEBHOOK_SECRET）。詳見 mail_hook.py。
