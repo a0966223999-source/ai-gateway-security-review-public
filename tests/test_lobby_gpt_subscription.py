@@ -11,7 +11,7 @@ import fakeredis
 from chat_room import formal_notifier, wake_notice
 from formal_transport import FORMAL, MAILBOX
 from inbox import Inbox, InboxError, LOBBY_GPT_MENTION
-from mcp_events import Events, SecretBox
+from mcp_events import EVENT_NAME, Events, LOBBY_GPT_MAILBOX_SELECTOR, SecretBox
 
 
 class LobbyGptSubscriptionTests(unittest.IsolatedAsyncioTestCase):
@@ -20,9 +20,13 @@ class LobbyGptSubscriptionTests(unittest.IsolatedAsyncioTestCase):
         self.token = SimpleNamespace(token='fixture-token', expires_at=int(time.time()) + 600)
         self.verifier = SimpleNamespace(verify_token=AsyncMock(return_value=self.token))
         self.callbacks = []
-        self.events = Events(lambda _: self.inbox, self.verifier, sender=self.send_callback,
+        self.events = Events(self.original_mailbox, self.verifier, sender=self.send_callback,
                              box=SecretBox(b'x' * 32), event_name=FORMAL,
                              authorize_event=lambda *_: True)
+
+    def original_mailbox(self, name):
+        self.assertEqual(name, MAILBOX)
+        return self.inbox
 
     async def send_callback(self, url, headers, body, timeout):
         payload = json.loads(body)
@@ -81,3 +85,23 @@ class LobbyGptSubscriptionTests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(event_filter=event_filter), self.assertRaisesRegex(InboxError, 'invalid_arguments'):
                 await self.rpc('events/subscribe', {'mailbox_id': MAILBOX, 'filter': event_filter})
         self.assertEqual(self.inbox.subscription_status()['count'], 0)
+
+    async def test_mailbox_only_connector_selects_exact_same_subscription(self):
+        selector = {'mailbox_id': LOBBY_GPT_MAILBOX_SELECTOR}
+        scoped = {'mailbox_id': MAILBOX, 'filter': LOBBY_GPT_MENTION}
+        created = await self.rpc('events/subscribe', selector)
+        renewed = await self.rpc('events/subscribe', scoped)
+        self.assertEqual(created['id'], renewed['id'])
+        items = self.inbox.subscription_status()['items']
+        self.assertEqual([(row['id'], row['filter']) for row in items],
+                         [(created['id'], LOBBY_GPT_MENTION)])
+        await self.rpc('events/unsubscribe', selector)
+        self.assertEqual(self.inbox.subscription_status()['count'], 0)
+
+    async def test_synthetic_event_cannot_use_formal_selector(self):
+        events = Events(self.original_mailbox, self.verifier)
+        with self.assertRaisesRegex(InboxError, 'invalid_arguments'):
+            await events.rpc('events/subscribe', {
+                'name': EVENT_NAME,
+                'arguments': {'mailbox_id': LOBBY_GPT_MAILBOX_SELECTOR},
+            }, self.token)

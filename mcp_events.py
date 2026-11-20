@@ -22,6 +22,9 @@ from inbox import InboxError, LOBBY_GPT_MENTION, LOBBY_GPT_SUBSCRIPTION, canonic
 from subscription_diagnostics import emit, trace_rpc
 
 EVENT_NAME = 'inbox.message.created'
+# ChatGPT connectors with the mailbox-only schema can select the same filter.
+# This value is accepted by the event RPC only and is never a Redis mailbox.
+LOBBY_GPT_MAILBOX_SELECTOR = 'gateway_internal_v1_lobby_gpt_mentions'
 EVENT = {
     'name': EVENT_NAME,
     'description': 'A new synthetic inbox message. List, claim, then acknowledge it; no formal Gateway authority.',
@@ -193,6 +196,10 @@ class Events:
         arguments = params.get('arguments')
         if not isinstance(arguments, dict) or 'mailbox_id' not in arguments:
             raise InboxError('invalid_arguments')
+        if arguments['mailbox_id'] == LOBBY_GPT_MAILBOX_SELECTOR:
+            if self.event_name == EVENT_NAME or set(arguments) != {'mailbox_id'}:
+                raise InboxError('invalid_arguments')
+            arguments = {'mailbox_id': 'gateway_internal_v1', 'filter': LOBBY_GPT_MENTION}
         subscription_event = self.event_name
         if set(arguments) != {'mailbox_id'}:
             if (self.event_name == EVENT_NAME or set(arguments) != {'mailbox_id', 'filter'}
