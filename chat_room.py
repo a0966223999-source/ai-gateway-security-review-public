@@ -291,28 +291,9 @@ def install_chat_tools(mcp, principal, oauth_meta, *, notify=None,
         if type(limit) is not int or not 1 <= limit <= MAX_READ:
             raise ChatError('invalid_limit')
 
-    @mcp.tool(meta=oauth_meta, annotations=annotation())
-    async def chat_post(room: str, speaker: str, text: str, ctx: Context = None) -> dict:
-        """Post to a group chat room as `speaker` (self-declared; not identity proof).
-        Write @Name to call a member. Members who are called reply with chat_post.
-        Text 'NOOP' means you choose not to reply and stores nothing. If the AI
-        streak limit is reached, stop and wait for a human message."""
-        owner = principal()
-        room = room_name(room)
-        speaker = member(speaker)
-        if not isinstance(text, str):
-            raise ChatError('invalid_text')
-        text = text.strip()
-        if text == NOOP:
-            return {'stored': False, 'reason': 'noop'}
-        if not 1 <= len(text) <= MAX_TEXT:
-            raise ChatError('invalid_text_length')
-        kind = config.members[speaker]
-        mentions = parse_mentions(config, text, speaker)
-        origin = caller_context(ctx, owner) if caller_context else None
-        store = ChatStore(owner, config, client_factory)
-        message, streak = await asyncio.to_thread(
-            store.append, room, speaker, kind, text, mentions, origin)
+    async def deliver(owner, store, message, speaker, mentions):
+        """Mailbox wakes, push wakes and doorbells for one stored message. Never raises."""
+        room = message['room']
         wakes = []
         for target in mentions:
             if target not in config.mailbox_wake or notify is None:
@@ -347,6 +328,31 @@ def install_chat_tools(mcp, principal, oauth_meta, *, notify=None,
                     ring_mentions, message, speaker, store, environ=env)
             except Exception:
                 doorbells = [{'delivery': 'failed'}]
+        return wakes, pushes, doorbells
+
+    @mcp.tool(meta=oauth_meta, annotations=annotation())
+    async def chat_post(room: str, speaker: str, text: str, ctx: Context = None) -> dict:
+        """Post to a group chat room as `speaker` (self-declared; not identity proof).
+        Write @Name to call a member. Members who are called reply with chat_post.
+        Text 'NOOP' means you choose not to reply and stores nothing. If the AI
+        streak limit is reached, stop and wait for a human message."""
+        owner = principal()
+        room = room_name(room)
+        speaker = member(speaker)
+        if not isinstance(text, str):
+            raise ChatError('invalid_text')
+        text = text.strip()
+        if text == NOOP:
+            return {'stored': False, 'reason': 'noop'}
+        if not 1 <= len(text) <= MAX_TEXT:
+            raise ChatError('invalid_text_length')
+        kind = config.members[speaker]
+        mentions = parse_mentions(config, text, speaker)
+        origin = caller_context(ctx, owner) if caller_context else None
+        store = ChatStore(owner, config, client_factory)
+        message, streak = await asyncio.to_thread(
+            store.append, room, speaker, kind, text, mentions, origin)
+        wakes, pushes, doorbells = await deliver(owner, store, message, speaker, mentions)
         result = {'stored': True, 'message': message, 'ai_streak': streak,
                   'ai_streak_limit': config.ai_streak_limit, 'mailbox_wakes': wakes,
                   'push_wakes': pushes}
@@ -390,6 +396,20 @@ def install_chat_tools(mcp, principal, oauth_meta, *, notify=None,
                 'ai_streak_limit': config.ai_streak_limit,
                 'retention_days': config.ttl_seconds // 86400}
 
+    async def post_system(owner, room, speaker, text):
+        """In-process notice (kind=system): leaves the AI streak alone, wakes mentioned members."""
+        room = room_name(room)
+        text = text.strip()
+        if not 1 <= len(text) <= MAX_TEXT:
+            raise ChatError('invalid_text_length')
+        mentions = parse_mentions(config, text, speaker)
+        store = ChatStore(owner, config, client_factory)
+        message, _ = await asyncio.to_thread(
+            store.append, room, speaker, 'system', text, mentions, None)
+        await deliver(owner, store, message, speaker, mentions)
+        return message
+
+    mcp.xj_chat_post_system = post_system
     return ['chat_post', 'chat_read', 'chat_mentions', 'chat_rooms']
 
 

@@ -38,7 +38,7 @@ DEFAULT_ROOM = 'lobby'
 SPEAKER = 'Mail'
 KIND = 'system'  # neither counts toward nor resets the AI streak
 LIMITS = {'from': 120, 'subject': 120, 'message_id': 200}
-_CONTROL = re.compile(r'[\x00-\x1f\x7f  ]+')
+_CONTROL = re.compile(r'[\x00-\x1f\x7f\u2028\u2029]+')
 
 
 class Rejected(Exception):
