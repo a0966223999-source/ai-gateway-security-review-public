@@ -155,7 +155,7 @@ class WriteGateTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_text_larger_than_16kb_denied(self):
         with self.assertRaises(LibraryWriteDenied):
-            await self.write(mime_type="text/plain", content="A" * 16385)
+            await self.write(mime_type="text/plain", content="A" * (512 * 1024 + 1))
         self.assertFalse(self.commits)
 
     async def test_raw_binary_inline_denied(self):

@@ -215,20 +215,24 @@ class BindingTests(unittest.TestCase):
         b = binding_for(FakeMega())
         self.assertIsNone(b.resolve_writer)
 
-    def test_mega_writer_resolver_refuses_update(self):
-        b = binding_for(FakeMega())
-        calls = []
-
-        async def writer(*a):
-            calls.append(a)
-            raise AssertionError('must not be reached for update')
-        withw = OriginalLibraryHostBinding(source=b.source, generation=b.generation,
-                                           is_current=b.is_current, resolve_reader=b.resolve_reader,
-                                           resolve_writer=writer)
-        _, write = make_original_library_resolvers(withw)
-        with self.assertRaises(LibraryNativeBindingDenied):
-            asyncio.run(write(None, OWNER, CLIENT, 'update', 'm:ZipFile1', 'v:1:1', 'k' * 32))
-        self.assertEqual(calls, [])
+    def test_owner_ticket_mode_writer_refuses_update(self):
+        # Overwrite exists only in client mode (tests/test_mega_clients.py); in the
+        # stage-2 Owner-ticket mode the MEGA writer still refuses every update.
+        from tests.test_mega_writer import EMAIL, PASSWORD, FakeAccount
+        from library_write_gate import LibraryWriteDenied, authorized_write
+        fake = FakeAccount()
+        env = {'XJ_MEGA_KB_ENABLED': 'true', 'XJ_MEGA_KB_FOLDER_LINK': fake.link,
+               'XJ_MEGA_KB_WRITE_ENABLED': 'true', 'XJ_MEGA_EMAIL': EMAIL,
+               'XJ_MEGA_PASSWORD': PASSWORD}
+        b = mega_library.binding_from_env(env, owner_of_deployment=lambda: OWNER,
+                                          post_json=fake.post_json, get_stream=fake.get_stream,
+                                          post_bytes=fake.post_bytes, client_factory=lambda: None)
+        _, write = make_original_library_resolvers(b)
+        with self.assertRaises(LibraryWriteDenied):
+            asyncio.run(authorized_write(write, lambda: OWNER, lambda: CLIENT, None, 'update',
+                                         'm:ZipFile1', 'v:1795100000:9406', 'k' * 32,
+                                         'text/plain', 'x', 'text', ''))
+        self.assertEqual(fake.puts, [])
 
     def test_unknown_source_still_denied(self):
         b = binding_for(FakeMega())

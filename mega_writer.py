@@ -38,14 +38,32 @@ import time
 import unicodedata
 import urllib.request
 
-from mega_library import API, MegaDenied, b64d, ecb_decrypt, version_of
+from mega_library import API, TEXT_TYPES, MegaDenied, b64d, ecb_decrypt, guess_mime, version_of
 
 TITLE_PREFIX = 'MEGA知識庫寫入'
 ROOT_REF = 'kb:root'  # the 知識庫 folder itself, so tickets never carry its handle
+# Client mode (mega_policy, Owner rulings 2026-11-21): allowlisted AIs create and
+# overwrite files anywhere inside 知識庫 without a per-write ticket.
 PLAN_LINE = re.compile(r'^mega_write parent=(kb:root|m:[A-Za-z0-9_-]{8}) name=([^\n/\\]{1,160})$', re.M)
 CLAIM_WINDOW = 24 * 3600
-MAX_WRITE_BYTES = 16384
+MAX_WRITE_BYTES = 512 * 1024
 NAMESPACE = 'xj:mega-write:v1'
+# KEYS: operation, destination, receipt, daily counter.
+# ARGV: marker, receipt json, ttl, daily limit, daily ttl.
+# 0 = operation key or destination already used, 2 = daily limit reached, 1 = reserved.
+RESERVE_CLIENT = """
+for i = 1, 3 do
+  if redis.call('EXISTS', KEYS[i]) == 1 then return 0 end
+end
+local used = tonumber(redis.call('GET', KEYS[4]) or '0')
+if used >= tonumber(ARGV[4]) then return 2 end
+redis.call('INCR', KEYS[4])
+redis.call('EXPIRE', KEYS[4], ARGV[5])
+redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[3])
+redis.call('SET', KEYS[2], ARGV[1], 'EX', ARGV[3])
+redis.call('SET', KEYS[3], ARGV[2], 'EX', ARGV[3])
+return 1
+"""
 
 
 def b64e(raw):
@@ -142,7 +160,7 @@ class MegaSession:
             raise MegaDenied('MEGA_UNREACHABLE') from None
         if not isinstance(resp, list) or not resp:
             raise MegaDenied('MEGA_API_ERROR')
-        if isinstance(resp[0], int):
+        if isinstance(resp[0], int) and resp[0] < 0:  # 0 means plain success (e.g. delete)
             if resp[0] == -26:
                 raise MegaDenied('MEGA_2FA_REQUIRED')
             if resp[0] in (-9, -16):
@@ -170,8 +188,16 @@ class MegaSession:
         except Exception:
             raise MegaDenied('MEGA_LOGIN_FAILED') from None
 
-    def upload(self, parent_handle, share_handle, share_key, name, data):
-        """New file under parent; returns the put-nodes node dict."""
+    def delete(self, handle):
+        """Remove one node (and anything under it). Used only to prune old versions."""
+        self.api({'a': 'd', 'n': handle, 'i': secrets.token_hex(5)})
+
+    def upload(self, parent_handle, share_handle, share_key, name, data, overwrite=None):
+        """New file under parent; returns the put-nodes node dict.
+
+        overwrite=<handle>: MEGA "ov" — the new node replaces that file and the old
+        one becomes its previous version.
+        """
         aes, nonce = secrets.token_bytes(16), secrets.token_bytes(8)
         info = self.api({'a': 'u', 's': len(data), 'ssl': 1})  # ssl=1: https upload URL
         url = info.get('p') if isinstance(info, dict) else None
@@ -185,17 +211,22 @@ class MegaSession:
             raise MegaDenied('MEGA_UPLOAD_FAILED')
         tail = nonce + meta_mac(aes, nonce, data)
         node_key = bytes(a ^ b for a, b in zip(aes, tail)) + tail
+        new_node = {'h': token, 't': 0, 'a': encrypt_attrs(aes, {'n': name}),
+                    'k': b64e(ecb_encrypt(self.master_key, node_key))}
+        if overwrite:
+            new_node['ov'] = overwrite
         res = self.api({
             'a': 'p', 't': parent_handle, 'i': secrets.token_hex(5),
-            'n': [{'h': token, 't': 0, 'a': encrypt_attrs(aes, {'n': name}),
-                   'k': b64e(ecb_encrypt(self.master_key, node_key))}],
+            'n': [new_node],
             # Same shape as MEGA's web client crypto_makecr(newNodes, [share], false):
             # node list empty, the second index points into "n".
             'cr': [[share_handle], [], [0, 0, b64e(ecb_encrypt(share_key, node_key))]]})
         nodes = res.get('f') if isinstance(res, dict) else None
-        if not isinstance(nodes, list) or len(nodes) != 1 or not isinstance(nodes[0], dict):
+        made = [n for n in nodes if isinstance(n, dict) and n.get('p') == parent_handle
+                and n.get('h') != overwrite] if isinstance(nodes, list) else []
+        if len(made) != 1:
             raise MegaDenied('MEGA_PUT_FAILED')
-        return nodes[0]
+        return made[0]
 
 
 class TicketLedger:
@@ -248,8 +279,31 @@ class TicketLedger:
         return json.loads(raw) if raw else None
 
 
+class ClientLedger(TicketLedger):
+    """Client mode: receipts per (owner, client, operation_key); names reserved per folder."""
+
+    def __init__(self, owner, client_id, client_factory, now=time.time):
+        self.client_factory, self.now = client_factory, now
+        tag = '{' + hashlib.sha256(owner.encode()).hexdigest()[:32] + '}'  # one slot for the script
+        self.base = NAMESPACE + ':clients:' + tag
+        self.prefix = self.base + ':c:' + hashlib.sha256(client_id.encode()).hexdigest()[:32]
+
+    def reserve(self, operation_key, parent_handle, name, receipt, daily_limit):
+        destination = self.base + ':dest:' + hashlib.sha256(
+            (parent_handle + '\0' + name).encode()).hexdigest()
+        day = time.strftime('%Y%m%d', time.gmtime(self.now()))
+        result = self._run(lambda c: c.eval(
+            RESERVE_CLIENT, 4, self.prefix + ':op:' + operation_key, destination,
+            self.prefix + ':' + operation_key, self.prefix + ':day:' + day,
+            operation_key, json.dumps(receipt), 30 * 86400, daily_limit, 2 * 86400))
+        if result == 2:
+            raise MegaDenied('MEGA_DAILY_LIMIT')
+        if result != 1:
+            raise MegaDenied('MEGA_OPERATION_OR_NAME_ALREADY_USED')
+
+
 def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factory,
-                     now=time.time):
+                     now=time.time, *, policy=None, client_ledger_factory=None):
     """resolve_writer for OriginalLibraryHostBinding(source=MEGA_SOURCE)."""
     from library_catalog_gate import MEGA_SOURCE
     from library_write_gate import OriginalLibraryWriteScope, request_digest
@@ -259,9 +313,18 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
         import asyncio
         if owner != owner_of_deployment():
             raise MegaDenied('MEGA_NOT_OWNER')
-        if operation not in ('create', 'status'):
-            raise MegaDenied('MEGA_WRITE_CREATE_ONLY')
-        ledger = ledger_factory(owner)
+        if operation not in ('create', 'update', 'status'):
+            raise MegaDenied('MEGA_WRITE_OPERATION')
+        if operation == 'update' and policy is None:
+            raise MegaDenied('MEGA_WRITE_CREATE_ONLY')  # Owner-ticket mode never overwrites
+        need = 'update' if operation == 'update' else 'create'
+        if policy is not None:
+            if policy.member(owner, client_id, need) is None and not (
+                    operation == 'status' and policy.member(owner, client_id, 'update')):
+                raise MegaDenied('MEGA_CLIENT_NOT_ALLOWED')
+            ledger = client_ledger_factory(owner, client_id)
+        else:
+            ledger = ledger_factory(owner)
         receipts = {}
 
         def base_receipt(status, ref='', version=''):
@@ -272,41 +335,79 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
                     'status': status}
 
         async def commit_original(request):
+            updating = operation == 'update'
             name = unicodedata.normalize('NFC', request['name']).strip()
-            if (request['payload_kind'] != 'text' or not name or name != request['name']
-                    or '..' in name or '/' in name or '\\' in name):
+            if request['payload_kind'] != 'text':
+                raise MegaDenied('MEGA_WRITE_NAME')
+            if not updating and (not name or name != request['name'] or '..' in name
+                                 or '/' in name or '\\' in name):
                 raise MegaDenied('MEGA_WRITE_NAME')
             data = request['content'].encode('utf-8')
             if len(data) > MAX_WRITE_BYTES:
                 raise MegaDenied('MEGA_WRITE_TOO_LARGE')
 
             def go():
-                stage = 'check'
+                nonlocal name
+                stage, old = 'check', None
                 try:
-                    folder._tree = None  # fresh listing: path and no-overwrite checks
+                    folder._tree = None  # fresh listing: path, version and name checks
                     tree = folder.tree()
-                    if target_ref == ROOT_REF:
+                    if policy is not None and updating:
+                        # Overwrite: one existing text file inside 知識庫, at the exact
+                        # version the caller read (compare-and-swap on v:<ts>:<size>).
+                        m = re.fullmatch(r'm:([A-Za-z0-9_-]{8})', target_ref)
+                        old = tree.get(m.group(1)) if m else None
+                        if old is None or old['t'] != 0:
+                            raise MegaDenied('MEGA_REF_NOT_IN_FOLDER')
+                        if guess_mime(old['name']) not in TEXT_TYPES.values():
+                            raise MegaDenied('MEGA_OVERWRITE_NOT_TEXT')  # e.g. the v7 zip backup
+                        if version_of(old) != expected_version:
+                            raise MegaDenied('MEGA_VERSION_CHANGED')
+                        parent, name = tree.get(old['p']), old['name']
+                    elif target_ref == ROOT_REF:
                         parent = next((n for n in tree.values() if n['p'] not in tree), None)
                     else:
                         m = re.fullmatch(r'm:([A-Za-z0-9_-]{8})', target_ref)
                         parent = tree.get(m.group(1)) if m else None
                     if parent is None or parent['t'] != 1:
                         raise MegaDenied('MEGA_PARENT_NOT_IN_FOLDER')
-                    if any(n['p'] == parent['h'] and n['name'] == name for n in tree.values()):
-                        raise MegaDenied('MEGA_NAME_EXISTS')
-                    ledger.check(operation_key, target_ref, name)
+                    if not updating and any(n['p'] == parent['h'] and n['name'] == name
+                                            for n in tree.values()):
+                        raise MegaDenied('MEGA_NAME_EXISTS')  # use library_item_update instead
+                    if policy is None:
+                        ledger.check(operation_key, target_ref, name)
                     stage = 'login'
                     session = session_factory()  # login failures do not use up the ticket
                     stage = 'consume'
-                    ledger.consume(operation_key)
+                    if policy is not None:
+                        if policy.daily_creates <= 0:
+                            raise MegaDenied('MEGA_DAILY_LIMIT')
+                        # Create: one per folder+name. Update: one per old version handle,
+                        # so two writers racing on the same version cannot both win.
+                        slot = ('upd:' + old['h']) if updating else parent['h']
+                        ledger.reserve(operation_key, slot, '' if updating else name,
+                                       dict(base_receipt('pending'), request_digest=''),
+                                       policy.daily_creates)
+                        if policy.member(owner, client_id, need) is None:  # revoked meanwhile
+                            ledger.save(operation_key, dict(base_receipt('denied'), request_digest=''))
+                            raise MegaDenied('MEGA_CLIENT_NOT_ALLOWED')
+                    else:
+                        ledger.consume(operation_key)
                     stage = 'upload'
                     share_handle, share_key = folder.share()
-                    node = session.upload(parent['h'], share_handle, share_key, name, data)
+                    node = session.upload(parent['h'], share_handle, share_key, name, data,
+                                          overwrite=old['h'] if updating else None)
                     stage = 'readback'
                     folder._tree = None
-                    created = folder.tree().get(node.get('h'))
+                    tree = folder.tree()
+                    created = tree.get(node.get('h'))
                     if created is None or created['p'] != parent['h'] or created['name'] != name:
                         raise MegaDenied('MEGA_READBACK_NOT_IN_FOLDER')
+                    if updating and old['h'] in tree:
+                        raise MegaDenied('MEGA_OVERWRITE_LEFT_OLD_FILE')
+                    size, sha, _ = folder.read(created)  # contents, not just the listing
+                    if size != len(data) or sha != hashlib.sha256(data).hexdigest():
+                        raise MegaDenied('MEGA_READBACK_DIGEST_MISMATCH')
                 except Exception as exc:
                     code = str(exc) if isinstance(exc, MegaDenied) else 'MEGA_INTERNAL_' + type(exc).__name__
                     # Fixed codes only: never credentials, links, keys or MEGA URLs.
@@ -318,10 +419,25 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
                         except Exception:
                             pass
                     raise MegaDenied(code) from None
+                pruned = 0
+                if updating:
+                    # Owner ruling 2026-11-21: keep only the previous version. Delete only
+                    # versions older than that, and only within this one file's own chain.
+                    try:
+                        for extra in folder.version_chain(created['h'])[1:][:1]:
+                            session.delete(extra)  # removes it and every older version under it
+                            pruned += 1
+                    except Exception:
+                        print(f'xj-mega-write ticket={operation_key[:8]} stage=prune '
+                              f'code=MEGA_PRUNE_FAILED', flush=True)
                 receipt = dict(base_receipt('committed', 'm:' + created['h'], version_of(created)),
                                request_digest=request_digest(request))
                 ledger.save(operation_key, receipt)
-                print(f'xj-mega-write ticket={operation_key[:8]} stage=done code=COMMITTED', flush=True)
+                print(f'xj-mega-write ticket={operation_key[:8]} stage=done code=COMMITTED'
+                      + (f' pruned={pruned}' if updating else ''), flush=True)
+                if policy is not None:
+                    print(f'xj-mega-write member={policy.member(owner, client_id, need)} op={operation} '
+                          f'name_sha={hashlib.sha256(name.encode()).hexdigest()[:12]}', flush=True)
                 return receipt
             receipts[operation_key] = await asyncio.to_thread(go)
 
@@ -338,14 +454,15 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
         return OriginalLibraryWriteScope(
             owner=owner, client_id=client_id, source=MEGA_SOURCE, operation=operation,
             target_ref=target_ref, expected_version=expected_version,
-            operation_key=operation_key, expires_at=now() + 90, is_current=lambda: True,
+            operation_key=operation_key, expires_at=now() + 90,
+            is_current=lambda: policy is None or policy.member(owner, client_id, 'create') is not None,
             commit_original=commit_original, receipt_original=receipt_original)
 
     return resolve_writer
 
 
 def writer_from_env(env, folder, owner_of_deployment, post_json, post_bytes=_post_bytes,
-                    client_factory=None):
+                    client_factory=None, policy=None):
     if env.get('XJ_MEGA_KB_WRITE_ENABLED') != 'true':
         return None
     email, password = env.get('XJ_MEGA_EMAIL', ''), env.get('XJ_MEGA_PASSWORD', '')
@@ -358,4 +475,7 @@ def writer_from_env(env, folder, owner_of_deployment, post_json, post_bytes=_pos
         return MegaSession(email, password, post_json, post_bytes)
 
     return make_mega_writer(folder, owner_of_deployment, session_factory,
-                            lambda owner: TicketLedger(owner, client_factory))
+                            lambda owner: TicketLedger(owner, client_factory),
+                            policy=policy,
+                            client_ledger_factory=lambda owner, client_id: ClientLedger(
+                                owner, client_id, client_factory))

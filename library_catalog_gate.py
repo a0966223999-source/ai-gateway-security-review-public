@@ -108,7 +108,9 @@ def validate_view(view, scope, ref, expected_version):
             or view["preview_kind"] not in PREVIEWS
             or not isinstance(view["mime_type"], str) or len(view["mime_type"]) > 128
             or not isinstance(view["preview"], str)
-            or len(view["preview"].encode("utf-8")) > 32768):
+            or len(view["preview"].encode("utf-8")) > (
+                # MEGA 知識庫 card libraries are whole JSON files (Owner 2026-11-21).
+                524288 if scope.source == MEGA_SOURCE else 32768)):
         deny()
     return view
 

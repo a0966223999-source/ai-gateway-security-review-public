@@ -22,7 +22,7 @@ SAFE_INLINE = frozenset((
     "text/yaml", "application/yaml", "application/xml", "text/csv",
 ))
 SOURCES = frozenset(("chatgpt-library", "google-drive", "dropbox", "mega-knowledge-base"))
-MAX_TEXT_BYTES = 16384
+MAX_TEXT_BYTES = 512 * 1024  # card libraries are JSON files well over 16 KiB
 
 
 class LibraryWriteDenied(ValueError):
@@ -123,7 +123,10 @@ def validate_receipt(receipt, scope, request):
             or not isinstance(receipt["ref"], str) or not REF.fullmatch(receipt["ref"])
             or not isinstance(receipt["version"], str) or not VERSION.fullmatch(receipt["version"])):
         deny()
-    if scope.operation == "update" and receipt["ref"] != scope.target_ref:
+    # MEGA replaces the file node on overwrite (the old one becomes its previous
+    # version), so an update there returns a new ref; every other source keeps it.
+    if (scope.operation == "update" and receipt["ref"] != scope.target_ref
+            and scope.source != "mega-knowledge-base"):
         deny()
     return receipt
 

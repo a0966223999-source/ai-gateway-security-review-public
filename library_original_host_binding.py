@@ -87,9 +87,8 @@ def make_original_library_resolvers(binding):
     async def write_resolver(ctx, owner, client_id, operation, target_ref,
                              expected_version, operation_key):
         if (binding.resolve_writer is None or not current()
-                or operation not in ("create", "update", "status")
-                or (binding.source != NATIVE_SOURCE and operation == "update")):
-            # MEGA 知識庫 is create-only: no update, no overwrite.
+                or operation not in ("create", "update", "status")):
+            # MEGA: the writer itself allows update only in client mode, test folder only.
             denied()
         try:
             scope = await binding.resolve_writer(

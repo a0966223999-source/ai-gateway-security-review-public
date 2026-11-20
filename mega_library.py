@@ -38,7 +38,7 @@ SCHEMA_PAGE = 'chatgpt-library-catalog-page-v1'
 SCHEMA_ITEM = 'chatgpt-library-item-view-v1'
 DEFAULT_ROOT = '知識庫'
 MAX_READ_BYTES = 25 * 1024 * 1024
-TEXT_LIMIT = 32 * 1024
+TEXT_LIMIT = 512 * 1024  # card libraries are JSON files; serve them whole
 TREE_TTL = 60
 HANDLE = re.compile(r'[A-Za-z0-9_-]{8}\Z')
 REF = re.compile(r'm:([A-Za-z0-9_-]{8})\Z')
@@ -183,8 +183,14 @@ class MegaFolder:
         if len(roots) != 1 or roots[0]['t'] != 1 or roots[0]['name'] != self._root_name:
             raise MegaDenied('MEGA_ROOT_NOT_ALLOWED')
         root = roots[0]['h']
+        # File versions hang under the newer file node (parent is a file). They are
+        # never served; the Writer uses this map only to keep one previous version.
+        versions = {h: n['p'] for h, n in nodes.items()
+                    if n['p'] in nodes and nodes[n['p']]['t'] == 0}
         safe = {}
         for h, n in nodes.items():  # keep only nodes whose whole path is inside the root
+            if h in versions:
+                continue
             path, cur, ok, seen = [], n, True, set()
             while True:
                 if cur['h'] in seen or '..' in cur['name'] or '/' in cur['name'] or not cur['name']:
@@ -201,8 +207,23 @@ class MegaFolder:
             if ok:
                 n['path'] = '/'.join(reversed(path))
                 safe[h] = n
+        self._version_of = versions  # version handle -> newer node handle
         self._tree, self._loaded = safe, self._clock()
         return safe
+
+    def version_chain(self, handle):
+        """Older versions of a served file, newest first (from the last listing)."""
+        newer_to_older = {}
+        for older, newer in getattr(self, '_version_of', {}).items():
+            newer_to_older.setdefault(newer, []).append(older)
+        chain, cur, seen = [], handle, {handle}
+        while True:
+            older = newer_to_older.get(cur, [])
+            if len(older) != 1 or older[0] in seen:
+                return chain if not older else chain + [h for h in older if h not in seen]
+            chain.append(older[0])
+            seen.add(older[0])
+            cur = older[0]
 
     def share(self):
         """(share handle, share key) of the exported folder, for the Writer's cr entry."""
@@ -272,12 +293,20 @@ def entry_of(node):
     return entry
 
 
-def make_mega_reader(folder, owner_of_deployment):
-    """resolve_reader for OriginalLibraryHostBinding(source=MEGA_SOURCE)."""
+def make_mega_reader(folder, owner_of_deployment, *, policy=None):
+    """resolve_reader for OriginalLibraryHostBinding(source=MEGA_SOURCE).
+
+    With a client policy (mega_policy), only allowlisted clients with "read" may
+    list or read, re-checked on every call; no per-read ticket.
+    """
 
     async def resolve_reader(ctx, owner, client_id, operation, ref):
-        if owner != owner_of_deployment():
-            raise MegaDenied('MEGA_NOT_OWNER')
+        def allowed():
+            return owner == owner_of_deployment() and (
+                policy is None or policy.member(owner, client_id, 'read') is not None)
+
+        if not allowed():
+            raise MegaDenied('MEGA_READ_DENIED')
         import asyncio
         revision = await asyncio.to_thread(folder.revision)
 
@@ -315,14 +344,14 @@ def make_mega_reader(folder, owner_of_deployment):
                     'mime_type': mime, 'preview_kind': kind, 'preview': preview}
 
         return OriginalLibraryScope(owner=owner, client_id=client_id, revision=revision,
-                                    is_current=lambda: True, search_original=search,
+                                    is_current=allowed, search_original=search,
                                     read_original=read, source=MEGA_SOURCE)
 
     return resolve_reader
 
 
 def binding_from_env(env=None, owner_of_deployment=None, post_bytes=None,
-                     client_factory=None, **folder_kw):
+                     client_factory=None, policy=None, **folder_kw):
     """OriginalLibraryHostBinding for MEGA, or None when disabled/misconfigured."""
     env = os.environ if env is None else env
     if env.get('XJ_MEGA_KB_ENABLED') != 'true':
@@ -340,8 +369,12 @@ def binding_from_env(env=None, owner_of_deployment=None, post_bytes=None,
     from mega_writer import writer_from_env
     extra = {k: v for k, v in (('post_bytes', post_bytes), ('client_factory', client_factory))
              if v is not None}
+    if policy is None:
+        from mega_policy import policy_from_env
+        policy = policy_from_env(env, owner_of_deployment)
     writer = writer_from_env(env, folder, owner_of_deployment,
-                             folder_kw.get('post_json', _post_json), **extra)
+                             folder_kw.get('post_json', _post_json), policy=policy, **extra)
     return OriginalLibraryHostBinding(
         source=MEGA_SOURCE, generation=folder.revision_seed, is_current=lambda: True,
-        resolve_reader=make_mega_reader(folder, owner_of_deployment), resolve_writer=writer)
+        resolve_reader=make_mega_reader(folder, owner_of_deployment, policy=policy),
+        resolve_writer=writer)
