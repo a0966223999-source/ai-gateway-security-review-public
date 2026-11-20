@@ -233,6 +233,26 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
                          owner_from_env=lambda: owner_principal(os.environ))
     except ApprovalError:
         pass  # bad approval config: feature stays off, the rest of Deer keeps running
+
+    # Owner ruling 2026-11-21: each AI reports its own verified client ID in the group
+    # chat (for the MEGA 知識庫 allowlist). Read-only; the ID comes from the caller's
+    # verified token, never from arguments; the allowlist itself is never returned.
+    from mcp.types import ToolAnnotations as _WhoamiAnnotations
+
+    @mcp.tool(name='gateway_whoami', meta=oauth_meta,
+              annotations=_WhoamiAnnotations(readOnlyHint=True, destructiveHint=False,
+                                             idempotentHint=True, openWorldHint=False))
+    def gateway_whoami() -> dict:
+        """Your own verified OAuth client ID (taken from your login token) and what the
+        MEGA 知識庫 allowlist currently lets you do. Post client_id in the group chat with
+        your name so the Owner can add you. Not a secret."""
+        owner = principal()
+        client_id = verified_library_client()
+        from mega_policy import policy_from_env
+        policy = policy_from_env()
+        return {'client_id': client_id,
+                'knowledge_base': policy.describe(owner, client_id) if policy is not None
+                else {'member': None, 'operations': [], 'note': 'allowlist off'}}
     rpc_config = host_rpc_config()
     install_rpc_tools(mcp, mailbox, formal, principal, oauth_meta, host_config=rpc_config)
     install_rpc_diagnostic(mcp, principal, oauth_meta, host_config=rpc_config)

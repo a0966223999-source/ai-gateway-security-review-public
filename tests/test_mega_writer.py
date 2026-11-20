@@ -74,7 +74,7 @@ class FakeAccount(FakeMega):
         self.privk = b64e(ecb_encrypt(self.master, raw))
         self.sid_raw = b'\x01' + secrets.token_bytes(60)
         self.sid = b64e(self.sid_raw[:43])
-        self.uploads, self.puts, self.counter = {}, [], 0
+        self.uploads, self.puts, self.counter, self.deleted = {}, [], 0, []
 
     def post_json(self, url, payload):
         cmd = payload[0]
@@ -113,7 +113,22 @@ class FakeAccount(FakeMega):
             node = {'h': h, 'p': cmd['t'], 't': 0, 's': len(data), 'ts': NOW + self.counter,
                     'k': '/'.join(parts), 'a': n['a']}
             self.nodes.append(node)
-            return [{'f': [node]}]
+            changed = [node]
+            if n.get('ov'):
+                # Like MEGA file versioning: the old file moves under the new node.
+                [old] = [x for x in self.nodes if x['h'] == n['ov']]
+                old['p'] = h
+                changed.append(dict(old))
+            return [{'f': changed}]
+        if cmd['a'] == 'd':
+            self.deleted.append(cmd['n'])
+            gone, grew = {cmd['n']}, True
+            while grew:
+                more = {x['h'] for x in self.nodes if x['p'] in gone} - gone
+                grew = bool(more)
+                gone |= more
+            self.nodes = [x for x in self.nodes if x['h'] not in gone]
+            return [0]
         return [-2]
 
     def post_bytes(self, url, data):

@@ -28,7 +28,7 @@ async def mount_library_write_tools(server, *, resolve_scope, principal, client,
     ) -> dict:
         """Create one new item in an already-authorized parent folder.
 
-        Text <=16KiB; for binary/diagram data, content is a host-sealed
+        Text <=512KiB; for binary/diagram data, content is a host-sealed
         prepared reference, never a raw API credential or server-side file path.
         Every call must have fresh exact-task approval, source-native
         create-if-absent and idempotent same-operation-key write.
