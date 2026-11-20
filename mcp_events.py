@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import httpcore
 from httpcore._backends.anyio import AnyIOBackend
 
-from inbox import InboxError, canonical, identifier
+from inbox import InboxError, LOBBY_GPT_MENTION, LOBBY_GPT_SUBSCRIPTION, canonical, identifier
 from subscription_diagnostics import emit, trace_rpc
 
 EVENT_NAME = 'inbox.message.created'
@@ -180,12 +180,26 @@ class Events:
                 if self.authorize_event('discover', None, None) is not True:
                     raise InboxError('formal_authority_required')
                 event['description'] = 'An admitted Gateway continuation is ready. Notification only; receiver must recheck original Source and task authority.'
+                event['inputSchema']['properties']['filter'] = {
+                    'type': 'object',
+                    'properties': {key: {'type': 'string', 'enum': [value]}
+                                   for key, value in LOBBY_GPT_MENTION.items()},
+                    'required': list(LOBBY_GPT_MENTION),
+                    'additionalProperties': False,
+                }
             return {'events': [event]}
         if params.get('name') != self.event_name:
             raise InboxError('unknown_event')
         arguments = params.get('arguments')
-        if not isinstance(arguments, dict) or set(arguments) != {'mailbox_id'}:
+        if not isinstance(arguments, dict) or 'mailbox_id' not in arguments:
             raise InboxError('invalid_arguments')
+        subscription_event = self.event_name
+        if set(arguments) != {'mailbox_id'}:
+            if (self.event_name == EVENT_NAME or set(arguments) != {'mailbox_id', 'filter'}
+                    or arguments['filter'] != LOBBY_GPT_MENTION):
+                raise InboxError('invalid_arguments')
+            # Older deployments ignore this subscription during fan-out and delivery.
+            subscription_event = LOBBY_GPT_SUBSCRIPTION
         mailbox = identifier(arguments['mailbox_id'])
         inbox = self.inbox_factory(mailbox).for_event(self.event_name)
         if self.event_name != EVENT_NAME and self.authorize_event(method, inbox, None) is not True:
@@ -247,7 +261,7 @@ class Events:
             elif previous.get('previous_until', 0) > now:
                 protected.update(previous_secret=previous['previous_secret'],
                                  previous_until=previous['previous_until'])
-        subscription = {'event_name': self.event_name, 'id': sid, 'url': url, 'expires_at': expires,
+        subscription = {'event_name': subscription_event, 'id': sid, 'url': url, 'expires_at': expires,
                         'access_until': token.expires_at, 'revision': secrets.token_hex(16),
                         'protected': box.seal(protected, sid)}
         emit('save_started')
@@ -270,8 +284,11 @@ class Events:
             protected = self.box.open(subscription['protected'], subscription['id'])
             # Revalidate the stored OAuth proof before every delivery invocation.
             token = await self.verifier.verify_token(protected['access_token'])
+            subscription_event = subscription.get('event_name', EVENT_NAME)
+            if subscription_event == LOBBY_GPT_SUBSCRIPTION:
+                subscription_event = 'gateway.continuation.ready'
             if (token is None or delivery.get('event_name', EVENT_NAME) != self.event_name
-                    or subscription.get('event_name', EVENT_NAME) != self.event_name):
+                    or subscription_event != self.event_name):
                 state = 'terminal'
             else:
                 body = canonical({'eventId': delivery['event_id'], 'name': self.event_name,
