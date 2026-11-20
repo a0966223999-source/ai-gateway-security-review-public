@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import secrets
 import unittest
+from unittest.mock import patch
 from types import SimpleNamespace
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
@@ -28,7 +29,7 @@ def extract(path,names,env):
     exec(compile(ast.Module(body=nodes,type_ignores=[]),str(path),'exec'),env)
     return env
 
-E=extract(ROOT/'inbox.py',{'Inbox'},dict(hashlib=hashlib,json=json,re=re,secrets=secrets,
+E=extract(ROOT/'inbox.py',{'Inbox','valid_sender_context'},dict(hashlib=hashlib,json=json,re=re,secrets=secrets,
           identifier=identifier,canonical=canonical,InboxError=InboxError))
 class EventsFixture:
     def __init__(self,*a,**kw): pass
@@ -88,6 +89,52 @@ class PythonContracts(unittest.TestCase):
             '{"sender_context":{"conversation_fingerprint":"FORGED"}}',ctx))
         self.assertNotEqual(r['sender_context']['conversation_fingerprint'],'FORGED')
         self.assertFalse(r['sender_context']['work_identity_verified'])
+    def test_client_id_fields_bound_in_digest(self):
+        a=self.send(origin())
+        b=self.send({**origin(),'client_id_observed':True,'client_id_fingerprint':'c'*64})
+        self.assertNotEqual(a['digest'],b['digest'])
+        self.assertEqual(b['sender_context']['client_id_fingerprint'],'c'*64)
+        self.assertFalse(b['sender_context']['work_identity_verified'])
+    def test_legacy_context_without_client_fields_still_accepted(self):
+        r=self.send(origin())
+        self.assertNotIn('client_id_observed', r['sender_context'])
+    def test_reject_raw_client_id_or_verified_with_client_fields(self):
+        fp='c'*64
+        cases=[
+          {**origin(),'client_id_observed':True,'client_id_fingerprint':fp,'work_identity_verified':True},
+          {**origin(),'client_id_observed':True,'client_id_fingerprint':fp,'client_id':'raw-client'},
+          {**origin(),'client_id_observed':True},
+          {**origin(),'client_id_observed':False,'client_id_fingerprint':fp},
+          {**origin(),'client_id_observed':'yes','client_id_fingerprint':fp},
+          {**origin(),'client_id_fingerprint':fp},
+        ]
+        for payload in cases:
+            with self.assertRaises(InboxError):self.send(payload)
+    def test_formal_handler_uses_auth_client_id_not_message(self):
+        class Box:
+            owner='fixture-owner';mailbox_id='gateway_internal_v1'
+            def for_event(self,n):return self
+            def send(self,op,message,**kw):
+                return {'event_id':'fixture-event','sender_context':kw['sender_context']}
+        class Registry:
+            def __init__(self):self.tools={}
+            def tool(self,**kw):
+                def register(fn):self.tools[fn.__name__]=fn;return fn
+                return register
+        m=Registry();F['install_formal_transport'](m,lambda _:Box(),None,lambda:'owner',{})
+        ctx=SimpleNamespace(request_context=SimpleNamespace(meta={'openai/session':'opaque'}))
+        token=SimpleNamespace(client_id='fixture-client',token='must-not-leak')
+        with patch('mcp.server.auth.middleware.auth_context.get_access_token', return_value=token):
+            r=asyncio.run(m.tools['gateway_inbox_send']('gateway_internal_v1','op',
+                '{"client_id":"FORGED-CLIENT","client_id_fingerprint":"FORGED"}',ctx))
+        sc=r['sender_context']
+        self.assertTrue(sc['client_id_observed'])
+        self.assertEqual(sc['client_id_fingerprint'], hashlib.sha256(
+            b'caller-client-v1|fixture-owner|fixture-client').hexdigest())
+        self.assertFalse(sc['work_identity_verified'])
+        self.assertNotIn('FORGED-CLIENT', str(sc))
+        self.assertNotIn('fixture-client', str(sc))
+        self.assertNotIn('must-not-leak', str(sc))
 
 class LuaContracts(unittest.TestCase):
     def run_lua(self,case):
@@ -109,7 +156,17 @@ local function origin() return {schema='caller-context-observation-v1',work_iden
 local function send(o,digest,op) return call('send',{event_name='gateway.continuation.ready',event_id=string.rep('e',64),operation_key=op or 'op',message='{"sender_context":"FORGED"}',digest=digest or 'digest',sender_context=o}) end
 local function list() return call('list',{event_name='gateway.continuation.ready',cursor_epoch='',after=0,limit=20}) end
 '''+case
-        lib=ctypes.CDLL(ctypes.util.find_library('lua5.4'))
+        library=ctypes.util.find_library('lua5.4')
+        if not library:
+            # Offline fallback when liblua5.4 is not installed; CI with the
+            # system library still uses the ctypes path below.
+            from lupa import LuaRuntime
+            try:
+                LuaRuntime(unpack_returned_tuples=True).execute(code)
+            except Exception as error:
+                self.fail(str(error))
+            return
+        lib=ctypes.CDLL(library)
         lib.luaL_newstate.restype=ctypes.c_void_p
         lib.luaL_openlibs.argtypes=[ctypes.c_void_p]
         lib.luaL_loadstring.argtypes=[ctypes.c_void_p,ctypes.c_char_p]
@@ -132,5 +189,11 @@ local function list() return call('list',{event_name='gateway.continuation.ready
         self.run_lua("send(nil);local r=send(nil);assert(r.sender_context==nil);assert(list().items[1].sender_context==nil);assert(writes==1)")
     def test_lua_rejects_verified_and_unknown_fields(self):
         self.run_lua("local a=origin();a.work_identity_verified=true;assert(send(a).error=='invalid_sender_context');local b=origin();b.secret='NO';assert(send(b).error=='invalid_sender_context');assert(writes==0)")
+    def test_lua_accepts_client_id_observation(self):
+        self.run_lua("local o=origin();o.client_id_observed=true;o.client_id_fingerprint=string.rep('c',64);local r=send(o);assert(r.sender_context.client_id_observed==true);assert(r.sender_context.client_id_fingerprint==string.rep('c',64));assert(r.sender_context.work_identity_verified==false);assert(writes==1)")
+    def test_lua_legacy_without_client_fields_still_ok(self):
+        self.run_lua("local r=send(origin());assert(r.sender_context.client_id_observed==nil);assert(writes==1)")
+    def test_lua_rejects_verified_or_raw_client_id(self):
+        self.run_lua("local a=origin();a.client_id_observed=true;a.client_id_fingerprint=string.rep('c',64);a.work_identity_verified=true;assert(send(a).error=='invalid_sender_context');local b=origin();b.client_id_observed=true;b.client_id_fingerprint=string.rep('c',64);b.client_id='raw';assert(send(b).error=='invalid_sender_context');local c=origin();c.client_id_observed=true;assert(send(c).error=='invalid_sender_context');local d=origin();d.client_id_observed=false;d.client_id_fingerprint=string.rep('c',64);assert(send(d).error=='invalid_sender_context');assert(writes==0)")
 
 if __name__=='__main__':unittest.main()

@@ -35,6 +35,50 @@ def event_id(value):
     return value
 
 
+def valid_sender_context(sender_context):
+    """Accept caller-context-observation-v1, including legacy records.
+
+    Optional client_id_observed / client_id_fingerprint are observation
+    only. work_identity_verified must stay false. Raw client ids, tokens
+    and unknown fields are rejected.
+    """
+    if type(sender_context) is not dict:
+        return False
+    if (sender_context.get('schema') != 'caller-context-observation-v1'
+            or sender_context.get('work_identity_verified') is not False):
+        return False
+    present = sender_context.get('conversation_id_present')
+    if type(present) is not bool:
+        return False
+    allowed = {'schema', 'work_identity_verified', 'evidence', 'conversation_id_present'}
+    if present:
+        allowed.add('conversation_fingerprint')
+        fingerprint = sender_context.get('conversation_fingerprint')
+        if (not isinstance(fingerprint, str) or not re.fullmatch('[0-9a-f]{64}', fingerprint)
+                or sender_context.get('evidence') != 'CONVERSATION_METADATA_ONLY_NOT_WORK_IDENTITY'):
+            return False
+    else:
+        if 'conversation_fingerprint' in sender_context:
+            return False
+        if sender_context.get('evidence') not in (
+                'NO_PLATFORM_ORIGIN_ATTESTATION', 'CONTEXT_UNAVAILABLE'):
+            return False
+    observed = sender_context.get('client_id_observed')
+    if 'client_id_observed' in sender_context or 'client_id_fingerprint' in sender_context:
+        allowed.add('client_id_observed')
+        if observed is True:
+            allowed.add('client_id_fingerprint')
+            fingerprint = sender_context.get('client_id_fingerprint')
+            if not isinstance(fingerprint, str) or not re.fullmatch('[0-9a-f]{64}', fingerprint):
+                return False
+        elif observed is False:
+            if 'client_id_fingerprint' in sender_context:
+                return False
+        else:
+            return False
+    return set(sender_context) == allowed
+
+
 class Inbox:
     def __init__(self, owner, mailbox_id, client=None, *, event_name='inbox.message.created'):
         if event_name not in ('inbox.message.created', 'gateway.continuation.ready'):
@@ -91,21 +135,7 @@ class Inbox:
         envelope = [operation_key, message] if event_name == 'inbox.message.created' else [event_name, operation_key, message]
         origin = {}
         if sender_context is not None:
-            if event_name != 'gateway.continuation.ready' or type(sender_context) is not dict:
-                raise InboxError('invalid_sender_context')
-            present = sender_context.get('conversation_id_present')
-            fields = {'schema', 'work_identity_verified', 'evidence', 'conversation_id_present'}
-            if present is True:
-                fields.add('conversation_fingerprint')
-            if (set(sender_context) != fields
-                    or sender_context.get('schema') != 'caller-context-observation-v1'
-                    or sender_context.get('work_identity_verified') is not False
-                    or type(present) is not bool
-                    or (present and (not isinstance(sender_context.get('conversation_fingerprint'), str)
-                        or not re.fullmatch('[0-9a-f]{64}', sender_context['conversation_fingerprint'])))
-                    or sender_context.get('evidence') != ('CONVERSATION_METADATA_ONLY_NOT_WORK_IDENTITY'
-                        if present else 'NO_PLATFORM_ORIGIN_ATTESTATION')
-                        and not (not present and sender_context.get('evidence') == 'CONTEXT_UNAVAILABLE')):
+            if event_name != 'gateway.continuation.ready' or not valid_sender_context(sender_context):
                 raise InboxError('invalid_sender_context')
             origin['sender_context'] = json.loads(canonical(sender_context))
             envelope = ['sender-context-envelope-v1', envelope, origin['sender_context']]
