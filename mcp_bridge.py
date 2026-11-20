@@ -25,7 +25,8 @@ from cycle_envelope import CycleAwareEventCatalog
 def install(api_app, write_event, read_event, event_model, *, batch_scope_resolver=None,
             agent_management_resolver=None, summary_memory_scope_resolver=None,
             library_catalog_scope_resolver=None,
-            library_write_scope_resolver=None):
+            library_write_scope_resolver=None,
+            mega_knowledge_approval=None):
     # Only trusted startup can supply the original batch authority. Environment
     # flags, mailbox payloads and model-provided IDs cannot create this capability.
     if batch_scope_resolver is not None and not callable(batch_scope_resolver):
@@ -202,6 +203,7 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
                 await mount_library_catalog_tools(
                     mcp, resolve_scope=library_catalog_scope_resolver,
                     principal=principal, client=verified_library_client, oauth_meta=oauth_meta,
+                    mega_approval=mega_knowledge_approval,
                 )
                 library_catalog_mounted = True
             if library_write_scope_resolver is not None and not library_write_mounted:
@@ -230,7 +232,10 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
     from mail_hook import owner_principal
     try:
         install_approval(api_app, mcp, principal, oauth_meta,
-                         owner_from_env=lambda: owner_principal(os.environ))
+                         owner_from_env=lambda: owner_principal(os.environ),
+                         verified_client=verified_library_client,
+                         authorize_knowledge=(mega_knowledge_approval.authorize
+                                              if mega_knowledge_approval is not None else None))
     except ApprovalError:
         pass  # bad approval config: feature stays off, the rest of Deer keeps running
     rpc_config = host_rpc_config()

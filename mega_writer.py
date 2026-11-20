@@ -42,10 +42,23 @@ from mega_library import API, MegaDenied, b64d, ecb_decrypt, version_of
 
 TITLE_PREFIX = 'MEGA知識庫寫入'
 ROOT_REF = 'kb:root'  # the 知識庫 folder itself, so tickets never carry its handle
+# Approval-mode (PR #74) writes are confined to one isolated test folder directly
+# under 知識庫, named by XJ_MEGA_KB_APPROVAL_WRITE_FOLDER (default below).
+TEST_REF = 'kb:test'
+DEFAULT_TEST_FOLDER = '_gateway_test'
 PLAN_LINE = re.compile(r'^mega_write parent=(kb:root|m:[A-Za-z0-9_-]{8}) name=([^\n/\\]{1,160})$', re.M)
 CLAIM_WINDOW = 24 * 3600
 MAX_WRITE_BYTES = 16384
 NAMESPACE = 'xj:mega-write:v1'
+RESERVE_APPROVED = """
+for i = 1, 3 do
+  if redis.call('EXISTS', KEYS[i]) == 1 then return 0 end
+end
+redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[3])
+redis.call('SET', KEYS[2], ARGV[1], 'EX', ARGV[3])
+redis.call('SET', KEYS[3], ARGV[2], 'EX', ARGV[3])
+return 1
+"""
 
 
 def b64e(raw):
@@ -201,11 +214,12 @@ class MegaSession:
 class TicketLedger:
     """Approval-ticket check plus one-write-per-ticket receipts in Redis."""
 
-    def __init__(self, owner, client_factory, now=time.time):
+    def __init__(self, owner, client_factory, now=time.time, *, scoped_approval=False):
         from approval import ApprovalStore
         self.store = ApprovalStore(owner, client_factory, now=now)
         self.client_factory, self.now = client_factory, now
-        self.prefix = NAMESPACE + ':' + hashlib.sha256(owner.encode()).hexdigest()[:32]
+        owner_hash = hashlib.sha256(owner.encode()).hexdigest()[:32]
+        self.prefix = NAMESPACE + ':' + ('{' + owner_hash + '}:scoped' if scoped_approval else owner_hash)
 
     def _run(self, fn):
         client = self.client_factory()
@@ -239,6 +253,17 @@ class TicketLedger:
         if not ok:
             raise MegaDenied('MEGA_TICKET_ALREADY_USED')
 
+    def reserve_approved(self, ticket, request_key, parent_handle, name, receipt):
+        """Serializes creates per logical operation and destination on this Gateway."""
+        operation_key = self.prefix + ':operation:' + hashlib.sha256(request_key.encode()).hexdigest()
+        destination_key = self.prefix + ':destination:' + hashlib.sha256(
+            (parent_handle + '\0' + name).encode()).hexdigest()
+        receipt_key = self.prefix + ':' + ticket
+        claimed = self._run(lambda c: c.eval(RESERVE_APPROVED, 3, operation_key, destination_key,
+                                             receipt_key, ticket, json.dumps(receipt), 30 * 86400))
+        if claimed != 1:
+            raise MegaDenied('MEGA_OPERATION_OR_NAME_ALREADY_RESERVED')
+
     def save(self, ticket, receipt):
         key = self.prefix + ':' + ticket
         self._run(lambda c: c.set(key, json.dumps(receipt), ex=30 * 86400))
@@ -249,7 +274,7 @@ class TicketLedger:
 
 
 def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factory,
-                     now=time.time):
+                     now=time.time, *, approval_policy=None):
     """resolve_writer for OriginalLibraryHostBinding(source=MEGA_SOURCE)."""
     from library_catalog_gate import MEGA_SOURCE
     from library_write_gate import OriginalLibraryWriteScope, request_digest
@@ -261,6 +286,8 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
             raise MegaDenied('MEGA_NOT_OWNER')
         if operation not in ('create', 'status'):
             raise MegaDenied('MEGA_WRITE_CREATE_ONLY')
+        if approval_policy is not None and not approval_policy.member(owner, client_id, 'create'):
+            raise MegaDenied('MEGA_CLIENT_NOT_ALLOWED')
         ledger = ledger_factory(owner)
         receipts = {}
 
@@ -285,7 +312,18 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
                 try:
                     folder._tree = None  # fresh listing: path and no-overwrite checks
                     tree = folder.tree()
-                    if target_ref == ROOT_REF:
+                    if approval_policy is not None:
+                        # Approval mode: only the isolated test folder, never the 知識庫 root
+                        # or any other folder (Owner instruction 2026-11-21).
+                        if target_ref != TEST_REF:
+                            raise MegaDenied('MEGA_PARENT_NOT_TEST_FOLDER')
+                        root = next((n for n in tree.values() if n['p'] not in tree), None)
+                        wanted = getattr(approval_policy, 'write_folder', DEFAULT_TEST_FOLDER)
+                        parent = next((n for n in tree.values() if root is not None and n['t'] == 1
+                                       and n['p'] == root['h'] and n['name'] == wanted), None)
+                        if parent is None:
+                            raise MegaDenied('MEGA_TEST_FOLDER_MISSING')
+                    elif target_ref == ROOT_REF:
                         parent = next((n for n in tree.values() if n['p'] not in tree), None)
                     else:
                         m = re.fullmatch(r'm:([A-Za-z0-9_-]{8})', target_ref)
@@ -294,11 +332,26 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
                         raise MegaDenied('MEGA_PARENT_NOT_IN_FOLDER')
                     if any(n['p'] == parent['h'] and n['name'] == name for n in tree.values()):
                         raise MegaDenied('MEGA_NAME_EXISTS')
-                    ledger.check(operation_key, target_ref, name)
+                    if approval_policy is None:
+                        ledger.check(operation_key, target_ref, name)
                     stage = 'login'
                     session = session_factory()  # login failures do not use up the ticket
                     stage = 'consume'
-                    ledger.consume(operation_key)
+                    if approval_policy is not None:
+                        from approval import ApprovalError
+                        try:
+                            approved = approval_policy.consume(operation_key, owner, client_id, 'create',
+                                                               target_ref, expected_version, request=request)
+                        except ApprovalError:
+                            raise MegaDenied('MEGA_TICKET_DENIED') from None
+                        ledger.reserve_approved(operation_key, approved['operation_key'],
+                                                parent['h'], name,
+                                                dict(base_receipt('pending'), request_digest=''))
+                    else:
+                        ledger.consume(operation_key)
+                    if approval_policy is not None and not approval_policy.member(owner, client_id, 'create'):
+                        ledger.save(operation_key, dict(base_receipt('denied'), request_digest=''))
+                        raise MegaDenied('MEGA_CLIENT_NOT_ALLOWED')
                     stage = 'upload'
                     share_handle, share_key = folder.share()
                     node = session.upload(parent['h'], share_handle, share_key, name, data)
@@ -307,6 +360,10 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
                     created = folder.tree().get(node.get('h'))
                     if created is None or created['p'] != parent['h'] or created['name'] != name:
                         raise MegaDenied('MEGA_READBACK_NOT_IN_FOLDER')
+                    if approval_policy is not None:
+                        readback_size, readback_sha, _ = folder.read(created)
+                        if readback_size != len(data) or readback_sha != hashlib.sha256(data).hexdigest():
+                            raise MegaDenied('MEGA_READBACK_DIGEST_MISMATCH')
                 except Exception as exc:
                     code = str(exc) if isinstance(exc, MegaDenied) else 'MEGA_INTERNAL_' + type(exc).__name__
                     # Fixed codes only: never credentials, links, keys or MEGA URLs.
@@ -338,14 +395,15 @@ def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factor
         return OriginalLibraryWriteScope(
             owner=owner, client_id=client_id, source=MEGA_SOURCE, operation=operation,
             target_ref=target_ref, expected_version=expected_version,
-            operation_key=operation_key, expires_at=now() + 90, is_current=lambda: True,
+            operation_key=operation_key, expires_at=now() + 90,
+            is_current=lambda: approval_policy is None or bool(approval_policy.member(owner, client_id, 'create')),
             commit_original=commit_original, receipt_original=receipt_original)
 
     return resolve_writer
 
 
 def writer_from_env(env, folder, owner_of_deployment, post_json, post_bytes=_post_bytes,
-                    client_factory=None):
+                    client_factory=None, approval_policy=None):
     if env.get('XJ_MEGA_KB_WRITE_ENABLED') != 'true':
         return None
     email, password = env.get('XJ_MEGA_EMAIL', ''), env.get('XJ_MEGA_PASSWORD', '')
@@ -358,4 +416,6 @@ def writer_from_env(env, folder, owner_of_deployment, post_json, post_bytes=_pos
         return MegaSession(email, password, post_json, post_bytes)
 
     return make_mega_writer(folder, owner_of_deployment, session_factory,
-                            lambda owner: TicketLedger(owner, client_factory))
+                            lambda owner: TicketLedger(owner, client_factory,
+                                                       scoped_approval=approval_policy is not None),
+                            approval_policy=approval_policy)

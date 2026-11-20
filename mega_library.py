@@ -272,12 +272,16 @@ def entry_of(node):
     return entry
 
 
-def make_mega_reader(folder, owner_of_deployment):
+def make_mega_reader(folder, owner_of_deployment, *, approval_policy=None):
     """resolve_reader for OriginalLibraryHostBinding(source=MEGA_SOURCE)."""
 
     async def resolve_reader(ctx, owner, client_id, operation, ref):
-        if owner != owner_of_deployment():
-            raise MegaDenied('MEGA_NOT_OWNER')
+        def is_current():
+            return owner == owner_of_deployment() and (
+                approval_policy is None or bool(approval_policy.member(owner, client_id, 'read')))
+
+        if not is_current():
+            raise MegaDenied('MEGA_READ_DENIED')
         import asyncio
         revision = await asyncio.to_thread(folder.revision)
 
@@ -315,14 +319,14 @@ def make_mega_reader(folder, owner_of_deployment):
                     'mime_type': mime, 'preview_kind': kind, 'preview': preview}
 
         return OriginalLibraryScope(owner=owner, client_id=client_id, revision=revision,
-                                    is_current=lambda: True, search_original=search,
+                                    is_current=is_current, search_original=search,
                                     read_original=read, source=MEGA_SOURCE)
 
     return resolve_reader
 
 
 def binding_from_env(env=None, owner_of_deployment=None, post_bytes=None,
-                     client_factory=None, **folder_kw):
+                     client_factory=None, approval_policy=None, **folder_kw):
     """OriginalLibraryHostBinding for MEGA, or None when disabled/misconfigured."""
     env = os.environ if env is None else env
     if env.get('XJ_MEGA_KB_ENABLED') != 'true':
@@ -341,7 +345,8 @@ def binding_from_env(env=None, owner_of_deployment=None, post_bytes=None,
     extra = {k: v for k, v in (('post_bytes', post_bytes), ('client_factory', client_factory))
              if v is not None}
     writer = writer_from_env(env, folder, owner_of_deployment,
-                             folder_kw.get('post_json', _post_json), **extra)
+                             folder_kw.get('post_json', _post_json), approval_policy=approval_policy, **extra)
     return OriginalLibraryHostBinding(
         source=MEGA_SOURCE, generation=folder.revision_seed, is_current=lambda: True,
-        resolve_reader=make_mega_reader(folder, owner_of_deployment), resolve_writer=writer)
+        resolve_reader=make_mega_reader(folder, owner_of_deployment, approval_policy=approval_policy),
+        resolve_writer=writer)

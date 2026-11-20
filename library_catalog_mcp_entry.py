@@ -9,7 +9,8 @@ from mcp.types import ToolAnnotations
 from library_catalog_gate import LibraryReadDenied, authorized_read, authorized_search
 
 
-async def mount_library_catalog_tools(server, *, resolve_scope, principal, client, oauth_meta=None):
+async def mount_library_catalog_tools(server, *, resolve_scope, principal, client, oauth_meta=None,
+                                      mega_approval=None):
     if not callable(resolve_scope) or not callable(principal) or not callable(client):
         raise ValueError("ORIGINAL_LIBRARY_READER_REQUIRED")
     tool_names = {tool.name for tool in await server.list_tools()}
@@ -29,22 +30,33 @@ async def mount_library_catalog_tools(server, *, resolve_scope, principal, clien
         never an all-files grant or raw ChatGPT file ID.
         """
         try:
+            if mega_approval is not None and not mega_approval.member(principal(), client(), "read"):
+                raise LibraryReadDenied()
             return await authorized_search(resolve_scope, principal, client, ctx,
                                            query, cursor, limit)
         except LibraryReadDenied:
             from mcp.server.fastmcp.exceptions import ToolError
             raise ToolError("ORIGINAL_LIBRARY_READ_UNAVAILABLE") from None
 
-    @server.tool(name="library_item_read", meta=oauth_meta,
-                 annotations=safe_read)
+    read_annotation = safe_read if mega_approval is None else ToolAnnotations(
+        readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False)
+    @server.tool(name="library_item_read", meta=oauth_meta, annotations=read_annotation)
     async def library_item_read(ref: str, expected_version: str,
-                                ctx: Context) -> dict:
+                                ctx: Context, approval_ticket: str = "") -> dict:
         """Read a bounded version-pinned view of ONE already-authorized file.
 
         Supports typed previews only; source files and image bytes are never
         copied to the public MCP service through this contract.
         """
         try:
+            if mega_approval is not None:
+                import asyncio
+                from approval import ApprovalError
+                try:
+                    await asyncio.to_thread(mega_approval.consume, approval_ticket, principal(), client(),
+                                            "read", ref, expected_version)
+                except ApprovalError:
+                    raise LibraryReadDenied() from None
             return await authorized_read(resolve_scope, principal, client, ctx,
                                          ref, expected_version)
         except LibraryReadDenied:

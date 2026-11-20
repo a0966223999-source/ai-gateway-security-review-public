@@ -17,7 +17,7 @@ Signed text (prefix differs from the Launcher's, so neither accepts the other):
   xj-ai-approval v1
   ticket=<32 hex>
   requester=<member name, display only>
-  scope=<code_pr|deploy|hub_write|other>
+  scope=<code_pr|deploy|hub_write|other|knowledge>
   title=<one line, <=80 chars>
   plan_sha256=<64 hex of the UTF-8 plan>
   expires_unix=<10 digits>
@@ -47,14 +47,14 @@ MAX_PER_DAY = 20
 MAX_PLAN = 4000
 MAX_TITLE = 80
 MAX_RESULT = 2000
-SCOPES = ('code_pr', 'deploy', 'hub_write', 'other')
+SCOPES = ('code_pr', 'deploy', 'hub_write', 'other', 'knowledge')
 NAMESPACE = 'xj:approval:v1'
 SPEAKER = 'Approval'
 FLAG_UP, FLAG_UV = 0x01, 0x04
 TICKET = re.compile(r'^[0-9a-f]{32}$')
 TEXT_RE = re.compile(
     r'^xj-ai-approval v1\nticket=([0-9a-f]{32})\nrequester=([^\n]{1,40})\n'
-    r'scope=(code_pr|deploy|hub_write|other)\ntitle=([^\n]{1,80})\n'
+    r'scope=(code_pr|deploy|hub_write|other|knowledge)\ntitle=([^\n]{1,80})\n'
     r'plan_sha256=([0-9a-f]{64})\nexpires_unix=([0-9]{10})\n$')
 _CONTROL = re.compile(r'[\x00-\x1f\x7f\u2028\u2029]+')
 clock = time.time  # replaceable in tests
@@ -174,6 +174,17 @@ CLAIM = """
 if redis.call('EXISTS', KEYS[1]) == 0 then return 'missing' end
 local st = redis.call('HGET', KEYS[1], 'state')
 if st ~= 'approved' then return st end
+local scope = redis.call('HGET', KEYS[1], 'scope')
+if scope == 'knowledge' then
+  if ARGV[4] == '' or ARGV[4] ~= redis.call('HGET', KEYS[1], 'plan_sha256') then
+    return 'knowledge_claim_denied'
+  end
+  if tonumber(redis.call('HGET', KEYS[1], 'expires')) <= tonumber(ARGV[1]) then
+    return 'claim_window_closed'
+  end
+elseif ARGV[4] ~= '' then
+  return 'knowledge_claim_denied'
+end
 if tonumber(redis.call('HGET', KEYS[1], 'approved_at')) + tonumber(ARGV[2]) < tonumber(ARGV[1]) then return 'claim_window_closed' end
 redis.call('HSET', KEYS[1], 'state', 'claimed', 'claimed_at', ARGV[1], 'claimed_by', ARGV[3])
 return 'claimed_now'
@@ -240,9 +251,9 @@ class ApprovalStore:
             self._run(lambda c: c.zrem(self.prefix + ':pending', ticket))
         return result
 
-    def claim(self, ticket, executor):
+    def claim(self, ticket, executor, *, knowledge_plan_sha256=''):
         return self._run(lambda c: c.eval(CLAIM, 1, self._key(ticket), int(self.now()),
-                                          TTL_APPROVED_CLAIM, executor))
+                                          TTL_APPROVED_CLAIM, executor, knowledge_plan_sha256))
 
     def report(self, ticket, executor, result):
         def go(client):
@@ -282,7 +293,8 @@ def public_view(data):
 
 
 def install_approval(app, mcp, principal, oauth_meta, *, owner_from_env, config=None,
-                     client_factory=None, notify=default_notify, chat_config=None):
+                     client_factory=None, notify=default_notify, chat_config=None,
+                     verified_client=None, authorize_knowledge=None):
     """Register approval tools and HTTP routes when enabled. Returns tool names."""
     config = config or ApprovalConfig()
     if not config.enabled:
@@ -315,7 +327,8 @@ def install_approval(app, mcp, principal, oauth_meta, *, owner_from_env, config=
                                room: str = 'lobby') -> dict:
         """Ask the Owner to approve an action before doing it. The Owner approves on the
         phone with a passkey; nothing is approved by chat text. scope: code_pr, deploy,
-        hub_write or other. plan: exactly what you will do (<=4000 chars). Then wait for
+        hub_write, other, or knowledge if enabled by the trusted knowledge provider.
+        plan: exactly what you will do (<=4000 chars). Then wait for
         approval_status(ticket) == approved and call approval_claim(ticket) once."""
         owner = principal()
         requester = member(requester)
@@ -326,6 +339,18 @@ def install_approval(app, mcp, principal, oauth_meta, *, owner_from_env, config=
             raise ApprovalError('invalid_plan_length')
         if not isinstance(room, str) or not ROOM.fullmatch(room):
             raise ApprovalError('invalid_room')
+        if scope == 'knowledge':
+            from knowledge_approval import bound_plan, client_fingerprint, parse_plan
+            if not callable(verified_client) or not callable(authorize_knowledge):
+                raise ApprovalError('knowledge_not_bound')
+            if room != 'lobby':
+                raise ApprovalError('invalid_room')
+            client_id = verified_client()
+            operation = parse_plan(plan)
+            authorized_member = await asyncio.to_thread(authorize_knowledge, owner, client_id, operation)
+            if authorized_member != requester:
+                raise ApprovalError('knowledge_scope_denied')
+            plan = bound_plan(plan, client_fingerprint(owner, client_id))
         store = ApprovalStore(owner, client_factory)
         made = await asyncio.to_thread(store.create, requester, scope, title, plan.strip(), room)
         link = open_link(config, made['ticket'])
@@ -353,6 +378,11 @@ def install_approval(app, mcp, principal, oauth_meta, *, owner_from_env, config=
         """State of a ticket: pending, expired, approved, claimed or done."""
         owner = principal()
         data = await asyncio.to_thread(ApprovalStore(owner, client_factory).get, ticket)
+        if data['scope'] == 'knowledge':
+            from knowledge_approval import client_fingerprint
+            if (not callable(verified_client) or json.loads(data['plan']).get('client_fingerprint')
+                    != client_fingerprint(owner, verified_client())):
+                raise ApprovalError('knowledge_status_denied')
         return {'ticket': ticket, **public_view(data)}
 
     @mcp.tool(meta=oauth_meta, annotations=annotation())
@@ -363,6 +393,8 @@ def install_approval(app, mcp, principal, oauth_meta, *, owner_from_env, config=
         executor = member(executor)
         store = ApprovalStore(owner, client_factory)
         data = await asyncio.to_thread(store.get, ticket)
+        if data['scope'] == 'knowledge':
+            raise ApprovalError('knowledge_requires_bound_executor')
         outcome = await asyncio.to_thread(store.claim, ticket, executor)
         if outcome != 'claimed_now':
             raise ApprovalError(f'not_claimable_{outcome}')
@@ -377,6 +409,8 @@ def install_approval(app, mcp, principal, oauth_meta, *, owner_from_env, config=
         result = (result or '').strip()[:MAX_RESULT] or '(no result)'
         store = ApprovalStore(owner, client_factory)
         data = await asyncio.to_thread(store.get, ticket)
+        if data['scope'] == 'knowledge':
+            raise ApprovalError('knowledge_requires_bound_executor')
         await asyncio.to_thread(store.report, ticket, executor, result)
         try:
             await post_system(owner, data['room'],
@@ -429,6 +463,13 @@ def install_approval(app, mcp, principal, oauth_meta, *, owner_from_env, config=
             return JSONResponse({'error': str(e) or 'rejected'}, status_code=400, headers=cors)
         except Exception:
             return JSONResponse({'error': 'unavailable'}, status_code=503, headers=cors)
+        if data['scope'] == 'knowledge':
+            try:
+                await post_system(owner, data['room'], (
+                    f'✅ 知識庫批准單 #{ticket[:8]} 已批准。請用原申請 AI 的身分執行核准操作。'))
+            except Exception:
+                pass
+            return JSONResponse({'approved': True, 'ticket': ticket}, headers=cors)
         try:
             await post_system(owner, data['room'], (
                 f'✅ 批准單 #{ticket[:8]} 祐已用指紋批准。@{data["requester"]} '
