@@ -94,7 +94,10 @@ elseif action=='send' then
     event_name=name,created_at=now,expires_at=m.expires_at,state='pending',attempts=0}
   end
  end
- return save({event_id=m.event_id,duplicate=false,expires_at=m.expires_at,sender_context=m.sender_context})
+ -- sequence and created_at are write metadata for the optional doorbell.
+ -- inbox.py removes them before the caller receipt; they are not a new authority field.
+ return save({event_id=m.event_id,duplicate=false,expires_at=m.expires_at,
+  sequence=m.sequence,created_at=m.created_at,sender_context=m.sender_context})
 elseif action=='list' then
  if not raw and req.cursor_epoch=='' then return result({items={},cursor='',has_more=false}) end
  if req.cursor_epoch~='' and req.cursor_epoch~=doc.epoch then return error('cursor_expired') end
