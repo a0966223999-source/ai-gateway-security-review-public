@@ -224,7 +224,7 @@ class ApprovalTests(unittest.TestCase):
         with self.assertRaises(ApprovalError):
             h.request()
         h.clock.t += approval.TTL_PENDING + 1  # pending expire, daily counter continues
-        for _ in range(approval.MAX_PER_DAY - approval.MAX_PENDING - 1):
+        for _ in range(approval.MAX_PER_DAY - approval.MAX_PENDING):  # refused 6th did not count
             h.request()
             h.clock.t += approval.TTL_PENDING + 1
         with self.assertRaises(ApprovalError):
