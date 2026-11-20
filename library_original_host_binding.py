@@ -9,11 +9,14 @@ import inspect
 import re
 from dataclasses import dataclass, replace
 
-from library_catalog_gate import OriginalLibraryScope, check_scope as check_read
+from library_catalog_gate import MEGA_SOURCE, OriginalLibraryScope, check_scope as check_read
 from library_write_gate import OriginalLibraryWriteScope, check_scope as check_write
 
 GENERATION = re.compile(r"[a-f0-9]{64}\Z")
 NATIVE_SOURCE = "chatgpt-library"
+# Owner ruling 2026-11-20 (approval ticket 05e93e8f): a second, separately
+# labeled read-only source backed by the Owner's MEGA "知識庫" folder export link.
+READ_SOURCES = frozenset((NATIVE_SOURCE, MEGA_SOURCE))
 
 
 class LibraryNativeBindingDenied(ValueError):
@@ -43,7 +46,8 @@ def make_original_library_resolvers(binding):
     if binding is None:
         return None, None
     if (type(binding) is not OriginalLibraryHostBinding
-            or binding.source != NATIVE_SOURCE
+            or binding.source not in READ_SOURCES
+            or (binding.source != NATIVE_SOURCE and binding.resolve_writer is not None)
             or not isinstance(binding.generation, str)
             or not GENERATION.fullmatch(binding.generation)
             or not callable(binding.is_current)
@@ -67,6 +71,8 @@ def make_original_library_resolvers(binding):
         try:
             scope = await binding.resolve_reader(ctx, owner, client_id, operation, ref)
             check_read(scope, owner, client_id)
+            if scope.source != binding.source:
+                denied()
             old = scope.is_current
             result = replace(scope, is_current=lambda: current() and old() is True)
             check_read(result, owner, client_id)
