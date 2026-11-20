@@ -360,13 +360,16 @@ def install_chat_tools(mcp, principal, oauth_meta, *, notify=None,
 
 
 def formal_notifier(mailbox, formal, mailbox_id, event_name):
-    """Build notify() on the ORIGINAL formal mailbox send path, unchanged."""
+    """Send the group-chat notice through the original formal mailbox."""
     async def notify(owner, operation_key, body):
         inbox = mailbox(mailbox_id).for_event(event_name)
         if inbox.owner != owner:
             raise ChatError('owner_changed')
-        receipt = await asyncio.to_thread(inbox.send, operation_key, body,
-                                          event_name=event_name)
+        notice = json.loads(body)
+        options = {'event_name': event_name}
+        if (notice.get('type'), notice.get('room'), notice.get('to')) == ('chat.mention', 'lobby', 'GPT'):
+            options['chat_mention'] = True
+        receipt = await asyncio.to_thread(inbox.send, operation_key, body, **options)
         try:
             receipt['deliveries'] = await formal.dispatch(inbox, receipt['event_id'])
         except Exception:

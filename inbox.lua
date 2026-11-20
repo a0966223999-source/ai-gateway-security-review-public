@@ -11,6 +11,17 @@ local function save(value)
  return result(value)
 end
 local function event_name(v) return v.event_name or 'inbox.message.created' end
+local formal_event = 'gateway.continuation.ready'
+local lobby_gpt_subscription = formal_event..':chat.mention:lobby:GPT'
+local function subscription_event(s)
+ local name=event_name(s)
+ if name==lobby_gpt_subscription then return formal_event end
+ return name
+end
+local function is_lobby_gpt_mention(value)
+ return type(value)=='table' and value.type=='chat.mention'
+  and value.room=='lobby' and value.target=='GPT'
+end
 local function active(s) return s and s.expires_at>now and s.access_until>now end
 local function count(t) local n=0 for _ in pairs(t) do n=n+1 end return n end
 -- Record deadlines are independent of the outer document's idle expiry.
@@ -23,13 +34,17 @@ if action=='subscription_status' then
  if req.event_name~='gateway.continuation.ready' then return error('formal_event_required') end
  local items={}
  for sid,s in pairs(doc.subscriptions) do
-  if event_name(s)=='gateway.continuation.ready' then
+  if subscription_event(s)==formal_event then
    if type(sid)~='string' or #sid~=68 or not string.match(sid,'^sub_[0-9a-f]+$')
       or type(s.expires_at)~='number' or type(s.access_until)~='number' then
     return error('subscription_metadata_invalid')
    end
-   table.insert(items,{id=sid,event_name='gateway.continuation.ready',
-    expires_at=s.expires_at,access_until=s.access_until,active=active(s) and true or false})
+   local item={id=sid,event_name=formal_event,expires_at=s.expires_at,
+    access_until=s.access_until,active=active(s) and true or false}
+   if event_name(s)==lobby_gpt_subscription then
+    item.filter={type='chat.mention',room='lobby',target='GPT'}
+   end
+   table.insert(items,item)
   end
  end
  table.sort(items,function(a,b) return a.id<b.id end)
@@ -41,6 +56,10 @@ elseif action=='send' then
  local name=req.event_name or 'inbox.message.created'
  if name~='inbox.message.created' and name~='gateway.continuation.ready' then return error('unknown_event') end
  local origin=req.sender_context
+ local chat_mention=req.chat_mention
+ if chat_mention~=nil and (name~=formal_event or origin~=nil or not is_lobby_gpt_mention(chat_mention)) then
+  return error('invalid_chat_mention_source')
+ end
  if origin~=nil then
   if name~='gateway.continuation.ready' or type(origin)~='table'
      or origin.schema~='caller-context-observation-v1'
@@ -66,10 +85,11 @@ elseif action=='send' then
  doc.seq=doc.seq+1
  m={event_name=name,event_id=req.event_id,digest=req.digest,operation_key=req.operation_key,message=req.message,
     sequence=doc.seq,created_at=now,expires_at=now+86400,state='available',version=0,
-    sender_context=origin}
+    sender_context=origin,chat_mention=chat_mention}
  doc.messages[m.event_id]=m
  for sid,s in pairs(doc.subscriptions) do
-  if active(s) and event_name(s)==name then
+  if active(s) and subscription_event(s)==name
+     and (event_name(s)~=lobby_gpt_subscription or is_lobby_gpt_mention(m.chat_mention)) then
    local did=m.event_id..':'..sid
    doc.deliveries[did]={delivery_id=did,event_id=m.event_id,subscription_id=sid,
     event_name=name,created_at=now,expires_at=m.expires_at,state='pending',attempts=0}
@@ -85,7 +105,8 @@ elseif action=='list' then
    local state=m.state
    if state=='claimed' and m.lease_until<=now then state='available' end
    table.insert(items,{event_id=m.event_id,operation_key=m.operation_key,message=m.message,
-    sequence=m.sequence,state=state,created_at=m.created_at,expires_at=m.expires_at,sender_context=m.sender_context})
+    sequence=m.sequence,state=state,created_at=m.created_at,expires_at=m.expires_at,
+    sender_context=m.sender_context,chat_mention=m.chat_mention})
   end
  end
  table.sort(items,function(a,b) return a.sequence<b.sequence end)
@@ -138,7 +159,7 @@ elseif action=='delivery_acquire' then
  if not d or d.expires_at<=now then return error('delivery_missing') end
  local s=doc.subscriptions[d.subscription_id]
  if not active(s) then return error('subscription_inactive') end
- if event_name(d)~=event_name(s) then return error('event_type_mismatch') end
+ if event_name(d)~=subscription_event(s) then return error('event_type_mismatch') end
  if d.state=='delivered' or d.state=='terminal' then return error('delivery_final') end
  if d.state=='sending' and d.lock_until>now then return error('delivery_busy') end
  d.state='sending';d.lock_until=now+20;d.lock=req.lock
