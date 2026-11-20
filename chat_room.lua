@@ -1,6 +1,6 @@
 -- Chat room append, atomic per room. No mailbox, Source or Work authority.
 -- KEYS[1]=seq KEYS[2]=log KEYS[3]=ai_streak
--- ARGV[1]=speaker kind ('human'|'ai') ARGV[2]=AI streak limit
+-- ARGV[1]=speaker kind ('human'|'ai'|'system'; system leaves the AI streak as is) ARGV[2]=AI streak limit
 -- ARGV[3]=max messages kept ARGV[4]=TTL seconds
 -- ARGV[5]=non-empty JSON object without seq, produced by chat_room.py
 local kind = ARGV[1]
@@ -19,7 +19,7 @@ redis.call('RPUSH', KEYS[2], encoded)
 redis.call('LTRIM', KEYS[2], -maxlen, -1)
 if kind == 'ai' then
   streak = redis.call('INCR', KEYS[3])
-else
+elseif kind == 'human' then
   redis.call('SET', KEYS[3], '0')
   streak = 0
 end

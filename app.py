@@ -113,6 +113,11 @@ from vercel_host import build_original_service as _xj_service
 from routes import install_internal_route as _xj_install
 _xj_install(app, service=_xj_service(approved_bootstrap=True))
 
+# AgentMail -> chat notice (default off; needs AGENTMAIL_WEBHOOK_SECRET).
+# Registered before the MCP mount at '/', which would otherwise shadow it.
+from mail_hook import install_mail_hook as _xj_mail_hook
+_xj_mail_hook(app)
+
 from mcp_bridge import install
 from summary_read_channel import make_summary_scope_resolver
 from library_original_host_binding import make_original_library_resolvers
