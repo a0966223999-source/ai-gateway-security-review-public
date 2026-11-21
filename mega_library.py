@@ -351,7 +351,8 @@ def make_mega_reader(folder, owner_of_deployment, *, policy=None):
 
 
 def binding_from_env(env=None, owner_of_deployment=None, post_bytes=None,
-                     client_factory=None, policy=None, **folder_kw):
+                     client_factory=None, policy=None, drive_post_form=None,
+                     drive_open=None, **folder_kw):
     """OriginalLibraryHostBinding for MEGA, or None when disabled/misconfigured."""
     env = os.environ if env is None else env
     if env.get('XJ_MEGA_KB_ENABLED') != 'true':
@@ -372,9 +373,20 @@ def binding_from_env(env=None, owner_of_deployment=None, post_bytes=None,
     if policy is None:
         from mega_policy import policy_from_env
         policy = policy_from_env(env, owner_of_deployment)
-    writer = writer_from_env(env, folder, owner_of_deployment,
-                             folder_kw.get('post_json', _post_json), policy=policy, **extra)
+    post_json = folder_kw.get('post_json', _post_json)
+    writer = writer_from_env(env, folder, owner_of_deployment, post_json, policy=policy, **extra)
+    # Drive import is a separate default-off flag. A bad Drive config must not
+    # take down the reader or the text writer.
+    drive = None
+    if writer is not None:
+        try:
+            from mega_drive_import import drive_import_from_env
+            drive = drive_import_from_env(
+                env, folder, owner_of_deployment, policy, post_json, post_bytes,
+                client_factory, drive_post_form, drive_open)
+        except Exception:
+            print('xj-mega-drive stage=config code=DRIVE_CONFIG_FAILED', flush=True)
     return OriginalLibraryHostBinding(
         source=MEGA_SOURCE, generation=folder.revision_seed, is_current=lambda: True,
         resolve_reader=make_mega_reader(folder, owner_of_deployment, policy=policy),
-        resolve_writer=writer)
+        resolve_writer=writer, drive_import=drive)
