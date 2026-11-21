@@ -21,7 +21,8 @@ Path rule. parent_ref must be a folder ref inside the exported 知識庫 tree
 MEGA formats (account session, v2 accounts):
   login    PBKDF2-HMAC-SHA512(password, salt, 100000) -> pw key | user hash;
            master key = AES-ECB(pw key)^-1 (k); session id = RSA(privk)^-1 (csid)
-  upload   AES-128-CTR content, chunk CBC-MACs -> 8-byte meta MAC
+  upload   AES-128-CTR content, chunk CBC-MACs -> 8-byte meta MAC;
+           posted in 1 MiB pieces to {url}/{offset} (last response is the token)
   node     key = [aes ^ (nonce|mac), nonce|mac] encrypted with the master key,
            plus a "cr" share-key entry so the folder link can decrypt it too
 Errors are fixed codes; no email, password, link, key or MEGA URL is echoed.
@@ -47,6 +48,7 @@ ROOT_REF = 'kb:root'  # the 知識庫 folder itself, so tickets never carry its 
 PLAN_LINE = re.compile(r'^mega_write parent=(kb:root|m:[A-Za-z0-9_-]{8}) name=([^\n/\\]{1,160})$', re.M)
 CLAIM_WINDOW = 24 * 3600
 MAX_WRITE_BYTES = 512 * 1024
+UPLOAD_CHUNK = 0x100000  # 1 MiB; a 5,973,238-byte zip is six posts
 NAMESPACE = 'xj:mega-write:v1'
 # KEYS: operation, destination, receipt, daily counter.
 # ARGV: marker, receipt json, ttl, daily limit, daily ttl.
@@ -133,10 +135,25 @@ def read_mpis(raw, count):
     return out
 
 
+def upload_ranges(size, chunk=UPLOAD_CHUNK):
+    """Byte ranges for one MEGA upload. Files up to 1 MiB stay a single POST at /0."""
+    if size <= chunk:
+        return [(0, size)]
+    return [(start, min(start + chunk, size)) for start in range(0, size, chunk)]
+
+
+def upload_timeout(nbytes):
+    """Socket timeout for one POST. 512 KiB text keeps 30s; each 1 MiB chunk gets 25s
+    so six chunks of a ~6 MiB file still finish inside the 180s function limit."""
+    if nbytes <= 512 * 1024:
+        return 30
+    return 25
+
+
 def _post_bytes(url, data):
     req = urllib.request.Request(url, data=data, method='POST',
                                  headers={'Content-Type': 'application/octet-stream'})
-    with urllib.request.urlopen(req, timeout=30) as r:
+    with urllib.request.urlopen(req, timeout=upload_timeout(len(data))) as r:
         return r.read().decode('ascii', 'replace')
 
 
@@ -218,12 +235,13 @@ class MegaSession:
         url = info.get('p') if isinstance(info, dict) else None
         if not isinstance(url, str) or not url.startswith('https://'):
             raise MegaDenied('MEGA_UPLOAD_UNAVAILABLE')
+        encrypted = ctr_encrypt(aes, nonce, data)
         try:
-            token = self._post_bytes(url + '/0', ctr_encrypt(aes, nonce, data)).strip()
+            token = self._put_chunks(url, encrypted)
+        except MegaDenied:
+            raise
         except Exception:
             raise MegaDenied('MEGA_UPLOAD_FAILED') from None
-        if not token or token.lstrip('-').isdigit():
-            raise MegaDenied('MEGA_UPLOAD_FAILED')
         tail = nonce + meta_mac(aes, nonce, data)
         node_key = bytes(a ^ b for a, b in zip(aes, tail)) + tail
         new_node = {'h': token, 't': 0, 'a': encrypt_attrs(aes, {'n': name}),
@@ -242,6 +260,21 @@ class MegaSession:
         if len(made) != 1:
             raise MegaDenied('MEGA_PUT_FAILED')
         return made[0]
+
+    def _put_chunks(self, url, blob):
+        """POST ciphertext to {url}/{offset}. Only the chunk that finishes the file
+        carries the completion token; a numeric body is a progress ack."""
+        token, total = '', len(blob)
+        for start, end in upload_ranges(total):
+            body = self._post_bytes(url + '/' + str(start), blob[start:end])
+            text = body.strip() if isinstance(body, str) else ''
+            if text.startswith('-') or (end != total and text and not text.isdigit()):
+                raise MegaDenied('MEGA_UPLOAD_FAILED')
+            if end == total:
+                token = text
+        if not token or token.lstrip('-').isdigit():
+            raise MegaDenied('MEGA_UPLOAD_FAILED')
+        return token
 
 
 class TicketLedger:
@@ -303,18 +336,58 @@ class ClientLedger(TicketLedger):
         self.base = NAMESPACE + ':clients:' + tag
         self.prefix = self.base + ':c:' + hashlib.sha256(client_id.encode()).hexdigest()[:32]
 
-    def reserve(self, operation_key, parent_handle, name, receipt, daily_limit):
-        destination = self.base + ':dest:' + hashlib.sha256(
+    def destination_key(self, parent_handle, name):
+        return self.base + ':dest:' + hashlib.sha256(
             (parent_handle + '\0' + name).encode()).hexdigest()
+
+    def reserve(self, operation_key, parent_handle, name, receipt, daily_limit):
         day = time.strftime('%Y%m%d', time.gmtime(self.now()))
         result = self._run(lambda c: c.eval(
-            RESERVE_CLIENT, 4, self.prefix + ':op:' + operation_key, destination,
+            RESERVE_CLIENT, 4, self.prefix + ':op:' + operation_key,
+            self.destination_key(parent_handle, name),
             self.prefix + ':' + operation_key, self.prefix + ':day:' + day,
             operation_key, json.dumps(receipt), 30 * 86400, daily_limit, 2 * 86400))
         if result == 2:
             raise MegaDenied('MEGA_DAILY_LIMIT')
         if result != 1:
             raise MegaDenied('MEGA_OPERATION_OR_NAME_ALREADY_USED')
+
+    def release_destination(self, parent_handle, name):
+        """Free a name/version slot when nothing was uploaded. The operation key stays used."""
+        self._run(lambda c: c.delete(self.destination_key(parent_handle, name)))
+
+    @staticmethod
+    def match(stored, receipt):
+        """Committed receipt for this exact digest, or a fixed rejection code.
+
+        Pending is not retried. A different digest never resumes the old write.
+        """
+        digest = receipt.get('request_digest') if isinstance(receipt, dict) else None
+        if (type(stored) is not dict or not isinstance(digest, str)
+                or stored.get('owner') != receipt.get('owner')
+                or stored.get('client_id') != receipt.get('client_id')
+                or stored.get('operation_key') != receipt.get('operation_key')):
+            raise MegaDenied('MEGA_OPERATION_OR_NAME_ALREADY_USED')
+        if stored.get('request_digest') != digest:
+            raise MegaDenied('MEGA_OPERATION_DIGEST_MISMATCH')
+        if stored.get('status') == 'committed':
+            return stored
+        if stored.get('status') == 'pending':
+            raise MegaDenied('MEGA_OPERATION_PENDING')
+        raise MegaDenied('MEGA_OPERATION_OR_NAME_ALREADY_USED')
+
+    def claim(self, operation_key, parent_handle, name, receipt, daily_limit):
+        """Reserve, or return the committed receipt when a racer stored the same digest."""
+        try:
+            self.reserve(operation_key, parent_handle, name, receipt, daily_limit)
+        except MegaDenied as exc:
+            if str(exc) != 'MEGA_OPERATION_OR_NAME_ALREADY_USED':
+                raise
+            stored = self.load(operation_key)
+            if type(stored) is not dict:
+                raise MegaDenied('MEGA_OPERATION_OR_NAME_ALREADY_USED') from None
+            return ClientLedger.match(stored, receipt)
+        return None
 
 
 def make_mega_writer(folder, owner_of_deployment, session_factory, ledger_factory,

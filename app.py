@@ -128,7 +128,9 @@ from library_original_host_binding import make_original_library_resolvers
 from mega_library import binding_from_env as _mega_binding
 _library_binding = getattr(app.state, "original_library_host_binding", None) or _mega_binding()
 _library_read, _library_write = make_original_library_resolvers(_library_binding)
+_drive_import = None if _library_binding is None else _library_binding.drive_import
 _mcp = install(app, write_event, read_event, SyntheticEvent,
     summary_memory_scope_resolver=make_summary_scope_resolver(),
     library_catalog_scope_resolver=_library_read,
-    library_write_scope_resolver=_library_write)
+    library_write_scope_resolver=_library_write,
+    library_drive_import=_drive_import)

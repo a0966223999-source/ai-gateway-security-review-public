@@ -320,16 +320,128 @@ class WriterTests(unittest.TestCase):
         self.mount()
         self.assertIsNone(self.write)
 
+    def test_small_text_upload_is_still_one_post(self):
+        calls = []
+        original = self.fake.post_bytes
+
+        def wrap(url, data):
+            calls.append(url)
+            return original(url, data)
+
+        self.fake.post_bytes = wrap
+        self.mount()
+        self.create(self.ticket())
+        self.assertEqual(calls, ['https://ul.example/up1/0'])
+
+    def _session(self, post_bytes):
+        self.fake.post_bytes = post_bytes
+        return mega_writer.MegaSession(EMAIL, PASSWORD, self.fake.post_json, post_bytes)
+
+    def test_six_megabyte_upload_is_chunked_and_readable(self):
+        payload = (b'mega-drive-chunk\n' * (5_973_238 // 16 + 1))[:5_973_238]
+        self.assertEqual(len(payload), 5_973_238)
+        parts, posts = {}, []
+
+        def post_bytes(url, data):
+            self.assertTrue(url.startswith('https://ul.example/up1/'))
+            off = int(url.rsplit('/', 1)[1])
+            posts.append(off)
+            parts[off] = data
+            if off + len(data) != len(payload):
+                return ''
+            blob = b''.join(parts[i] for i in sorted(parts))
+            self.assertEqual(len(blob), len(payload))
+            token = 'TOKCHUNK1'
+            self.fake.uploads[token] = blob
+            return token
+
+        node = self._session(post_bytes).upload(
+            self.fake.folder_handle, self.fake.folder_handle, self.fake.folder_key,
+            'cards.zip', payload)
+        self.assertEqual(posts, [start for start, _end in mega_writer.upload_ranges(len(payload))])
+        folder = mega_library.MegaFolder(self.fake.link, post_json=self.fake.post_json,
+                                         get_stream=self.fake.get_stream)
+        size, sha, _head = folder.read(folder.tree()[node['h']])
+        self.assertEqual(size, len(payload))
+        self.assertEqual(sha, hashlib.sha256(payload).hexdigest())
+        self.assertEqual(len(self.fake.puts), 1)
+
+    def test_chunk_failure_does_not_put_the_node(self):
+        payload = b'x' * (mega_writer.UPLOAD_CHUNK + 10)
+
+        def post_bytes(url, data):
+            if int(url.rsplit('/', 1)[1]):
+                raise OSError('reset')
+            return ''
+
+        with self.assertRaises(mega_library.MegaDenied) as ctx:
+            self._session(post_bytes).upload(
+                self.fake.folder_handle, self.fake.folder_handle, self.fake.folder_key,
+                'cards.zip', payload)
+        self.assertEqual(str(ctx.exception), 'MEGA_UPLOAD_FAILED')
+        self.assertEqual(self.fake.puts, [])
+
+    def test_early_completion_token_is_rejected(self):
+        payload = b'x' * (mega_writer.UPLOAD_CHUNK + 8)
+
+        def post_bytes(url, data):
+            return 'TOOEARLY'
+
+        with self.assertRaises(mega_library.MegaDenied) as ctx:
+            self._session(post_bytes).upload(
+                self.fake.folder_handle, self.fake.folder_handle, self.fake.folder_key,
+                'cards.zip', payload)
+        self.assertEqual(str(ctx.exception), 'MEGA_UPLOAD_FAILED')
+        self.assertEqual(self.fake.puts, [])
+
 
 class MacTests(unittest.TestCase):
     def test_chunk_bounds(self):
         self.assertEqual(mega_writer.chunk_bounds(10), [(0, 10)])
         self.assertEqual(mega_writer.chunk_bounds(0x20000 + 5), [(0, 0x20000), (0x20000, 0x20005)])
 
+    def test_upload_ranges_for_the_six_megabyte_zip(self):
+        size = 5_973_238
+        ranges = mega_writer.upload_ranges(size)
+        self.assertEqual(len(ranges), 6)
+        self.assertEqual(ranges[0], (0, mega_writer.UPLOAD_CHUNK))
+        self.assertEqual(ranges[-1], (5 * mega_writer.UPLOAD_CHUNK, size))
+        self.assertEqual(mega_writer.upload_ranges(0), [(0, 0)])
+        self.assertEqual(mega_writer.upload_ranges(mega_writer.UPLOAD_CHUNK),
+                         [(0, mega_writer.UPLOAD_CHUNK)])
+
+    def test_upload_timeout_stays_30s_for_text_and_25s_per_binary_chunk(self):
+        self.assertEqual(mega_writer.upload_timeout(512 * 1024), 30)
+        self.assertEqual(mega_writer.upload_timeout(mega_writer.UPLOAD_CHUNK), 25)
+
     def test_meta_mac_is_8_bytes_and_deterministic(self):
         k, n = b'k' * 16, b'n' * 8
         self.assertEqual(len(mega_writer.meta_mac(k, n, b'abc')), 8)
         self.assertEqual(mega_writer.meta_mac(k, n, b'abc'), mega_writer.meta_mac(k, n, b'abc'))
+
+    def test_post_bytes_timeout_follows_chunk_size(self):
+        from unittest.mock import patch
+        seen = {}
+
+        class Response:
+            def read(self):
+                return b'TOK'
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+
+        def urlopen(req, timeout=0):
+            seen['timeout'] = timeout
+            seen['n'] = len(req.data)
+            return Response()
+
+        with patch('mega_writer.urllib.request.urlopen', urlopen):
+            self.assertEqual(mega_writer._post_bytes('https://ul.example/x/0', b'a' * 32), 'TOK')
+            self.assertEqual(seen['timeout'], 30)
+            mega_writer._post_bytes('https://ul.example/x/0', b'a' * mega_writer.UPLOAD_CHUNK)
+            self.assertEqual(seen['timeout'], 25)
+            self.assertEqual(seen['n'], mega_writer.UPLOAD_CHUNK)
 
 
 if __name__ == '__main__':

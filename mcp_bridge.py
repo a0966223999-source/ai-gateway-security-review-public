@@ -25,7 +25,8 @@ from cycle_envelope import CycleAwareEventCatalog
 def install(api_app, write_event, read_event, event_model, *, batch_scope_resolver=None,
             agent_management_resolver=None, summary_memory_scope_resolver=None,
             library_catalog_scope_resolver=None,
-            library_write_scope_resolver=None):
+            library_write_scope_resolver=None,
+            library_drive_import=None):
     # Only trusted startup can supply the original batch authority. Environment
     # flags, mailbox payloads and model-provided IDs cannot create this capability.
     if batch_scope_resolver is not None and not callable(batch_scope_resolver):
@@ -209,7 +210,7 @@ def install(api_app, write_event, read_event, event_model, *, batch_scope_resolv
                 await mount_library_write_tools(
                     mcp, resolve_scope=library_write_scope_resolver,
                     principal=principal, client=verified_library_client,
-                    oauth_meta=oauth_meta,
+                    oauth_meta=oauth_meta, drive_import=library_drive_import,
                 )
                 library_write_mounted = True
             async with mcp.session_manager.run():

@@ -42,6 +42,8 @@ class OriginalLibraryHostBinding:
     is_current: object
     resolve_reader: object
     resolve_writer: object | None = None
+    # MEGA←Drive importer. Default off, and never implied by the writer itself.
+    drive_import: object | None = None
 
 
 def make_original_library_resolvers(binding):

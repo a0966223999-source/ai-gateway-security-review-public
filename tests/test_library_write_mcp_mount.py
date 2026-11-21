@@ -71,7 +71,7 @@ class LibraryWriteMountTests(unittest.TestCase):
             expires_at=time.time() + 60, is_current=lambda: self.current,
             commit_original=commit, receipt_original=receipt)
 
-    def run_client(self, reader, writer, check):
+    def run_client(self, reader, writer, check, drive_import=None):
         env = {
             "VERCEL_URL": "fixture.vercel.app",
             "XJ_MCP_PUBLIC_HOST": "fixture.vercel.app",
@@ -84,7 +84,8 @@ class LibraryWriteMountTests(unittest.TestCase):
             mcp_bridge.install(
                 app, lambda *a: None, lambda *a: None, dict,
                 library_catalog_scope_resolver=reader,
-                library_write_scope_resolver=writer)
+                library_write_scope_resolver=writer,
+                library_drive_import=drive_import)
             with TestClient(app, base_url="https://fixture.vercel.app") as client:
                 def call(method, params):
                     response = client.post(
@@ -120,6 +121,8 @@ class LibraryWriteMountTests(unittest.TestCase):
             self.assertFalse(records["library_item_create"]["annotations"]["readOnlyHint"])
             self.assertTrue(records["library_item_update"]["annotations"]["destructiveHint"])
             self.assertTrue(records["library_write_status"]["annotations"]["readOnlyHint"])
+            self.assertNotIn("library_item_import_from_drive", records)
+            self.assertNotIn("library_item_update_from_drive", records)
             response = call("tools/call", {"name": "library_item_update",
                 "arguments": {"ref": "f_007", "expected_version": "v3",
                               "mime_type": "application/json",
@@ -158,6 +161,61 @@ class LibraryWriteMountTests(unittest.TestCase):
             self.assertFalse(self.writes)
             self.assertNotIn("f_007", json.dumps(response))
         self.run_client(self.reader, self.writer, check)
+
+    def test_drive_tools_mount_only_with_an_importer(self):
+        from mega_library import MegaDenied
+
+        class Importer:
+            def __init__(self):
+                self.calls = []
+                self.fail = None
+
+            async def import_file(self, ctx, owner, client_id, parent_ref, name,
+                                  drive_file_id, expected_sha256, expected_size, operation_key):
+                self.calls.append(("import", owner, client_id, drive_file_id, operation_key))
+                if self.fail:
+                    raise MegaDenied(self.fail)
+                return {"status": "committed", "ref": "m:NewNode1",
+                        "operation_key": operation_key}
+
+            async def update_file(self, ctx, owner, client_id, target_ref, expected_version,
+                                  drive_file_id, expected_sha256, expected_size, operation_key):
+                self.calls.append(("update", target_ref, expected_version, operation_key))
+                return {"status": "committed", "ref": "m:NewNode2",
+                        "operation_key": operation_key}
+
+        importer = Importer()
+
+        def check(call):
+            records = {t["name"]: t for t in call("tools/list", {})["result"]["tools"]}
+            self.assertTrue(records["library_item_import_from_drive"]["annotations"]["idempotentHint"])
+            self.assertFalse(records["library_item_import_from_drive"]["annotations"]["destructiveHint"])
+            self.assertTrue(records["library_item_update_from_drive"]["annotations"]["destructiveHint"])
+            self.assertTrue(records["library_item_update_from_drive"]["annotations"]["openWorldHint"])
+            response = call("tools/call", {"name": "library_item_import_from_drive",
+                "arguments": {"parent_ref": "kb:root", "name": "cards.zip",
+                              "drive_file_id": "DriveFileZZ1", "expected_sha256": "ab" * 32,
+                              "expected_size": 12, "operation_key": "op-drive"}})["result"]
+            self.assertFalse(response.get("isError", False), response)
+            self.assertNotIn("DriveFileZZ1", json.dumps(response))
+            self.assertEqual(importer.calls[0][1], OWNER)
+            self.assertEqual(importer.calls[0][2], CLIENT)
+            importer.fail = "DRIVE_PARENT_NOT_ALLOWED"
+            denied = call("tools/call", {"name": "library_item_import_from_drive",
+                "arguments": {"parent_ref": "kb:root", "name": "cards.zip",
+                              "drive_file_id": "DriveFileZZ1", "expected_sha256": "ab" * 32,
+                              "expected_size": 12, "operation_key": "op-denied"}})["result"]
+            self.assertTrue(denied.get("isError", False), denied)
+            body = json.dumps(denied)
+            self.assertIn("DRIVE_PARENT_NOT_ALLOWED", body)
+            self.assertNotIn("DriveFileZZ1", body)
+            updated = call("tools/call", {"name": "library_item_update_from_drive",
+                "arguments": {"target_ref": "m:ZipFile1", "expected_version": "v:1:9",
+                              "drive_file_id": "DriveFileZZ1", "expected_sha256": "ab" * 32,
+                              "expected_size": 12, "operation_key": "op-update"}})["result"]
+            self.assertFalse(updated.get("isError", False), updated)
+            self.assertEqual(importer.calls[-1][0], "update")
+        self.run_client(self.reader, self.writer, check, importer)
 
 
 if __name__ == "__main__":
